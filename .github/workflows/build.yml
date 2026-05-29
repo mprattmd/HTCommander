@@ -1,0 +1,40 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, crossplatform-port ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cross-platform:
+    name: Cross-platform solution (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Restore
+        run: dotnet restore HTCommander.CrossPlatform.sln
+      - name: Build
+        run: dotnet build HTCommander.CrossPlatform.sln -c Release --no-restore
+
+  winforms:
+    name: WinForms app (windows-latest)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      # Build only the main WinForms project (HTCommander.sln also contains a
+      # .vdproj installer project that cannot be built with the dotnet CLI).
+      - name: Restore
+        run: dotnet restore src/HTCommander.csproj
+      - name: Build
+        run: dotnet build src/HTCommander.csproj -c Release --no-restore
