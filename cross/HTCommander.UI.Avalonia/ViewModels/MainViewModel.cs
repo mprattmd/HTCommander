@@ -47,6 +47,7 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<RadioDeviceInfo> Radios { get; } = new();
     public ObservableCollection<string> Log { get; } = new();
     public ObservableCollection<RadioChannelSummary> Channels { get; } = new();
+    public ObservableCollection<ReceivedPacketSummary> Packets { get; } = new();
 
     /// <summary>Settings sub-view-model (bound by the Settings tab).</summary>
     public SettingsViewModel Settings { get; }
@@ -63,6 +64,7 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "BatteryAsPercentage", (_, _, data) => { if (data is int p) BatteryPercent = p; });
         broker.Subscribe(0, "DeviceInfo", (_, _, data) => { if (data is RadioDeviceSummary d) ApplyDeviceInfo(d); });
         broker.Subscribe(0, "Channel", (_, _, data) => { if (data is RadioChannelSummary c) ApplyChannel(c); });
+        broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
 
         Refresh();
     }
@@ -159,6 +161,7 @@ public sealed class MainViewModel : ViewModelBase
         var radio = SelectedRadio!;
         FrameCount = 0;
         Channels.Clear();
+        Packets.Clear();
         Status = $"Connecting to {radio.Name} ({radio.Address})...";
         AppendLog(Status);
 
@@ -203,6 +206,7 @@ public sealed class MainViewModel : ViewModelBase
         BatteryPercent = 0;
         DeviceInfoText = "—";
         Channels.Clear();
+        Packets.Clear();
         Status = "Disconnected: " + reason;
         OnPropertyChanged(nameof(CanConnect));
         OnPropertyChanged(nameof(CanDisconnect));
@@ -232,6 +236,12 @@ public sealed class MainViewModel : ViewModelBase
             if (Channels[i].ChannelId > c.ChannelId) { Channels.Insert(i, c); return; }
         }
         Channels.Add(c);
+    }
+
+    private void AddPacket(ReceivedPacketSummary p)
+    {
+        Packets.Insert(0, p);                       // newest first
+        while (Packets.Count > 500) Packets.RemoveAt(Packets.Count - 1);
     }
 
     private void AppendLog(string line)

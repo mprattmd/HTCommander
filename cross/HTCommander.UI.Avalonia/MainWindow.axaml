@@ -116,7 +116,28 @@
                     </Border>
                 </Grid>
             </TabItem>
-            <TabItem Header="Packets"><TextBlock Margin="12" Text="Packets — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Packets">
+                <Grid RowDefinitions="Auto,*" Margin="8">
+                    <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
+                               Text="{Binding Packets.Count, StringFormat='Received packets ({0})'}"/>
+                    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                        <ListBox ItemsSource="{Binding Packets}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="core:ReceivedPacketSummary">
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="8">
+                                        <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Source}"/>
+                                        <TextBlock Grid.Column="1" Foreground="#888"
+                                                   Text="{Binding Destination, StringFormat='&gt; {0}'}"/>
+                                        <TextBlock Grid.Column="2" Foreground="#9CDCFE" Text="APRS"
+                                                   IsVisible="{Binding IsAprs}"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding Info}" TextWrapping="NoWrap"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+            </TabItem>
             <TabItem Header="Settings">
                 <ScrollViewer>
                     <StackPanel Margin="16" Spacing="12" DataContext="{Binding Settings}"

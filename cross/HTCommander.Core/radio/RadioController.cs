@@ -36,10 +36,12 @@ public sealed class RadioController : IDisposable
     private const int GroupBasic = 2;
     private const int CmdGetDevInfo = 4;
     private const int CmdReadStatus = 5;
+    private const int CmdRegisterNotification = 6;
     private const int CmdEventNotification = 9;
     private const int CmdReadRfChannel = 13;
     private const int CmdGetHtStatus = 20;
     private const int NotifyHtStatusChanged = 1;
+    private const int NotifyDataRxd = 2;
     private const int PowerStatusBatteryPercent = 4;
 
     private readonly IRadioTransport transport;
@@ -89,6 +91,9 @@ public sealed class RadioController : IDisposable
     private void OnConnected()
     {
         broker.Dispatch(deviceId, "State", "Connected", store: false);
+        // Real-time pushes: HT status changes and received packet data.
+        SendBasic(CmdRegisterNotification, new byte[] { NotifyHtStatusChanged });
+        SendBasic(CmdRegisterNotification, new byte[] { NotifyDataRxd });
         SendBasic(CmdGetDevInfo, new byte[] { 3 });
         RequestBatteryPercent();
         SendBasic(CmdGetHtStatus, null);
@@ -109,7 +114,11 @@ public sealed class RadioController : IDisposable
             case CmdGetDevInfo: HandleDevInfo(v); break;
             case CmdReadRfChannel: HandleChannel(v); break;
             case CmdEventNotification:
-                if (v.Length > 4 && v[4] == NotifyHtStatusChanged) PublishHtStatus(v);
+                if (v.Length > 4)
+                {
+                    if (v[4] == NotifyHtStatusChanged) PublishHtStatus(v);
+                    else if (v[4] == NotifyDataRxd) HandleDataReceived(v);
+                }
                 break;
         }
     }
@@ -194,6 +203,59 @@ public sealed class RadioController : IDisposable
     private static int GetInt(byte[] b, int o) =>
         (b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3];
 
+    // --- received packets (DATA_RXD -> TNC reassembly -> AX.25 -> APRS) ---
+
+    private TncDataFragment? frameAccumulator;
+
+    private void HandleDataReceived(byte[] v)
+    {
+        TncDataFragment fragment;
+        try { fragment = new TncDataFragment(v); }
+        catch (Exception) { return; }
+        fragment.encoding = TncDataFragment.FragmentEncodingType.HardwareAfsk1200;
+        AccumulateFragment(fragment);
+    }
+
+    // Reassemble multi-fragment frames, then decode the completed packet.
+    private void AccumulateFragment(TncDataFragment fragment)
+    {
+        if (frameAccumulator == null)
+        {
+            if (fragment.fragment_id == 0) frameAccumulator = fragment;
+        }
+        else
+        {
+            frameAccumulator = frameAccumulator.Append(fragment);
+        }
+
+        if (frameAccumulator != null && frameAccumulator.final_fragment)
+        {
+            TncDataFragment packet = frameAccumulator;
+            frameAccumulator = null;
+            packet.incoming = true;
+            PublishPacket(packet);
+        }
+    }
+
+    private void PublishPacket(TncDataFragment frame)
+    {
+        AX25Packet? ax;
+        try { ax = AX25Packet.DecodeAX25Packet(frame); }
+        catch (Exception) { return; }
+        if (ax == null || ax.addresses == null || ax.addresses.Count < 2) return;
+
+        string dest = ax.addresses[0].CallSignWithId;
+        string src = ax.addresses[1].CallSignWithId;
+        string info = ax.dataStr ?? string.Empty;
+
+        bool isAprs = false;
+        try { isAprs = aprsparser.AprsPacket.Parse(ax) != null && !string.IsNullOrEmpty(info); }
+        catch (Exception) { }
+
+        broker.Dispatch(deviceId, "PacketReceived",
+            new ReceivedPacketSummary(src, dest, info, isAprs), store: false);
+    }
+
     // --- HT-status / battery polling --------------------------------------
 
     private void StartPolling()
@@ -231,3 +293,6 @@ public sealed record RadioChannelSummary(
     public double RxMHz => RxHz / 1_000_000.0;
     public double TxMHz => TxHz / 1_000_000.0;
 }
+
+/// <summary>A received AX.25/APRS packet, decoded from a DATA_RXD notification.</summary>
+public sealed record ReceivedPacketSummary(string Source, string Destination, string Info, bool IsAprs);

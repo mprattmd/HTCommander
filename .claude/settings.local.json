@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed -n '1178,1186p' src/radio/Radio.cs)",
+      "Bash(awk '/private void SendCommand\\\\\\(RadioCommandGroup group, RadioBasicCommand cmd, int /{f=1} f{print NR\": \"$0} f&&/ms.ToArray/{c++} f&&c>=1&&/^        \\\\}/{exit}' src/radio/Radio.cs)"
+    ]
+  }
+}
