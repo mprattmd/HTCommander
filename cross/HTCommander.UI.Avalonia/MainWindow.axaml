@@ -92,7 +92,38 @@
             <TabItem Header="Voice"><TextBlock Margin="12" Text="Voice — port pending (Phase 3)."/></TabItem>
             <TabItem Header="APRS"><TextBlock Margin="12" Text="APRS — port pending (Phase 3)."/></TabItem>
             <TabItem Header="Map"><TextBlock Margin="12" Text="Map (GMap.NET → Mapsui) — port pending (Phase 3)."/></TabItem>
-            <TabItem Header="Mail"><TextBlock Margin="12" Text="Mail — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Config">
+                <ScrollViewer>
+                    <StackPanel Margin="16" Spacing="12" MaxWidth="520" HorizontalAlignment="Left">
+                        <TextBlock Text="Radio settings" FontWeight="Bold" FontSize="16"/>
+                        <Grid IsVisible="{Binding HasRadioSettings}"
+                              ColumnDefinitions="160,*"
+                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                              RowSpacing="4" ColumnSpacing="12">
+                            <TextBlock Grid.Row="0" Text="Channel A"/>     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding RadioSettings.ChannelA}"/>
+                            <TextBlock Grid.Row="1" Text="Channel B"/>     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding RadioSettings.ChannelB}"/>
+                            <TextBlock Grid.Row="2" Text="Dual watch"/>    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding RadioSettings.DualWatch}"/>
+                            <TextBlock Grid.Row="3" Text="Scan"/>          <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RadioSettings.Scan}"/>
+                            <TextBlock Grid.Row="4" Text="Squelch level"/> <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding RadioSettings.SquelchLevel}"/>
+                            <TextBlock Grid.Row="5" Text="VFO1 TX power"/> <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding RadioSettings.Vfo1Power}"/>
+                            <TextBlock Grid.Row="6" Text="TX time limit"/> <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding RadioSettings.TxTimeLimit}"/>
+                        </Grid>
+                        <TextBlock Text="(waiting for radio…)" Foreground="#888" IsVisible="{Binding !HasRadioSettings}"/>
+
+                        <TextBlock Text="APRS / BSS settings" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>
+                        <Grid IsVisible="{Binding HasBss}"
+                              ColumnDefinitions="160,*"
+                              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                              RowSpacing="4" ColumnSpacing="12">
+                            <TextBlock Grid.Row="0" Text="APRS callsign"/>     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Bss.AprsCallsign}"/>
+                            <TextBlock Grid.Row="1" Text="APRS SSID"/>         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Bss.AprsSsid}"/>
+                            <TextBlock Grid.Row="2" Text="APRS symbol"/>       <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Bss.AprsSymbol}"/>
+                            <TextBlock Grid.Row="3" Text="Beacon message"/>    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Bss.BeaconMessage}"/>
+                            <TextBlock Grid.Row="4" Text="Share interval (s)"/><TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Bss.LocationShareInterval}"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
             <TabItem Header="Terminal"><TextBlock Margin="12" Text="Terminal — port pending (Phase 3)."/></TabItem>
             <TabItem Header="Contacts"><TextBlock Margin="12" Text="Contacts — port pending (Phase 3)."/></TabItem>
             <TabItem Header="BBS"><TextBlock Margin="12" Text="BBS — port pending (Phase 3)."/></TabItem>

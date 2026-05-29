@@ -38,7 +38,9 @@ public sealed class RadioController : IDisposable
     private const int CmdReadStatus = 5;
     private const int CmdRegisterNotification = 6;
     private const int CmdEventNotification = 9;
+    private const int CmdReadSettings = 10;
     private const int CmdReadRfChannel = 13;
+    private const int CmdReadBssSettings = 33;
     private const int CmdGetHtStatus = 20;
     private const int NotifyHtStatusChanged = 1;
     private const int NotifyDataRxd = 2;
@@ -97,6 +99,8 @@ public sealed class RadioController : IDisposable
         SendBasic(CmdGetDevInfo, new byte[] { 3 });
         RequestBatteryPercent();
         SendBasic(CmdGetHtStatus, null);
+        SendBasic(CmdReadSettings, null);
+        SendBasic(CmdReadBssSettings, null);
         StartPolling();
     }
 
@@ -113,6 +117,8 @@ public sealed class RadioController : IDisposable
             case CmdReadStatus: HandleReadStatus(v); break;
             case CmdGetDevInfo: HandleDevInfo(v); break;
             case CmdReadRfChannel: HandleChannel(v); break;
+            case CmdReadSettings: HandleSettings(v); break;
+            case CmdReadBssSettings: HandleBssSettings(v); break;
             case CmdEventNotification:
                 if (v.Length > 4)
                 {
@@ -198,6 +204,36 @@ public sealed class RadioController : IDisposable
     }
 
     private static string ModulationName(int mod) => mod switch { 0 => "FM", 1 => "AM", 2 => "DMR", _ => "?" };
+
+    private void HandleSettings(byte[] v)
+    {
+        if (v.Length < 25) return;          // reads bit fields through msg[16]
+        try
+        {
+            int channelA = ((v[5] & 0xF0) >> 4) + (v[14] & 0xF0);
+            int channelB = (v[5] & 0x0F) + ((v[14] & 0x0F) << 4);
+            var s = new RadioSettingsSummary(
+                ChannelA: channelA,
+                ChannelB: channelB,
+                DoubleChannel: (v[6] & 0x30) >> 4,
+                Scan: (v[6] & 0x80) != 0,
+                SquelchLevel: v[6] & 0x0F,
+                MicGain: (v[7] & 0x0E) >> 1,
+                TxTimeLimit: v[8] & 0x1F,
+                Vfo1TxPower: v[15] & 0x03,
+                Vfo2TxPower: v[16] >> 6,
+                PowerSavingMode: (v[9] & 0x01) != 0,
+                ImperialUnit: (v[13] & 0x01) != 0);
+            broker.Dispatch(deviceId, "Settings", s, store: false);
+        }
+        catch (Exception) { }
+    }
+
+    private void HandleBssSettings(byte[] v)
+    {
+        try { broker.Dispatch(deviceId, "BssSettings", new RadioBssSettings(v), store: false); }
+        catch (Exception) { }              // ctor throws on a short frame
+    }
 
     // Big-endian 32-bit (network order), matching the radio protocol.
     private static int GetInt(byte[] b, int o) =>
@@ -296,3 +332,13 @@ public sealed record RadioChannelSummary(
 
 /// <summary>A received AX.25/APRS packet, decoded from a DATA_RXD notification.</summary>
 public sealed record ReceivedPacketSummary(string Source, string Destination, string Info, bool IsAprs);
+
+/// <summary>Read-only subset of READ_SETTINGS worth displaying.</summary>
+public sealed record RadioSettingsSummary(
+    int ChannelA, int ChannelB, int DoubleChannel, bool Scan, int SquelchLevel,
+    int MicGain, int TxTimeLimit, int Vfo1TxPower, int Vfo2TxPower,
+    bool PowerSavingMode, bool ImperialUnit)
+{
+    public string DualWatch => DoubleChannel != 0 ? "On" : "Off";
+    public string Vfo1Power => Vfo1TxPower switch { 0 => "Low", 1 => "Med", _ => "High" };
+}

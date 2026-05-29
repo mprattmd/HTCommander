@@ -65,6 +65,8 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "DeviceInfo", (_, _, data) => { if (data is RadioDeviceSummary d) ApplyDeviceInfo(d); });
         broker.Subscribe(0, "Channel", (_, _, data) => { if (data is RadioChannelSummary c) ApplyChannel(c); });
         broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
+        broker.Subscribe(0, "Settings", (_, _, data) => { if (data is RadioSettingsSummary s) RadioSettings = s; });
+        broker.Subscribe(0, "BssSettings", (_, _, data) => { if (data is RadioBssSettings b) Bss = b; });
 
         Refresh();
     }
@@ -133,6 +135,22 @@ public sealed class MainViewModel : ViewModelBase
 
     private string deviceInfoText = "—";
     public string DeviceInfoText { get => deviceInfoText; private set => SetField(ref deviceInfoText, value); }
+
+    private RadioSettingsSummary? radioSettings;
+    public RadioSettingsSummary? RadioSettings
+    {
+        get => radioSettings;
+        private set { if (SetField(ref radioSettings, value)) OnPropertyChanged(nameof(HasRadioSettings)); }
+    }
+    public bool HasRadioSettings => RadioSettings != null;
+
+    private RadioBssSettings? bss;
+    public RadioBssSettings? Bss
+    {
+        get => bss;
+        private set { if (SetField(ref bss, value)) OnPropertyChanged(nameof(HasBss)); }
+    }
+    public bool HasBss => Bss != null;
 
     /// <summary>Re-scans BlueZ for adapter availability and compatible radios.</summary>
     public void Refresh()
@@ -207,6 +225,8 @@ public sealed class MainViewModel : ViewModelBase
         DeviceInfoText = "—";
         Channels.Clear();
         Packets.Clear();
+        RadioSettings = null;
+        Bss = null;
         Status = "Disconnected: " + reason;
         OnPropertyChanged(nameof(CanConnect));
         OnPropertyChanged(nameof(CanDisconnect));
