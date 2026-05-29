@@ -43,6 +43,7 @@
                 <TextBlock Foreground="White" Text="{Binding Status, StringFormat='State: {0}'}"/>
                 <TextBlock Foreground="White" Text="{Binding FrameCount, StringFormat='Frames: {0}'}"/>
                 <TextBlock Foreground="White" Text="{Binding BluetoothAvailable, StringFormat='Bluetooth: {0}'}"/>
+                <TextBlock Foreground="White" Text="Voice RX" IsVisible="{Binding VoiceRxActive}"/>
             </StackPanel>
         </Border>
 

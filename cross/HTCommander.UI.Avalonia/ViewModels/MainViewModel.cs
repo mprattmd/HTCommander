@@ -22,6 +22,7 @@ using HTCommander;                       // RadioController, RadioHtStatus, Radi
 using HTCommander.Core.Abstractions;
 using HTCommander.Core.Abstractions.Audio;
 using HTCommander.Platform.Linux;
+using HTCommander.Platform.Linux.Audio;
 using HTCommander.UI.Avalonia.Platform;
 
 namespace HTCommander.UI.Avalonia.ViewModels;
@@ -43,6 +44,9 @@ public sealed class MainViewModel : ViewModelBase
     private readonly DataBrokerClient broker = new DataBrokerClient();
     private RadioBluetoothLinux? transport;
     private RadioController? controller;
+    private RadioAudioChannelLinux? audioChannel;
+    private RadioVoiceReceiver? voiceReceiver;
+    private IAudioPlayback? voicePlayback;
 
     public ObservableCollection<RadioDeviceInfo> Radios { get; } = new();
     public ObservableCollection<string> Log { get; } = new();
@@ -102,6 +106,9 @@ public sealed class MainViewModel : ViewModelBase
 
     private int frameCount;
     public int FrameCount { get => frameCount; private set => SetField(ref frameCount, value); }
+
+    private bool voiceRxActive;
+    public bool VoiceRxActive { get => voiceRxActive; private set => SetField(ref voiceRxActive, value); }
 
     public bool CanConnect => !Connected && SelectedRadio != null;
     public bool CanDisconnect => Connected || controller != null;
@@ -194,6 +201,7 @@ public sealed class MainViewModel : ViewModelBase
             Connected = true;
             Status = $"Connected to {radio.Name}";
             AppendLog("Connected — querying device info, status and battery.");
+            StartVoiceRx(radio.Address);   // best-effort: hear the radio on the PC speaker
         });
 
         transport.ReceivedData += (_, _, value) => dispatcher.Post(() =>
@@ -217,8 +225,47 @@ public sealed class MainViewModel : ViewModelBase
         Task.Run(() => c.Stop());   // triggers the transport's onDisconnected -> OnDisconnected()
     }
 
+    // Open the radio's voice-audio RFCOMM channel and decode it to the speaker.
+    // Runs off the UI thread (SDP + a second RFCOMM connect take a moment) and is
+    // best-effort — failure never affects radio command/control.
+    private void StartVoiceRx(string mac)
+    {
+        Task.Run(() =>
+        {
+            try
+            {
+                var playback = new PortAudioPlayback();
+                var rx = new RadioVoiceReceiver(playback);
+                rx.Start();
+                var ch = new RadioAudioChannelLinux(mac, logger);
+                ch.DataReceived += (b, n) => rx.OnAudioBytes(b, n);
+                if (ch.Connect())
+                {
+                    audioChannel = ch; voiceReceiver = rx; voicePlayback = playback;
+                    dispatcher.Post(() => { VoiceRxActive = true; AppendLog("Voice RX active (audio channel open)."); });
+                }
+                else
+                {
+                    rx.Stop(); playback.Dispose();
+                    dispatcher.Post(() => AppendLog("Voice RX unavailable (audio channel not found)."));
+                }
+            }
+            catch (Exception ex) { logger.Debug("Voice RX start failed: " + ex.Message); }
+        });
+    }
+
+    private void StopVoiceRx()
+    {
+        try { audioChannel?.Disconnect(); } catch (Exception) { }
+        try { voiceReceiver?.Stop(); } catch (Exception) { }
+        try { voicePlayback?.Dispose(); } catch (Exception) { }
+        audioChannel = null; voiceReceiver = null; voicePlayback = null;
+        VoiceRxActive = false;
+    }
+
     private void OnDisconnected(string reason)
     {
+        StopVoiceRx();
         try { controller?.Dispose(); } catch (Exception) { }
         controller = null;
         transport = null;

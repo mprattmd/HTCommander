@@ -28,12 +28,12 @@ namespace HTCommander.Platform.Linux;
 /// pumps received bytes to a callback (wire it to <c>RadioVoiceReceiver</c>). This
 /// runs independently of, and concurrently with, the GAIA command transport.
 ///
-/// CHANNEL DISCOVERY GAP: unlike the GAIA channel (positively identified by its
-/// 0xFF 0x01 reply), the audio service is silent until audio flows, so it cannot
-/// be probe-validated, and this radio's SDP is unreliable over BlueZ/sdptool. So
-/// the channel must be supplied explicitly: env <c>HTCOMMANDER_AUDIO_CHANNEL=N</c>,
-/// or via <paramref name="channel"/>. A proper fix is a programmatic SDP query
-/// (L2CAP PSM 1, ServiceSearchAttribute for UUID 0x1203 → RFCOMM channel) — TODO.
+/// CHANNEL DISCOVERY: the audio service is silent until audio flows (so it can't
+/// be probe-validated like the GAIA channel) and BlueZ/sdptool were unreliable
+/// here, so the channel is discovered via a direct SDP query for UUID 0x1203
+/// (<see cref="SdpClient"/>). Priority: explicit arg → env <c>HTCOMMANDER_AUDIO_CHANNEL</c>
+/// → SDP. The radio assigns this channel dynamically, so SDP (queried fresh per
+/// connect) is the reliable source.
 ///
 /// Receive only. Transmit keys the radio on the air and is intentionally omitted.
 /// </summary>
@@ -57,13 +57,22 @@ public sealed class RadioAudioChannelLinux
 
     private void Debug(string m) => logger?.Debug("AudioChannel: " + m);
 
+    /// <summary>The GenericAudio service class UUID the radio's voice channel is registered under.</summary>
+    private const ushort AudioServiceUuid = 0x1203;
+
     /// <summary>
-    /// Connects the audio RFCOMM socket. <paramref name="channel"/> &gt; 0 forces a
-    /// channel; otherwise the env override <c>HTCOMMANDER_AUDIO_CHANNEL</c> is used.
-    /// Returns false if no channel is known or the socket could not open.
+    /// Connects the audio RFCOMM socket. Channel priority: <paramref name="channel"/>
+    /// &gt; 0 → env <c>HTCOMMANDER_AUDIO_CHANNEL</c> → SDP discovery (UUID 0x1203).
+    /// Returns false if no channel could be determined or the socket could not open.
     /// </summary>
     public bool Connect(int channel = 0)
     {
+        if (!NativeRfcomm.TryParseBdAddr(macAddress, out byte[] bdaddr))
+        {
+            Debug("Invalid MAC: " + macAddress);
+            return false;
+        }
+
         if (channel <= 0)
         {
             string? env = Environment.GetEnvironmentVariable("HTCOMMANDER_AUDIO_CHANNEL");
@@ -71,12 +80,12 @@ public sealed class RadioAudioChannelLinux
         }
         if (channel <= 0)
         {
-            Debug("No audio RFCOMM channel known (set HTCOMMANDER_AUDIO_CHANNEL); not connecting.");
-            return false;
+            int? sdp = SdpClient.FindRfcommChannel(bdaddr, AudioServiceUuid);
+            if (sdp.HasValue) { channel = sdp.Value; Debug($"SDP: audio service 0x{AudioServiceUuid:X4} on RFCOMM channel {channel}."); }
         }
-        if (!NativeRfcomm.TryParseBdAddr(macAddress, out byte[] bdaddr))
+        if (channel <= 0)
         {
-            Debug("Invalid MAC: " + macAddress);
+            Debug("Could not determine the audio RFCOMM channel (SDP failed; set HTCOMMANDER_AUDIO_CHANNEL).");
             return false;
         }
 
