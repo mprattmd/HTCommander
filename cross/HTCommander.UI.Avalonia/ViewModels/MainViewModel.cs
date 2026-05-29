@@ -46,6 +46,7 @@ public sealed class MainViewModel : ViewModelBase
 
     public ObservableCollection<RadioDeviceInfo> Radios { get; } = new();
     public ObservableCollection<string> Log { get; } = new();
+    public ObservableCollection<RadioChannelSummary> Channels { get; } = new();
 
     /// <summary>Settings sub-view-model (bound by the Settings tab).</summary>
     public SettingsViewModel Settings { get; }
@@ -61,6 +62,7 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "HtStatus", (_, _, data) => { if (data is RadioHtStatus s) ApplyHtStatus(s); });
         broker.Subscribe(0, "BatteryAsPercentage", (_, _, data) => { if (data is int p) BatteryPercent = p; });
         broker.Subscribe(0, "DeviceInfo", (_, _, data) => { if (data is RadioDeviceSummary d) ApplyDeviceInfo(d); });
+        broker.Subscribe(0, "Channel", (_, _, data) => { if (data is RadioChannelSummary c) ApplyChannel(c); });
 
         Refresh();
     }
@@ -156,6 +158,7 @@ public sealed class MainViewModel : ViewModelBase
         if (!CanConnect) return;
         var radio = SelectedRadio!;
         FrameCount = 0;
+        Channels.Clear();
         Status = $"Connecting to {radio.Name} ({radio.Address})...";
         AppendLog(Status);
 
@@ -199,6 +202,7 @@ public sealed class MainViewModel : ViewModelBase
         HasStatus = false;
         BatteryPercent = 0;
         DeviceInfoText = "—";
+        Channels.Clear();
         Status = "Disconnected: " + reason;
         OnPropertyChanged(nameof(CanConnect));
         OnPropertyChanged(nameof(CanDisconnect));
@@ -218,6 +222,17 @@ public sealed class MainViewModel : ViewModelBase
 
     private void ApplyDeviceInfo(RadioDeviceSummary d) =>
         DeviceInfoText = $"Vendor {d.VendorId} · Product {d.ProductId} · HW v{d.HardwareVersion} · FW v{d.SoftwareVersion} · {d.ChannelCount} ch";
+
+    private void ApplyChannel(RadioChannelSummary c)
+    {
+        // Insert/replace keeping the list ordered by channel id.
+        for (int i = 0; i < Channels.Count; i++)
+        {
+            if (Channels[i].ChannelId == c.ChannelId) { Channels[i] = c; return; }
+            if (Channels[i].ChannelId > c.ChannelId) { Channels.Insert(i, c); return; }
+        }
+        Channels.Add(c);
+    }
 
     private void AppendLog(string line)
     {

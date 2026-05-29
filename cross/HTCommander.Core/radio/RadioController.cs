@@ -37,6 +37,7 @@ public sealed class RadioController : IDisposable
     private const int CmdGetDevInfo = 4;
     private const int CmdReadStatus = 5;
     private const int CmdEventNotification = 9;
+    private const int CmdReadRfChannel = 13;
     private const int CmdGetHtStatus = 20;
     private const int NotifyHtStatusChanged = 1;
     private const int PowerStatusBatteryPercent = 4;
@@ -106,6 +107,7 @@ public sealed class RadioController : IDisposable
             case CmdGetHtStatus: PublishHtStatus(v); break;
             case CmdReadStatus: HandleReadStatus(v); break;
             case CmdGetDevInfo: HandleDevInfo(v); break;
+            case CmdReadRfChannel: HandleChannel(v); break;
             case CmdEventNotification:
                 if (v.Length > 4 && v[4] == NotifyHtStatusChanged) PublishHtStatus(v);
                 break;
@@ -152,14 +154,45 @@ public sealed class RadioController : IDisposable
     private void HandleDevInfo(byte[] v)
     {
         if (v.Length < 15) return;
+        int channelCount = v[13];
         var info = new RadioDeviceSummary(
             VendorId: v[5],
             ProductId: (v[6] << 8) | v[7],
             HardwareVersion: v[8],
             SoftwareVersion: (v[9] << 8) | v[10],
-            ChannelCount: v[13]);
+            ChannelCount: channelCount);
         broker.Dispatch(deviceId, "DeviceInfo", info, store: false);
+
+        // Read each channel now that we know how many there are.
+        for (int ch = 0; ch < channelCount && ch < 256; ch++)
+            SendBasic(CmdReadRfChannel, new byte[] { (byte)ch });
     }
+
+    private void HandleChannel(byte[] v)
+    {
+        if (v.Length < 30) return;
+        if (v[4] != 0) return;                       // command status: 0 = OK
+        int rxRaw = GetInt(v, 10);
+        int txRaw = GetInt(v, 6);
+        string name = System.Text.Encoding.UTF8.GetString(v, 20, 10);
+        int nul = name.IndexOf('\0');
+        if (nul >= 0) name = name.Substring(0, nul);
+        name = name.Trim();
+
+        var ch = new RadioChannelSummary(
+            ChannelId: v[5],
+            Name: name,
+            RxHz: rxRaw & 0x3FFFFFFF,
+            TxHz: txRaw & 0x3FFFFFFF,
+            Modulation: ModulationName((rxRaw >> 30) & 0x3));
+        broker.Dispatch(deviceId, "Channel", ch, store: false);
+    }
+
+    private static string ModulationName(int mod) => mod switch { 0 => "FM", 1 => "AM", 2 => "DMR", _ => "?" };
+
+    // Big-endian 32-bit (network order), matching the radio protocol.
+    private static int GetInt(byte[] b, int o) =>
+        (b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3];
 
     // --- HT-status / battery polling --------------------------------------
 
@@ -190,3 +223,11 @@ public sealed class RadioController : IDisposable
 /// <summary>Device identity/capabilities decoded from a GET_DEV_INFO reply.</summary>
 public sealed record RadioDeviceSummary(
     int VendorId, int ProductId, int HardwareVersion, int SoftwareVersion, int ChannelCount);
+
+/// <summary>A single memory channel decoded from a READ_RF_CH reply.</summary>
+public sealed record RadioChannelSummary(
+    int ChannelId, string Name, long RxHz, long TxHz, string Modulation)
+{
+    public double RxMHz => RxHz / 1_000_000.0;
+    public double TxMHz => TxHz / 1_000_000.0;
+}

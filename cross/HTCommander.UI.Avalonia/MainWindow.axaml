@@ -5,6 +5,7 @@
         xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
         xmlns:pl="using:HTCommander.Platform.Linux"
         xmlns:audio="using:HTCommander.Core.Abstractions.Audio"
+        xmlns:core="using:HTCommander"
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
         x:Class="HTCommander.UI.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -95,6 +96,26 @@
             <TabItem Header="Terminal"><TextBlock Margin="12" Text="Terminal — port pending (Phase 3)."/></TabItem>
             <TabItem Header="Contacts"><TextBlock Margin="12" Text="Contacts — port pending (Phase 3)."/></TabItem>
             <TabItem Header="BBS"><TextBlock Margin="12" Text="BBS — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Channels">
+                <Grid RowDefinitions="Auto,*" Margin="8">
+                    <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
+                               Text="{Binding Channels.Count, StringFormat='Memory channels ({0})'}"/>
+                    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                        <ListBox ItemsSource="{Binding Channels}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="core:RadioChannelSummary">
+                                    <Grid ColumnDefinitions="40,*,110,60" ColumnSpacing="8">
+                                        <TextBlock Grid.Column="0" Text="{Binding ChannelId}" Foreground="#888"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding RxMHz, StringFormat='{}{0:0.0000} MHz'}"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding Modulation}" Foreground="#9CDCFE"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+            </TabItem>
             <TabItem Header="Packets"><TextBlock Margin="12" Text="Packets — port pending (Phase 3)."/></TabItem>
             <TabItem Header="Settings">
                 <ScrollViewer>
