@@ -284,12 +284,26 @@ public sealed class RadioController : IDisposable
         string src = ax.addresses[1].CallSignWithId;
         string info = ax.dataStr ?? string.Empty;
 
-        bool isAprs = false;
-        try { isAprs = aprsparser.AprsPacket.Parse(ax) != null && !string.IsNullOrEmpty(info); }
-        catch (Exception) { }
+        aprsparser.AprsPacket? aprs = null;
+        try { aprs = aprsparser.AprsPacket.Parse(ax); } catch (Exception) { }
+        bool isAprs = aprs != null && !string.IsNullOrEmpty(info);
 
         broker.Dispatch(deviceId, "PacketReceived",
             new ReceivedPacketSummary(src, dest, info, isAprs), store: false);
+
+        // When the APRS packet carries a valid position, publish a station fix too.
+        if (aprs?.Position?.CoordinateSet != null && aprs.Position.IsValid())
+        {
+            var cs = aprs.Position.CoordinateSet;
+            broker.Dispatch(deviceId, "AprsStation",
+                new AprsStationSummary(
+                    Callsign: src,
+                    Latitude: cs.Latitude.Value,
+                    Longitude: cs.Longitude.Value,
+                    Symbol: $"{aprs.SymbolTableIdentifier}{aprs.SymbolCode}",
+                    Comment: aprs.Comment ?? string.Empty),
+                store: false);
+        }
     }
 
     // --- HT-status / battery polling --------------------------------------
@@ -332,6 +346,10 @@ public sealed record RadioChannelSummary(
 
 /// <summary>A received AX.25/APRS packet, decoded from a DATA_RXD notification.</summary>
 public sealed record ReceivedPacketSummary(string Source, string Destination, string Info, bool IsAprs);
+
+/// <summary>An APRS station position fix decoded from a received packet.</summary>
+public sealed record AprsStationSummary(
+    string Callsign, double Latitude, double Longitude, string Symbol, string Comment);
 
 /// <summary>Read-only subset of READ_SETTINGS worth displaying.</summary>
 public sealed record RadioSettingsSummary(

@@ -90,7 +90,28 @@
                 </Grid>
             </TabItem>
             <TabItem Header="Voice"><TextBlock Margin="12" Text="Voice — port pending (Phase 3)."/></TabItem>
-            <TabItem Header="APRS"><TextBlock Margin="12" Text="APRS — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="APRS">
+                <Grid RowDefinitions="Auto,*" Margin="8">
+                    <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
+                               Text="{Binding Stations.Count, StringFormat='APRS stations heard ({0})'}"/>
+                    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                        <ListBox ItemsSource="{Binding Stations}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="core:AprsStationSummary">
+                                    <Grid ColumnDefinitions="120,80,80,*" ColumnSpacing="10">
+                                        <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Callsign}"/>
+                                        <TextBlock Grid.Column="1" Foreground="#9CDCFE"
+                                                   Text="{Binding Latitude, StringFormat='{}{0:0.0000}'}"/>
+                                        <TextBlock Grid.Column="2" Foreground="#9CDCFE"
+                                                   Text="{Binding Longitude, StringFormat='{}{0:0.0000}'}"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding Comment}" TextWrapping="NoWrap"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+            </TabItem>
             <TabItem Header="Map"><TextBlock Margin="12" Text="Map (GMap.NET → Mapsui) — port pending (Phase 3)."/></TabItem>
             <TabItem Header="Config">
                 <ScrollViewer>

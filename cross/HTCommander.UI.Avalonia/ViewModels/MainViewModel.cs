@@ -48,6 +48,7 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<string> Log { get; } = new();
     public ObservableCollection<RadioChannelSummary> Channels { get; } = new();
     public ObservableCollection<ReceivedPacketSummary> Packets { get; } = new();
+    public ObservableCollection<AprsStationSummary> Stations { get; } = new();
 
     /// <summary>Settings sub-view-model (bound by the Settings tab).</summary>
     public SettingsViewModel Settings { get; }
@@ -65,6 +66,7 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "DeviceInfo", (_, _, data) => { if (data is RadioDeviceSummary d) ApplyDeviceInfo(d); });
         broker.Subscribe(0, "Channel", (_, _, data) => { if (data is RadioChannelSummary c) ApplyChannel(c); });
         broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
+        broker.Subscribe(0, "AprsStation", (_, _, data) => { if (data is AprsStationSummary st) AddStation(st); });
         broker.Subscribe(0, "Settings", (_, _, data) => { if (data is RadioSettingsSummary s) RadioSettings = s; });
         broker.Subscribe(0, "BssSettings", (_, _, data) => { if (data is RadioBssSettings b) Bss = b; });
 
@@ -180,6 +182,7 @@ public sealed class MainViewModel : ViewModelBase
         FrameCount = 0;
         Channels.Clear();
         Packets.Clear();
+        Stations.Clear();
         Status = $"Connecting to {radio.Name} ({radio.Address})...";
         AppendLog(Status);
 
@@ -225,6 +228,7 @@ public sealed class MainViewModel : ViewModelBase
         DeviceInfoText = "—";
         Channels.Clear();
         Packets.Clear();
+        Stations.Clear();
         RadioSettings = null;
         Bss = null;
         Status = "Disconnected: " + reason;
@@ -262,6 +266,14 @@ public sealed class MainViewModel : ViewModelBase
     {
         Packets.Insert(0, p);                       // newest first
         while (Packets.Count > 500) Packets.RemoveAt(Packets.Count - 1);
+    }
+
+    private void AddStation(AprsStationSummary s)
+    {
+        // One entry per callsign; update in place when a station's position changes.
+        for (int i = 0; i < Stations.Count; i++)
+            if (Stations[i].Callsign == s.Callsign) { Stations[i] = s; return; }
+        Stations.Add(s);
     }
 
     private void AppendLog(string line)
