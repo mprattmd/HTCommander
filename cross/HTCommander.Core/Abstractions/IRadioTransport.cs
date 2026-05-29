@@ -1,23 +1,29 @@
+using System;
+
 namespace HTCommander.Core.Abstractions;
 
 /// <summary>
-/// Abstraction over the radio data transport (Windows WinRT Bluetooth /
-/// Linux BlueZ / macOS). Replaces direct use of RadioBluetoothWin.
+/// Platform-neutral transport to a radio (Windows WinRT Bluetooth, Linux BlueZ,
+/// macOS CoreBluetooth, ...). Abstracts the connection so the platform-neutral
+/// Radio logic does not depend on a concrete Bluetooth implementation.
+///
+/// Signatures mirror the original RadioBluetoothWin so existing call sites in
+/// Radio.cs need only swap the concrete type for this interface.
 /// </summary>
 public interface IRadioTransport
 {
-    /// <summary>Raised when the transport has established a connection.</summary>
-    event EventHandler? OnConnected;
+    /// <summary>Raised once the transport has connected to the radio.</summary>
+    event Action OnConnected;
 
-    /// <summary>Raised when a decoded data frame has been received from the radio.</summary>
-    event EventHandler<byte[]>? ReceivedData;
+    /// <summary>Raised when a decoded payload arrives (sender, error, value).</summary>
+    event Action<IRadioTransport, Exception, byte[]> ReceivedData;
 
-    /// <summary>Begins connecting to the radio asynchronously.</summary>
-    void Connect();
+    /// <summary>Begins connecting. Returns false if already connecting/connected.</summary>
+    bool Connect();
 
-    /// <summary>Disconnects from the radio and releases transport resources.</summary>
+    /// <summary>Disconnects and releases the transport.</summary>
     void Disconnect();
 
-    /// <summary>Encodes and enqueues a command for transmission to the radio.</summary>
-    void EnqueueWrite(int expectedResponse, byte[] data);
+    /// <summary>Queues a command for transmission, tagged with its expected response code.</summary>
+    void EnqueueWrite(int expectedResponse, byte[] cmdData);
 }

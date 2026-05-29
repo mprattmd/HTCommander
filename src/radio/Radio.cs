@@ -10,6 +10,7 @@ using System.Net;
 using System.Collections.Generic;
 using HTCommander.Gps;
 using HTCommander.radio;
+using HTCommander.Core.Abstractions;
 
 namespace HTCommander
 {
@@ -24,7 +25,7 @@ namespace HTCommander
         public string MacAddress { get; }
         public string FriendlyName { get; private set; }
 
-        private RadioBluetoothWin radioTransport;
+        private IRadioTransport radioTransport;
         private TncDataFragment frameAccumulator = null;
         private RadioState state = RadioState.Disconnected;
         private bool _gpsEnabled = false;
@@ -1134,7 +1135,7 @@ namespace HTCommander
 
         #region Response Handling
 
-        private void RadioTransport_ReceivedData(RadioBluetoothWin sender, Exception error, byte[] value)
+        private void RadioTransport_ReceivedData(IRadioTransport sender, Exception error, byte[] value)
         {
             if (state != RadioState.Connected && state != RadioState.Connecting) return;
             if (error != null) { Debug("Notification ERROR SET"); }

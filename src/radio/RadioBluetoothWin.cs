@@ -14,10 +14,11 @@ using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Devices.Enumeration;
 using Windows.Networking.Sockets;
+using HTCommander.Core.Abstractions;
 
 namespace HTCommander
 {
-    public class RadioBluetoothWin
+    public class RadioBluetoothWin : IRadioTransport
     {
         private Radio parent;
         private bool running = false;
@@ -30,10 +31,9 @@ namespace HTCommander
         private Task connectionTask = null;
         private bool isConnecting = false;
 
-        public delegate void ConnectedEventHandler();
-        public event ConnectedEventHandler OnConnected;
-        public delegate void ReceivedDataHandler(RadioBluetoothWin sender, Exception error, byte[] value);
-        public event ReceivedDataHandler ReceivedData;
+        // IRadioTransport events (Action-based so the abstraction lives in Core).
+        public event Action OnConnected;
+        public event Action<IRadioTransport, Exception, byte[]> ReceivedData;
 
         private static readonly string[] TargetDeviceNames = { "UV-PRO", "UV-50PRO", "GA-5WB", "VR-N75", "VR-N76", "VR-N7500", "VR-N7600", "DB50-B" };
 
