@@ -20,6 +20,7 @@ The WinForms app (`src/`) now **references HTCommander.Core**; the duplicated so
 - Phase 0–1: Core extraction (AprsParser, hamlib, sbc, AX.25/BSS codecs, DataBroker, DataBrokerClient, AX25Session, SoftwareModem, RadioHtStatus) + 14 abstraction interfaces in `Core/Abstractions/`.
 - Phase 2a–c: backends `RegistryHelper : IConfigStore` + `WinFormsUiDispatcher` (Windows, in `src/`), `JsonConfigStore` (Linux); WinForms consolidated onto Core.
 - Phase 2d (seam): `IRadioTransport` abstraction; `RadioBluetoothWin : IRadioTransport`; `Radio.cs` decoupled from the concrete transport.
+- Phase 2d (Linux BlueZ): `RadioBluetoothLinux : IRadioTransport` in `HTCommander.Platform.Linux` (+ `BlueZRadioDiscovery : IRadioTransportDiscovery`). **Hardware-validated against a UV-PRO**: connects on RFCOMM ch1 (BT_SECURITY_MEDIUM), sends GET_DEV_INFO/READ_STATUS/GET_HT_STATUS and decodes the GAIA-framed `cmd|0x8000` responses; OnConnected/ReceivedData/onDisconnected all fire; clean teardown.
 
 ### Conventions / gotchas
 - `gh` defaults to **upstream** — always pass `--repo mprattmd/HTCommander`.
@@ -30,7 +31,14 @@ The WinForms app (`src/`) now **references HTCommander.Core**; the duplicated so
 
 ## Next steps (best done on Linux with a radio paired)
 
-1. **BlueZ transport** — make `RadioBluetoothLinux` implement `IRadioTransport` in `HTCommander.Platform.Linux` (port the existing stub at `src/radio/RadioBluetoothLinux.cs`, which uses `Tmds.DBus`). Radios use **Classic Bluetooth RFCOMM/SPP** (NOT BLE). Mirror `src/radio/RadioBluetoothWin.cs`. Gaps to fill: device filtering (target names in RadioBluetoothWin), RFCOMM service discovery, socket→stream wrapping, async read loop, GAIA frame decode/encode, OnConnected/ReceivedData events, disconnect/cleanup. **Validate by pairing a UV-Pro/VR-N76/etc. and connecting.**
+1. ~~**BlueZ transport**~~ ✅ DONE (code) — `cross/HTCommander.Platform.Linux/RadioBluetoothLinux.cs` + `Bluetooth/{BlueZDBus,NativeRfcomm}.cs`. Design notes:
+   - **Discovery + adapter power-on** go through BlueZ over D-Bus (`Tmds.DBus`). The D-Bus proxy interfaces **must be `public`** (Tmds.DBus emits proxies via Reflection.Emit → `TypeLoadException` on non-public interfaces).
+   - **The RFCOMM/SPP data stream uses a raw kernel `AF_BLUETOOTH`/`BTPROTO_RFCOMM` socket** (P/Invoke in `NativeRfcomm.cs`), NOT D-Bus: BlueZ only exposes RFCOMM via `Profile1` + Unix-fd-passing, which the high-level `Tmds.DBus` API doesn't support. `RfcommStream : Stream` wraps the fd (blocking reads; `Disconnect` shuts the fd down to unblock the loop).
+   - **Channel discovery:** BlueZ no longer exposes the SPP RFCOMM channel over D-Bus, so `NativeRfcomm.Connect` **scans channels 1..30** (first to accept wins). Override with env `HTCOMMANDER_RFCOMM_CHANNEL=N` to skip the scan once the real channel is known.
+   - **Authenticated link:** the SPP RFCOMM connect requires `setsockopt(SOL_BLUETOOTH, BT_SECURITY, BT_SECURITY_MEDIUM)` before `connect()`, else the kernel returns EACCES.
+   - GAIA encode/decode + accumulator read loop ported verbatim from `RadioBluetoothWin`. Self-contained ctor `(macAddress, ILogger?, Action<string>? onDisconnected)` — no dependency on the WinForms `Radio` (so step 3 / Avalonia can inject it).
+   - **Pairing gotcha:** a stale bond surfaces as BlueZ `br-connection-key-missing` / EACCES on connect even though `Paired: yes`. Check `bluetoothctl info <addr>` shows **`Bonded: yes`**; if not, `remove` + re-pair (radio in pairing mode). The UV-PRO on this box is `38:D2:00:01:7F:0E`, SPP on channel 1.
+   - Channel scan (1..30) works; for speed set `HTCOMMANDER_RFCOMM_CHANNEL=1` for this radio. A proper SDP query could replace the scan later but isn't needed.
 2. **PortAudio audio** — implement `IAudioCapture`/`IAudioPlayback`/`IAudioDeviceEnumerator` in Platform.Linux (`sudo dnf install portaudio portaudio-devel`; NuGet e.g. `PortAudioSharp2`). SBC codec is already in Core.
 3. **Make Radio.cs portable** — move `Radio.cs` (+ `Gps/`, audio glue) into Core, injecting an `IRadioTransport` factory + `IAudio*` instead of `new RadioBluetoothWin(this)` (Radio.cs:~574). Then the Avalonia app can drive a real radio on Linux.
 4. **Phase 3 — Avalonia UI**: build the shell + an `IUiDispatcher` over `Dispatcher.UIThread`, then port tabs (parallelizable, one per tab): Voice, APRS, Map (GMap.NET → **Mapsui**), Mail, Terminal, Contacts, BBS, Torrent, Packets, Settings. UI binds to the `DataBroker` already in Core.
