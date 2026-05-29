@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 'annotations' allows nullable (?) syntax in the new abstraction interfaces while
+         suppressing nullable warnings from the legacy code being extracted from the WinForms app. -->
+    <Nullable>annotations</Nullable>
+  </PropertyGroup>
+
+</Project>
