@@ -57,8 +57,14 @@ public sealed class RadioAudioChannelLinux
 
     private void Debug(string m) => logger?.Debug("AudioChannel: " + m);
 
-    /// <summary>The GenericAudio service class UUID the radio's voice channel is registered under.</summary>
-    private const ushort AudioServiceUuid = 0x1203;
+    /// <summary>
+    /// The radio's SBC voice stream is the RFCOMM service named "BS AOC" (verified:
+    /// it streams ~64 kB/s of decodable SBC during RX). The 0x1203 "GenericAudio"
+    /// service the Windows app targets is, on this radio, the Handsfree gateway and
+    /// streams nothing — so we discover by name, with 0x1203 as a fallback.
+    /// </summary>
+    private const string AudioServiceName = "AOC";
+    private const ushort AudioServiceUuidFallback = 0x1203;
 
     /// <summary>
     /// Connects the audio RFCOMM socket. Channel priority: <paramref name="channel"/>
@@ -80,8 +86,13 @@ public sealed class RadioAudioChannelLinux
         }
         if (channel <= 0)
         {
-            int? sdp = SdpClient.FindRfcommChannel(bdaddr, AudioServiceUuid);
-            if (sdp.HasValue) { channel = sdp.Value; Debug($"SDP: audio service 0x{AudioServiceUuid:X4} on RFCOMM channel {channel}."); }
+            int? byName = SdpClient.FindRfcommChannelByName(bdaddr, AudioServiceName);
+            if (byName.HasValue) { channel = byName.Value; Debug($"SDP: audio service \"{AudioServiceName}\" on RFCOMM channel {channel}."); }
+        }
+        if (channel <= 0)
+        {
+            int? byUuid = SdpClient.FindRfcommChannel(bdaddr, AudioServiceUuidFallback);
+            if (byUuid.HasValue) { channel = byUuid.Value; Debug($"SDP fallback: 0x{AudioServiceUuidFallback:X4} on RFCOMM channel {channel}."); }
         }
         if (channel <= 0)
         {

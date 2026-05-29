@@ -54,6 +54,49 @@ internal static class SdpClient
     /// </summary>
     public static int? FindRfcommChannel(byte[] bdaddr, ushort serviceUuid16, int timeoutMs = 5000)
     {
+        byte[]? attr = Query(bdaddr, serviceUuid16, timeoutMs);
+        if (attr == null) return null;
+        for (int i = 0; i + 4 < attr.Length; i++)
+            if (attr[i] == 0x19 && attr[i + 1] == 0x00 && attr[i + 2] == 0x03 && attr[i + 3] == 0x08)
+                return attr[i + 4];
+        return null;
+    }
+
+    /// <summary>
+    /// Browses all RFCOMM services and returns the channel of the one whose
+    /// ServiceName contains <paramref name="nameContains"/> (case-insensitive).
+    /// Used to find the radio's audio stream ("BS AOC"), whose only useful
+    /// identifier is its name (it carries no distinctive 16-bit service-class UUID,
+    /// and the 0x1203 GenericAudio service on this radio is NOT the audio stream).
+    /// In each SDP record the RFCOMM channel precedes the ServiceName.
+    /// </summary>
+    public static int? FindRfcommChannelByName(byte[] bdaddr, string nameContains, int timeoutMs = 5000)
+    {
+        byte[]? attr = Query(bdaddr, 0x0100, timeoutMs);   // search L2CAP -> matches every RFCOMM service
+        if (attr == null) return null;
+        int pendingChannel = -1;
+        for (int i = 0; i < attr.Length; i++)
+        {
+            if (i + 4 < attr.Length && attr[i] == 0x19 && attr[i + 1] == 0x00 && attr[i + 2] == 0x03 && attr[i + 3] == 0x08)
+                pendingChannel = attr[i + 4];
+            else if (attr[i] == 0x25 && i + 1 < attr.Length)        // text string (ServiceName)
+            {
+                int len = attr[i + 1];
+                if (i + 2 + len <= attr.Length && pendingChannel >= 0)
+                {
+                    string name = System.Text.Encoding.ASCII.GetString(attr, i + 2, len);
+                    if (name.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return pendingChannel;
+                }
+            }
+        }
+        return null;
+    }
+
+    // Issues a ServiceSearchAttributeRequest for serviceUuid16 (all attributes) and
+    // returns the accumulated AttributeLists bytes, handling continuation state.
+    private static byte[]? Query(byte[] bdaddr, ushort serviceUuid16, int timeoutMs)
+    {
         int fd = socket(AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP);
         if (fd < 0) return null;
         try
@@ -74,14 +117,14 @@ internal static class SdpClient
 
             var attr = new List<byte>();
             byte[] cont = Array.Empty<byte>();
-            for (int iter = 0; iter < 32; iter++)
+            for (int iter = 0; iter < 64; iter++)
             {
                 byte[] req = BuildRequest(serviceUuid16, cont);
                 if (send(fd, req, (nuint)req.Length, 0) < 0) return null;
 
-                byte[] resp = new byte[4096];
+                byte[] resp = new byte[8192];
                 nint n = recv(fd, resp, (nuint)resp.Length, 0);
-                if (n < 9 || resp[0] != 0x07) return null;            // need response PDU
+                if (n < 9 || resp[0] != 0x07) return null;
                 int attrCount = (resp[5] << 8) | resp[6];
                 if (7 + attrCount + 1 > n) return null;
                 for (int i = 0; i < attrCount; i++) attr.Add(resp[7 + i]);
@@ -92,15 +135,7 @@ internal static class SdpClient
                 Array.Copy(resp, 7 + attrCount + 1, cont, 0, contLen);
                 if (contLen == 0) break;
             }
-
-            // Scan the ProtocolDescriptorList for the RFCOMM descriptor:
-            // UUID16 RFCOMM (0x19 0x00 0x03) followed by a uint8 channel (0x08 <ch>).
-            for (int i = 0; i + 4 < attr.Count; i++)
-            {
-                if (attr[i] == 0x19 && attr[i + 1] == 0x00 && attr[i + 2] == 0x03 && attr[i + 3] == 0x08)
-                    return attr[i + 4];
-            }
-            return null;
+            return attr.ToArray();
         }
         catch (Exception) { return null; }
         finally { try { close(fd); } catch (Exception) { } }
