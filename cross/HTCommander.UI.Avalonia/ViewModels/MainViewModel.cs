@@ -21,6 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using HTCommander;                       // RadioHtStatus (Core)
 using HTCommander.Core.Abstractions;
+using HTCommander.Core.Abstractions.Audio;
 using HTCommander.Platform.Linux;
 using HTCommander.UI.Avalonia.Platform;
 
@@ -55,10 +56,14 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<RadioDeviceInfo> Radios { get; } = new();
     public ObservableCollection<string> Log { get; } = new();
 
-    public MainViewModel(IUiDispatcher dispatcher)
+    /// <summary>Settings sub-view-model (bound by the Settings tab).</summary>
+    public SettingsViewModel Settings { get; }
+
+    public MainViewModel(IUiDispatcher dispatcher, IAudioDeviceEnumerator audioDevices)
     {
         this.dispatcher = dispatcher;
         logger = new CallbackLogger(AppendLog);
+        Settings = new SettingsViewModel(dispatcher, audioDevices);
         Refresh();
     }
 

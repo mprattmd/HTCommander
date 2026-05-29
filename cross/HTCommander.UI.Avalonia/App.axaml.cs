@@ -19,7 +19,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using HTCommander;
 using HTCommander.Core.Abstractions;
+using HTCommander.Core.Abstractions.Audio;
 using HTCommander.Platform.Linux;
+using HTCommander.Platform.Linux.Audio;
 using HTCommander.UI.Avalonia.Platform;
 using HTCommander.UI.Avalonia.ViewModels;
 
@@ -41,10 +43,11 @@ public partial class App : Application
             IUiDispatcher dispatcher = new AvaloniaUiDispatcher();
             IConfigStore configStore = new JsonConfigStore("HTCommander");
             DataBroker.Initialize(configStore, dispatcher);
+            IAudioDeviceEnumerator audioDevices = new PortAudioDeviceEnumerator();
 
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainViewModel(dispatcher)
+                DataContext = new MainViewModel(dispatcher, audioDevices)
             };
         }
 

@@ -31,6 +31,8 @@ public partial class MainWindow : Window
         RefreshButton.Click += (_, _) => Vm?.Refresh();
         ConnectButton.Click += (_, _) => Vm?.Connect();
         DisconnectButton.Click += (_, _) => Vm?.Disconnect();
+        TestToneButton.Click += (_, _) => Vm?.Settings.TestOutput();
+        RefreshDevicesButton.Click += (_, _) => Vm?.Settings.RefreshDevices();
     }
 
     private MainViewModel? Vm => DataContext as MainViewModel;

@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
         xmlns:pl="using:HTCommander.Platform.Linux"
+        xmlns:audio="using:HTCommander.Core.Abstractions.Audio"
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
         x:Class="HTCommander.UI.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -90,7 +91,54 @@
             <TabItem Header="Contacts"><TextBlock Margin="12" Text="Contacts — port pending (Phase 3)."/></TabItem>
             <TabItem Header="BBS"><TextBlock Margin="12" Text="BBS — port pending (Phase 3)."/></TabItem>
             <TabItem Header="Packets"><TextBlock Margin="12" Text="Packets — port pending (Phase 3)."/></TabItem>
-            <TabItem Header="Settings"><TextBlock Margin="12" Text="Settings — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Settings">
+                <ScrollViewer>
+                    <StackPanel Margin="16" Spacing="12" DataContext="{Binding Settings}"
+                                x:DataType="vm:SettingsViewModel" MaxWidth="520" HorizontalAlignment="Left">
+                        <TextBlock Text="Audio" FontWeight="Bold" FontSize="16"/>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Output device"/>
+                            <ComboBox HorizontalAlignment="Stretch"
+                                      ItemsSource="{Binding OutputDevices}"
+                                      SelectedItem="{Binding SelectedOutput}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="audio:AudioDevice">
+                                        <TextBlock Text="{Binding Name}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Input device"/>
+                            <ComboBox HorizontalAlignment="Stretch"
+                                      ItemsSource="{Binding InputDevices}"
+                                      SelectedItem="{Binding SelectedInput}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="audio:AudioDevice">
+                                        <TextBlock Text="{Binding Name}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding OutputVolumePercent, StringFormat='Output volume: {0}%'}"/>
+                            <Slider Minimum="0" Maximum="150" Value="{Binding OutputVolumePercent}"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button x:Name="TestToneButton" Content="Test tone"/>
+                            <Button x:Name="RefreshDevicesButton" Content="Refresh devices"/>
+                            <TextBlock Text="{Binding TestStatus}" VerticalAlignment="Center" Foreground="#9CDCFE"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Settings persist to ~/.config/htcommander/ via JSON config."
+                                   Foreground="#888" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
         </TabControl>
     </DockPanel>
 </Window>
