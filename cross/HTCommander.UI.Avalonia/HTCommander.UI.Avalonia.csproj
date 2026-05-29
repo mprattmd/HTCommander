@@ -20,5 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HTCommander.Core\HTCommander.Core.csproj" />
+    <!-- Linux composition root: the app wires the Linux platform backends
+         (BlueZ transport, PortAudio, JSON config). A cross-platform build would
+         select Win/Linux/Mac here via RID/OS conditions. -->
+    <ProjectReference Include="..\HTCommander.Platform.Linux\HTCommander.Platform.Linux.csproj" />
   </ItemGroup>
 </Project>

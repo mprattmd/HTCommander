@@ -338,7 +338,29 @@ public sealed class BlueZRadioDiscovery : IRadioTransportDiscovery
         }
         catch (Exception) { return Array.Empty<string>(); }
     }
+
+    /// <summary>
+    /// Like <see cref="FindCompatibleDevices"/> but returns the BD_ADDR alongside
+    /// the name, which a caller needs to actually open the transport. (The
+    /// <see cref="IRadioTransportDiscovery"/> contract only exposes names.)
+    /// </summary>
+    public IReadOnlyList<RadioDeviceInfo> FindCompatibleRadios()
+    {
+        try
+        {
+            return Task.Run(async () => (await BlueZ.GetDevices())
+                    .Where(d => TargetDeviceNames.Contains(d.Name) && !string.IsNullOrEmpty(d.Address))
+                    .Select(d => new RadioDeviceInfo(d.Name, d.Address))
+                    .OrderBy(d => d.Name)
+                    .ToList())
+                .GetAwaiter().GetResult();
+        }
+        catch (Exception) { return Array.Empty<RadioDeviceInfo>(); }
+    }
 }
+
+/// <summary>A discovered Bluetooth radio: model name + BD_ADDR ("AA:BB:CC:DD:EE:FF").</summary>
+public sealed record RadioDeviceInfo(string Name, string Address);
 
 /// <summary>Thin async helpers over the BlueZ system bus.</summary>
 internal static class BlueZ

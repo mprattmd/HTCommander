@@ -2,8 +2,68 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+        xmlns:pl="using:HTCommander.Platform.Linux"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
         x:Class="HTCommander.UI.Avalonia.MainWindow"
-        Title="HTCommander.UI.Avalonia">
-    Welcome to Avalonia!
+        x:DataType="vm:MainViewModel"
+        Width="900" Height="600"
+        Title="HTCommander">
+    <DockPanel LastChildFill="True">
+
+        <!-- Connection bar -->
+        <Border DockPanel.Dock="Top" Padding="8" Background="#2D2D30">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Radio:" VerticalAlignment="Center" Foreground="White"/>
+                <ComboBox x:Name="RadioCombo" MinWidth="240"
+                          ItemsSource="{Binding Radios}"
+                          SelectedItem="{Binding SelectedRadio}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="pl:RadioDeviceInfo">
+                            <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Address}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button x:Name="RefreshButton" Content="Refresh"/>
+                <Button x:Name="ConnectButton" Content="Connect"
+                        IsEnabled="{Binding CanConnect}"/>
+                <Button x:Name="DisconnectButton" Content="Disconnect"
+                        IsEnabled="{Binding CanDisconnect}"/>
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
+                           Foreground="#9CDCFE" Margin="16,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom" Padding="8,4" Background="#007ACC">
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <TextBlock Foreground="White" Text="{Binding Status, StringFormat='State: {0}'}"/>
+                <TextBlock Foreground="White" Text="{Binding FrameCount, StringFormat='Frames: {0}'}"/>
+                <TextBlock Foreground="White" Text="{Binding BluetoothAvailable, StringFormat='Bluetooth: {0}'}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main tabbed area -->
+        <TabControl>
+            <TabItem Header="Radio">
+                <Grid RowDefinitions="Auto,*" Margin="8">
+                    <TextBlock Grid.Row="0" Margin="0,0,0,6"
+                               Text="Live transport log (BlueZ RFCOMM / GAIA frames)"
+                               FontWeight="Bold"/>
+                    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                        <ListBox ItemsSource="{Binding Log}" FontFamily="monospace"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Voice"><TextBlock Margin="12" Text="Voice — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="APRS"><TextBlock Margin="12" Text="APRS — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Map"><TextBlock Margin="12" Text="Map (GMap.NET → Mapsui) — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Mail"><TextBlock Margin="12" Text="Mail — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Terminal"><TextBlock Margin="12" Text="Terminal — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Contacts"><TextBlock Margin="12" Text="Contacts — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="BBS"><TextBlock Margin="12" Text="BBS — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Packets"><TextBlock Margin="12" Text="Packets — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Settings"><TextBlock Margin="12" Text="Settings — port pending (Phase 3)."/></TabItem>
+        </TabControl>
+    </DockPanel>
 </Window>
