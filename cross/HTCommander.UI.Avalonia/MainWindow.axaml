@@ -52,7 +52,8 @@
                     <!-- Live telemetry (parsed GET_HT_STATUS) -->
                     <Border Grid.Column="0" BorderBrush="#3F3F46" BorderThickness="1" Padding="10"
                             IsVisible="{Binding HasStatus}" VerticalAlignment="Top">
-                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                        <Grid ColumnDefinitions="Auto,*"
+                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                               RowSpacing="6" ColumnSpacing="12">
                             <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Radio status" FontWeight="Bold" Margin="0,0,0,4"/>
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Power"/>
@@ -69,6 +70,10 @@
                             <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Region}"/>
                             <TextBlock Grid.Row="7" Grid.Column="0" Text="GPS"/>
                             <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding GpsText}"/>
+                            <TextBlock Grid.Row="8" Grid.Column="0" Text="Battery"/>
+                            <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding BatteryPercent, StringFormat='{}{0}%'}"/>
+                            <TextBlock Grid.Row="9" Grid.ColumnSpan="2" Text="Device" FontWeight="Bold" Margin="0,8,0,0"/>
+                            <TextBlock Grid.Row="10" Grid.ColumnSpan="2" Text="{Binding DeviceInfoText}" TextWrapping="Wrap"/>
                         </Grid>
                     </Border>
 

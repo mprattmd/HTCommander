@@ -17,9 +17,8 @@ limitations under the License.
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using HTCommander;                       // RadioHtStatus (Core)
+using HTCommander;                       // RadioController, RadioHtStatus, RadioDeviceSummary, DataBrokerClient (Core)
 using HTCommander.Core.Abstractions;
 using HTCommander.Core.Abstractions.Audio;
 using HTCommander.Platform.Linux;
@@ -28,30 +27,22 @@ using HTCommander.UI.Avalonia.Platform;
 namespace HTCommander.UI.Avalonia.ViewModels;
 
 /// <summary>
-/// Shell view model. Drives the connection panel using the validated Linux
-/// stack (<see cref="BlueZRadioDiscovery"/> + <see cref="RadioBluetoothLinux"/>):
-/// lists compatible radios, opens/closes the transport, and surfaces connection
-/// state plus a live frame log. All cross-thread updates are marshalled through
-/// the injected <see cref="IUiDispatcher"/>.
-///
-/// NOTE: connecting here drives the raw transport directly and sends a hardcoded
-/// GET_DEV_INFO probe — full radio control arrives when Radio.cs is portable
-/// (porting-plan step 3). The shell, dispatcher and DI wiring are the deliverable.
+/// Shell view model. Lists compatible radios (<see cref="BlueZRadioDiscovery"/>),
+/// opens the <see cref="RadioBluetoothLinux"/> transport, and drives it through a
+/// portable <see cref="RadioController"/> (Core). The controller publishes parsed
+/// results — HT status, battery, device info — to the <c>DataBroker</c>; this VM
+/// subscribes (device 0) and binds them to the UI, i.e. the shell is a pure
+/// DataBroker consumer. Cross-thread updates are marshalled via <see cref="IUiDispatcher"/>
+/// (DataBroker marshals subscriber callbacks through the same dispatcher).
 /// </summary>
 public sealed class MainViewModel : ViewModelBase
 {
-    private const int GroupBasic = 2;
-    private const int CmdGetHtStatus = 20;
-    // BASIC(2) / GET_DEV_INFO(4) / data=3 — same probe Radio sends on connect.
-    private static readonly byte[] GetDevInfo = { 0x00, 0x02, 0x00, 0x04, 0x03 };
-    // BASIC(2) / GET_HT_STATUS(20), no payload — polled while connected.
-    private static readonly byte[] GetHtStatus = { 0x00, 0x02, 0x00, 0x14 };
-
     private readonly IUiDispatcher dispatcher;
     private readonly BlueZRadioDiscovery discovery = new();
     private readonly ILogger logger;
+    private readonly DataBrokerClient broker = new DataBrokerClient();
     private RadioBluetoothLinux? transport;
-    private CancellationTokenSource? pollCts;
+    private RadioController? controller;
 
     public ObservableCollection<RadioDeviceInfo> Radios { get; } = new();
     public ObservableCollection<string> Log { get; } = new();
@@ -64,6 +55,13 @@ public sealed class MainViewModel : ViewModelBase
         this.dispatcher = dispatcher;
         logger = new CallbackLogger(AppendLog);
         Settings = new SettingsViewModel(dispatcher, audioDevices);
+
+        // Consume the controller's published telemetry (device 0). DataBroker
+        // marshals these callbacks onto the UI thread for us.
+        broker.Subscribe(0, "HtStatus", (_, _, data) => { if (data is RadioHtStatus s) ApplyHtStatus(s); });
+        broker.Subscribe(0, "BatteryAsPercentage", (_, _, data) => { if (data is int p) BatteryPercent = p; });
+        broker.Subscribe(0, "DeviceInfo", (_, _, data) => { if (data is RadioDeviceSummary d) ApplyDeviceInfo(d); });
+
         Refresh();
     }
 
@@ -98,9 +96,9 @@ public sealed class MainViewModel : ViewModelBase
     public int FrameCount { get => frameCount; private set => SetField(ref frameCount, value); }
 
     public bool CanConnect => !Connected && SelectedRadio != null;
-    public bool CanDisconnect => Connected || transport != null;
+    public bool CanDisconnect => Connected || controller != null;
 
-    // --- Live HT status telemetry (parsed from GET_HT_STATUS via Core RadioHtStatus) ---
+    // --- Telemetry published by RadioController (parsed via Core types) ---
 
     private bool hasStatus;
     public bool HasStatus { get => hasStatus; private set => SetField(ref hasStatus, value); }
@@ -125,6 +123,12 @@ public sealed class MainViewModel : ViewModelBase
 
     private string gpsText = "—";
     public string GpsText { get => gpsText; private set => SetField(ref gpsText, value); }
+
+    private int batteryPercent;
+    public int BatteryPercent { get => batteryPercent; private set => SetField(ref batteryPercent, value); }
+
+    private string deviceInfoText = "—";
+    public string DeviceInfoText { get => deviceInfoText; private set => SetField(ref deviceInfoText, value); }
 
     /// <summary>Re-scans BlueZ for adapter availability and compatible radios.</summary>
     public void Refresh()
@@ -156,91 +160,64 @@ public sealed class MainViewModel : ViewModelBase
         AppendLog(Status);
 
         transport = new RadioBluetoothLinux(radio.Address, logger,
-            reason => dispatcher.Post(() =>
-            {
-                StopPolling();
-                Connected = false;
-                transport = null;
-                HasStatus = false;
-                Status = "Disconnected: " + reason;
-                OnPropertyChanged(nameof(CanConnect));
-                OnPropertyChanged(nameof(CanDisconnect));
-            }));
+            reason => dispatcher.Post(() => OnDisconnected(reason)));
 
         transport.OnConnected += () => dispatcher.Post(() =>
         {
             Connected = true;
             Status = $"Connected to {radio.Name}";
-            AppendLog("Connected — sending GET_DEV_INFO and polling GET_HT_STATUS.");
-            transport?.EnqueueWrite(0, GetDevInfo);
-            StartPolling();
+            AppendLog("Connected — querying device info, status and battery.");
         });
 
         transport.ReceivedData += (_, _, value) => dispatcher.Post(() =>
         {
             FrameCount++;
             AppendLog($"<<< [{value.Length}B] {BytesToHex(value)}");
-            TryApplyHtStatus(value);
         });
 
-        transport.Connect();
+        // The controller owns the command/response protocol and connects the transport.
+        controller = new RadioController(transport, 0, logger);
+        controller.Start();
         OnPropertyChanged(nameof(CanConnect));
         OnPropertyChanged(nameof(CanDisconnect));
     }
 
     public void Disconnect()
     {
-        var t = transport;
-        if (t == null) return;
+        var c = controller;
+        if (c == null) return;
         AppendLog("Disconnecting...");
-        StopPolling();
-        Task.Run(() => t.Disconnect());
+        Task.Run(() => c.Stop());   // triggers the transport's onDisconnected -> OnDisconnected()
     }
 
-    private void StartPolling()
+    private void OnDisconnected(string reason)
     {
-        StopPolling();
-        var cts = new CancellationTokenSource();
-        pollCts = cts;
-        CancellationToken ct = cts.Token;
-        Task.Run(async () =>
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                try { transport?.EnqueueWrite(0, GetHtStatus); } catch (Exception) { }
-                try { await Task.Delay(1500, ct); } catch (Exception) { break; }
-            }
-        });
+        try { controller?.Dispose(); } catch (Exception) { }
+        controller = null;
+        transport = null;
+        Connected = false;
+        HasStatus = false;
+        BatteryPercent = 0;
+        DeviceInfoText = "—";
+        Status = "Disconnected: " + reason;
+        OnPropertyChanged(nameof(CanConnect));
+        OnPropertyChanged(nameof(CanDisconnect));
     }
 
-    private void StopPolling()
+    private void ApplyHtStatus(RadioHtStatus s)
     {
-        try { pollCts?.Cancel(); } catch (Exception) { }
-        pollCts = null;
+        HasStatus = true;
+        PowerText = s.is_power_on ? "On" : "Off";
+        TxRxState = s.is_in_tx ? "Transmitting" : s.is_in_rx ? "Receiving" : "Idle";
+        SquelchText = s.is_sq ? "Open" : "Closed";
+        ChannelId = s.channel_id;
+        Rssi = s.rssi;
+        Region = s.curr_region;
+        GpsText = s.is_gps_locked ? "Locked" : "No lock";
     }
 
-    // Parse a BASIC/GET_HT_STATUS reply into live telemetry (reuses Core RadioHtStatus).
-    private void TryApplyHtStatus(byte[] value)
-    {
-        if (value.Length < 7) return;
-        int group = (value[0] << 8) | value[1];
-        int cmd = ((value[2] << 8) | value[3]) & 0x7FFF;
-        if (group != GroupBasic || cmd != CmdGetHtStatus) return;
-
-        try
-        {
-            var s = new RadioHtStatus(value);
-            HasStatus = true;
-            PowerText = s.is_power_on ? "On" : "Off";
-            TxRxState = s.is_in_tx ? "Transmitting" : s.is_in_rx ? "Receiving" : "Idle";
-            SquelchText = s.is_sq ? "Open" : "Closed";
-            ChannelId = s.channel_id;
-            Rssi = s.rssi;
-            Region = s.curr_region;
-            GpsText = s.is_gps_locked ? "Locked" : "No lock";
-        }
-        catch (Exception) { /* malformed frame — ignore */ }
-    }
+    private void ApplyDeviceInfo(RadioDeviceSummary d) =>
+        DeviceInfoText = $"Vendor {d.VendorId} · Product {d.ProductId} · HW v{d.HardwareVersion} · FW v{d.SoftwareVersion} · {d.ChannelCount} ch";
 
     private void AppendLog(string line)
     {
