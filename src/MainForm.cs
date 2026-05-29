@@ -50,7 +50,7 @@ namespace HTCommander
             InitializeComponent();
 
             // Set UI context for broker callbacks and create main form broker client
-            DataBroker.SetUIContext(this);
+            DataBroker.SetUIContext(new WinFormsUiDispatcher(this));
             broker = new DataBrokerClient();
 
             // Add the data handlers

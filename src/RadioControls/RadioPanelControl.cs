@@ -540,7 +540,7 @@ namespace HTCommander.RadioControls
                 }
 
                 // Update the VFO colors based on RX/TX state
-                if ((channelB != null) && (currentState == "Connected") && (currentHtStatus != null) && (currentHtStatus.double_channel == Radio.RadioChannelType.A))
+                if ((channelB != null) && (currentState == "Connected") && (currentHtStatus != null) && (currentHtStatus.double_channel == RadioChannelType.A))
                 {
                     if ((currentHtStatus.is_in_rx || currentHtStatus.is_in_tx) && (currentHtStatus.curr_ch_id == channelB.channel_id))
                     {

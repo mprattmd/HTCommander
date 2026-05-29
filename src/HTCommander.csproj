@@ -46,6 +46,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\cross\HTCommander.Core\HTCommander.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="HTCommander.ico" />
     <None Include="Docs\Overview.md" />
     <None Include="Docs\Design.md" />

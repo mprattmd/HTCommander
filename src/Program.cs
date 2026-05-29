@@ -58,8 +58,8 @@ namespace HTCommander
         }
         static void MainEx(string[] args)
         {
-            // Initialize the global data broker
-            DataBroker.Initialize("HTCommander");
+            // Initialize the global data broker with the Windows registry-backed config store
+            DataBroker.Initialize(new RegistryHelper("HTCommander"));
 
             // No other instance running
             Application.ThreadException += new System.Threading.ThreadExceptionEventHandler(ExceptionSink);

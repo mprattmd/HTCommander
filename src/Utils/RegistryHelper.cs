@@ -6,10 +6,13 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 using System;
 using Microsoft.Win32;
+using HTCommander.Core.Abstractions;
 
 namespace HTCommander
 {
-    public class RegistryHelper
+    // Implements IConfigStore so DataBroker (now in Core) can use the Windows
+    // Registry as its settings store. Method signatures already match IConfigStore.
+    public class RegistryHelper : IConfigStore
     {
         private readonly string _applicationName;
 

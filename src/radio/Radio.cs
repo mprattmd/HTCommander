@@ -114,7 +114,7 @@ namespace HTCommander
             BSS_SETTINGS_CHANGED = 11, DATA_TXD = 12, POSITION_CHANGE = 13
         }
 
-        public enum RadioChannelType : int { OFF = 0, A = 1, B = 2 }
+        // RadioChannelType moved to HTCommander.Core (RadioDataTypes.cs) as a top-level type.
         public enum RadioModulationType : int { FM = 0, AM = 1, DMR = 2 }
         public enum RadioBandwidthType : int { NARROW = 0, WIDE = 1 }
 
@@ -1527,89 +1527,5 @@ namespace HTCommander
         }
 
         #endregion
-    }
-
-    /// <summary>
-    /// Data class representing the radio's lock state.
-    /// </summary>
-    public class RadioLockState
-    {
-        /// <summary>
-        /// Whether the radio is currently locked.
-        /// </summary>
-        public bool IsLocked { get; set; }
-
-        /// <summary>
-        /// The usage identifier for the current lock.
-        /// </summary>
-        public string Usage { get; set; }
-
-        /// <summary>
-        /// The locked region ID.
-        /// </summary>
-        public int RegionId { get; set; }
-
-        /// <summary>
-        /// The locked channel ID.
-        /// </summary>
-        public int ChannelId { get; set; }
-    }
-
-    /// <summary>
-    /// Data class for setting a lock on the radio.
-    /// </summary>
-    public class SetLockData
-    {
-        /// <summary>
-        /// The usage identifier for the lock.
-        /// </summary>
-        public string Usage { get; set; }
-
-        /// <summary>
-        /// The region ID to lock to.
-        /// </summary>
-        public int RegionId { get; set; }
-
-        /// <summary>
-        /// The channel ID to lock to.
-        /// </summary>
-        public int ChannelId { get; set; }
-    }
-
-    /// <summary>
-    /// Data class for unlocking the radio.
-    /// </summary>
-    public class SetUnlockData
-    {
-        /// <summary>
-        /// The usage identifier that must match the current lock to unlock.
-        /// </summary>
-        public string Usage { get; set; }
-    }
-
-    /// <summary>
-    /// Data class for transmitting AX.25 packets via the Data Broker.
-    /// </summary>
-    public class TransmitDataFrameData
-    {
-        /// <summary>
-        /// The AX.25 packet to transmit.
-        /// </summary>
-        public AX25Packet Packet { get; set; }
-
-        /// <summary>
-        /// The BSS packet to transmit.
-        /// </summary>
-        public BSSPacket BSSPacket { get; set; }
-
-        /// <summary>
-        /// The channel ID to transmit on. Use -1 to use the current channel.
-        /// </summary>
-        public int ChannelId { get; set; } = -1;
-
-        /// <summary>
-        /// The region ID. Use -1 if not applicable.
-        /// </summary>
-        public int RegionId { get; set; } = -1;
     }
 }
