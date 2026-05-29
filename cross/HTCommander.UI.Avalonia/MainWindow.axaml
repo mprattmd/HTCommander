@@ -6,6 +6,7 @@
         xmlns:pl="using:HTCommander.Platform.Linux"
         xmlns:audio="using:HTCommander.Core.Abstractions.Audio"
         xmlns:core="using:HTCommander"
+        xmlns:mapsui="clr-namespace:Mapsui.UI.Avalonia;assembly=Mapsui.UI.Avalonia"
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
         x:Class="HTCommander.UI.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -112,7 +113,13 @@
                     </Border>
                 </Grid>
             </TabItem>
-            <TabItem Header="Map"><TextBlock Margin="12" Text="Map (GMap.NET → Mapsui) — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Map">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Margin="8,6" FontWeight="Bold"
+                               Text="{Binding Stations.Count, StringFormat='APRS map — stations ({0})'}"/>
+                    <mapsui:MapControl Grid.Row="1" x:Name="MapControl"/>
+                </Grid>
+            </TabItem>
             <TabItem Header="Config">
                 <ScrollViewer>
                     <StackPanel Margin="16" Spacing="12" MaxWidth="520" HorizontalAlignment="Left">
