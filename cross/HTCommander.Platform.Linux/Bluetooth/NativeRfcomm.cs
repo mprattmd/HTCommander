@@ -49,6 +49,7 @@ internal static class NativeRfcomm
     private const int BT_SECURITY = 4;
     private const byte BT_SECURITY_MEDIUM = 2;
 
+    private const short POLLIN = 0x0001;
     private const short POLLOUT = 0x0004;
 
     private const int EINPROGRESS = 115;
@@ -177,35 +178,52 @@ internal static class NativeRfcomm
         }
     }
 
-    /// <summary>
-    /// Connects to the device, discovering the SPP channel. If
-    /// <paramref name="preferredChannel"/> &gt; 0 only that channel is tried;
-    /// otherwise channels 1..30 are scanned (SPP servers advertise a single
-    /// channel via SDP, but BlueZ no longer exposes it over D-Bus, so we probe).
-    /// </summary>
-    public static int Connect(byte[] bdaddr, int preferredChannel, Action<string>? log, out int usedChannel)
-    {
-        usedChannel = 0;
-        if (preferredChannel > 0)
-        {
-            int fd = TryConnect(bdaddr, preferredChannel, 8000);
-            if (fd >= 0) { usedChannel = preferredChannel; }
-            return fd;
-        }
-
-        for (int ch = 1; ch <= 30; ch++)
-        {
-            int fd = TryConnect(bdaddr, ch, 1500);
-            if (fd >= 0) { usedChannel = ch; log?.Invoke($"RFCOMM channel {ch} accepted."); return fd; }
-        }
-        return -1;
-    }
-
     public static void CloseFd(int fd)
     {
         if (fd < 0) return;
         try { shutdown(fd, SHUT_RDWR); } catch { }
         try { close(fd); } catch { }
+    }
+
+    /// <summary>Writes all bytes to the fd. Returns false on error.</summary>
+    public static bool WriteAll(int fd, byte[] data)
+    {
+        IntPtr buf = Marshal.AllocHGlobal(data.Length);
+        try
+        {
+            Marshal.Copy(data, 0, buf, data.Length);
+            int off = 0;
+            while (off < data.Length)
+            {
+                nint n = write(fd, buf + off, (nuint)(data.Length - off));
+                if (n <= 0) return false;
+                off += (int)n;
+            }
+            return true;
+        }
+        finally { Marshal.FreeHGlobal(buf); }
+    }
+
+    /// <summary>
+    /// Reads available bytes within <paramref name="timeoutMs"/>. Returns bytes
+    /// read, or 0 on timeout. Used to probe a freshly-opened channel for a reply.
+    /// </summary>
+    public static int ReadWithTimeout(int fd, byte[] buf, int timeoutMs)
+    {
+        byte[] pfd = new byte[8];
+        BitConverter.GetBytes(fd).CopyTo(pfd, 0);
+        BitConverter.GetBytes(POLLIN).CopyTo(pfd, 4);
+        if (poll(pfd, 1, timeoutMs) <= 0) return 0;
+
+        IntPtr p = Marshal.AllocHGlobal(buf.Length);
+        try
+        {
+            nint n = read(fd, p, (nuint)buf.Length);
+            if (n <= 0) return 0;
+            Marshal.Copy(p, buf, 0, (int)n);
+            return (int)n;
+        }
+        finally { Marshal.FreeHGlobal(p); }
     }
 
     /// <summary>

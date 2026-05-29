@@ -153,6 +153,39 @@ public sealed class RadioBluetoothLinux : IRadioTransport
         return bytes;
     }
 
+    // Connects and returns the fd of the RFCOMM channel that actually speaks GAIA.
+    // Each candidate channel is probed with GET_DEV_INFO; we keep the one that
+    // replies with a GAIA frame (0xFF 0x01). Necessary because the radio assigns
+    // the SPP/GAIA channel dynamically and other channels answer non-GAIA services.
+    private int ConnectGaiaChannel(byte[] bdaddr, int preferred, out byte[] initialData, out int usedChannel)
+    {
+        initialData = Array.Empty<byte>();
+        usedChannel = 0;
+        byte[] probe = GaiaEncode(new byte[] { 0x00, 0x02, 0x00, 0x04, 0x03 }); // BASIC/GET_DEV_INFO
+        IEnumerable<int> candidates = preferred > 0 ? new[] { preferred } : Enumerable.Range(1, 30);
+
+        foreach (int ch in candidates)
+        {
+            int fd = NativeRfcomm.TryConnect(bdaddr, ch, preferred > 0 ? 8000 : 1500);
+            if (fd < 0) continue;
+
+            if (!NativeRfcomm.WriteAll(fd, probe)) { NativeRfcomm.CloseFd(fd); continue; }
+            byte[] buf = new byte[1024];
+            int n = NativeRfcomm.ReadWithTimeout(fd, buf, 1200);
+            if (n >= 2 && buf[0] == 0xFF && buf[1] == 0x01)
+            {
+                initialData = new byte[n];
+                Array.Copy(buf, initialData, n);
+                usedChannel = ch;
+                return fd;
+            }
+
+            Debug($"RFCOMM channel {ch} connected but no GAIA reply; skipping.");
+            NativeRfcomm.CloseFd(fd);
+        }
+        return -1;
+    }
+
     private static string BytesToHex(byte[] data, int offset, int len)
     {
         var sb = new System.Text.StringBuilder(len * 3);
@@ -182,18 +215,23 @@ public sealed class RadioBluetoothLinux : IRadioTransport
         // Best-effort: make sure a Bluetooth adapter is powered before connecting.
         try { BlueZ.PowerOnAdapter().GetAwaiter().GetResult(); } catch (Exception) { }
 
-        // Optional fixed channel override (skips the 1..30 SDP-less scan).
+        // Optional fixed channel override; otherwise GAIA-validated scan of 1..30.
+        // The radio assigns its SPP/GAIA RFCOMM channel DYNAMICALLY (observed moving
+        // between sessions), and other RFCOMM channels accept but speak non-GAIA
+        // services — so we must probe each channel and keep the one that replies
+        // with a GAIA frame, not just the first that connects.
         int preferred = 0;
         string? envCh = Environment.GetEnvironmentVariable("HTCOMMANDER_RFCOMM_CHANNEL");
         if (!string.IsNullOrEmpty(envCh) && int.TryParse(envCh, out int pc) && pc > 0 && pc <= 30) preferred = pc;
 
         int fd = -1;
-        int retry = 5;
+        byte[] initialData = Array.Empty<byte>();
+        int retry = 3;
         while (retry > 0 && !cancellationToken.IsCancellationRequested)
         {
-            Debug("Connecting...");
-            fd = NativeRfcomm.Connect(bdaddr, preferred, Debug, out int usedChannel);
-            if (fd >= 0) { Debug($"Connected on RFCOMM channel {usedChannel}."); break; }
+            Debug("Connecting (discovering GAIA channel)...");
+            fd = ConnectGaiaChannel(bdaddr, preferred, out initialData, out int usedChannel);
+            if (fd >= 0) { Debug($"GAIA channel {usedChannel} validated."); break; }
             retry--;
             if (retry > 0) Thread.Sleep(500);
         }
@@ -210,6 +248,14 @@ public sealed class RadioBluetoothLinux : IRadioTransport
         {
             byte[] accumulator = new byte[4096];
             int accumulatorPtr = 0, accumulatorLen = 0;
+
+            // Seed with the GAIA validation reply already read during discovery, so
+            // no bytes are lost and frame alignment is preserved.
+            if (initialData.Length > 0 && initialData.Length <= accumulator.Length)
+            {
+                Array.Copy(initialData, 0, accumulator, 0, initialData.Length);
+                accumulatorLen = initialData.Length;
+            }
 
             lock (connectionLock)
             {
