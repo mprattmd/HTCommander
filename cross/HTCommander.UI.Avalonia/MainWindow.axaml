@@ -32,6 +32,9 @@
                         IsEnabled="{Binding CanConnect}"/>
                 <Button x:Name="DisconnectButton" Content="Disconnect"
                         IsEnabled="{Binding CanDisconnect}"/>
+                <Button x:Name="PttButton" Content="🎤 PTT (hold)"
+                        IsEnabled="{Binding CanTransmit}" Background="#5A1F1F" Foreground="White"
+                        ToolTip.Tip="Hold to transmit (keys the radio on the air)"/>
                 <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
                            Foreground="#9CDCFE" Margin="16,0,0,0"/>
             </StackPanel>
@@ -44,6 +47,7 @@
                 <TextBlock Foreground="White" Text="{Binding FrameCount, StringFormat='Frames: {0}'}"/>
                 <TextBlock Foreground="White" Text="{Binding BluetoothAvailable, StringFormat='Bluetooth: {0}'}"/>
                 <TextBlock Foreground="White" Text="Voice RX" IsVisible="{Binding VoiceRxActive}"/>
+                <TextBlock Foreground="#FFB0B0" FontWeight="Bold" Text="● TRANSMITTING" IsVisible="{Binding Transmitting}"/>
             </StackPanel>
         </Border>
 

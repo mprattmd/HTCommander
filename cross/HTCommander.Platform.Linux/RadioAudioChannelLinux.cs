@@ -113,6 +113,19 @@ public sealed class RadioAudioChannelLinux
         return true;
     }
 
+    /// <summary>
+    /// Writes framed bytes to the audio RFCOMM socket (transmit path). Full-duplex
+    /// with the read loop. ⚠ Sending audio frames keys the radio on the air.
+    /// </summary>
+    public bool Send(byte[] data)
+    {
+        NativeRfcomm.RfcommStream? s;
+        lock (gate) { s = stream; }
+        if (s == null) return false;
+        try { s.Write(data, 0, data.Length); return true; }
+        catch (Exception ex) { Debug("Send failed: " + ex.Message); return false; }
+    }
+
     private void ReadLoop(NativeRfcomm.RfcommStream s, CancellationToken ct)
     {
         byte[] buf = new byte[4096];

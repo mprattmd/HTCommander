@@ -18,6 +18,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using HTCommander;
 using HTCommander.UI.Avalonia.ViewModels;
 using Mapsui;
@@ -45,6 +47,12 @@ public partial class MainWindow : Window
         DisconnectButton.Click += (_, _) => Vm?.Disconnect();
         TestToneButton.Click += (_, _) => Vm?.Settings.TestOutput();
         RefreshDevicesButton.Click += (_, _) => Vm?.Settings.RefreshDevices();
+
+        // PTT is press-and-hold (fail-safe): transmit only while held; any release
+        // or loss of pointer capture un-keys the radio.
+        PttButton.AddHandler(PointerPressedEvent, (_, _) => Vm?.StartTransmit(), RoutingStrategies.Tunnel);
+        PttButton.AddHandler(PointerReleasedEvent, (_, _) => Vm?.StopTransmit(), RoutingStrategies.Tunnel);
+        PttButton.PointerCaptureLost += (_, _) => Vm?.StopTransmit();
 
         InitMap();
 

@@ -47,6 +47,8 @@ public sealed class MainViewModel : ViewModelBase
     private RadioAudioChannelLinux? audioChannel;
     private RadioVoiceReceiver? voiceReceiver;
     private IAudioPlayback? voicePlayback;
+    private RadioVoiceTransmitter? voiceTransmitter;
+    private IAudioCapture? mic;
 
     public ObservableCollection<RadioDeviceInfo> Radios { get; } = new();
     public ObservableCollection<string> Log { get; } = new();
@@ -100,6 +102,7 @@ public sealed class MainViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(CanConnect));
                 OnPropertyChanged(nameof(CanDisconnect));
+                OnPropertyChanged(nameof(CanTransmit));
             }
         }
     }
@@ -108,7 +111,17 @@ public sealed class MainViewModel : ViewModelBase
     public int FrameCount { get => frameCount; private set => SetField(ref frameCount, value); }
 
     private bool voiceRxActive;
-    public bool VoiceRxActive { get => voiceRxActive; private set => SetField(ref voiceRxActive, value); }
+    public bool VoiceRxActive
+    {
+        get => voiceRxActive;
+        private set { if (SetField(ref voiceRxActive, value)) OnPropertyChanged(nameof(CanTransmit)); }
+    }
+
+    private bool transmitting;
+    public bool Transmitting { get => transmitting; private set => SetField(ref transmitting, value); }
+
+    /// <summary>PTT is allowed only while connected with the audio channel open.</summary>
+    public bool CanTransmit => Connected && VoiceRxActive;
 
     public bool CanConnect => !Connected && SelectedRadio != null;
     public bool CanDisconnect => Connected || controller != null;
@@ -256,11 +269,48 @@ public sealed class MainViewModel : ViewModelBase
 
     private void StopVoiceRx()
     {
+        StopTransmit();
         try { audioChannel?.Disconnect(); } catch (Exception) { }
         try { voiceReceiver?.Stop(); } catch (Exception) { }
         try { voicePlayback?.Dispose(); } catch (Exception) { }
         audioChannel = null; voiceReceiver = null; voicePlayback = null;
         VoiceRxActive = false;
+    }
+
+    // --- PTT / transmit (ON-AIR). Operator-triggered only; never automatic. ---
+
+    /// <summary>Keys the radio and transmits mic audio. Call on PTT press.</summary>
+    public void StartTransmit()
+    {
+        if (!CanTransmit || Transmitting || audioChannel == null) return;
+        try
+        {
+            mic = new PortAudioCapture();
+            voiceTransmitter = new RadioVoiceTransmitter(mic, data => audioChannel?.Send(data));
+            if (voiceTransmitter.Start())
+            {
+                Transmitting = true;
+                AppendLog("PTT down — TRANSMITTING (on the air).");
+            }
+            else { CleanupTx(); AppendLog("PTT failed (could not open microphone)."); }
+        }
+        catch (Exception ex) { CleanupTx(); logger.Debug("StartTransmit failed: " + ex.Message); }
+    }
+
+    /// <summary>Un-keys the radio. Call on PTT release.</summary>
+    public void StopTransmit()
+    {
+        if (voiceTransmitter == null) { Transmitting = false; return; }
+        try { voiceTransmitter.Stop(); } catch (Exception) { }
+        CleanupTx();
+        AppendLog("PTT up — stopped transmitting.");
+    }
+
+    private void CleanupTx()
+    {
+        try { mic?.Dispose(); } catch (Exception) { }
+        voiceTransmitter = null; mic = null;
+        Transmitting = false;
     }
 
     private void OnDisconnected(string reason)
