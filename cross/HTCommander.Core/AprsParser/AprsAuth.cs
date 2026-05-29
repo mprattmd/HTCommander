@@ -30,12 +30,12 @@ namespace HTCommander.AprsParser
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
 
             // Compute authentication token
-            byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            //Console.WriteLine("AuthKey: " + Utils.BytesToHex(authKey));
+            byte[] authKey = CoreUtils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
+            //Console.WriteLine("AuthKey: " + CoreUtils.BytesToHex(authKey));
             string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId;
             //Console.WriteLine("Hash: " + x1);
-            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId));
-            //Console.WriteLine("authHash (hex): " + Utils.BytesToHex(authCode));
+            byte[] authCode = CoreUtils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId));
+            //Console.WriteLine("authHash (hex): " + CoreUtils.BytesToHex(authCode));
             //Console.WriteLine("authHash (base64): " + Convert.ToBase64String(authCode));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
             //Console.WriteLine("authCodeBase64: " + authCodeBase64);
@@ -68,12 +68,12 @@ namespace HTCommander.AprsParser
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
 
             // Compute authentication token
-            byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
-            //Console.WriteLine("AuthKey: " + Utils.BytesToHex(authKey));
+            byte[] authKey = CoreUtils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
+            //Console.WriteLine("AuthKey: " + CoreUtils.BytesToHex(authKey));
             string x1 = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + aprsMessage;
             //Console.WriteLine("Hash: " + x1);
-            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + aprsMessage));
-            //Console.WriteLine("authHash (hex): " + Utils.BytesToHex(authCode));
+            byte[] authCode = CoreUtils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + aprsMessage));
+            //Console.WriteLine("authHash (hex): " + CoreUtils.BytesToHex(authCode));
             //Console.WriteLine("authHash (base64): " + Convert.ToBase64String(authCode));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
             //Console.WriteLine("authCodeBase64: " + authCodeBase64);
@@ -123,14 +123,14 @@ namespace HTCommander.AprsParser
             DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             TimeSpan timeSinceEpoch = time.ToUniversalTime() - unixEpoch;
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes - 2;
-            byte[] authKey = Utils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
+            byte[] authKey = CoreUtils.ComputeSha256Hash(UTF8Encoding.UTF8.GetBytes(authPassword));
             string hashMsg = ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage;
             if (msgIdPresent) { hashMsg += "{" + msgId; }
 
             for (long x = minutesSinceEpoch; x < (minutesSinceEpoch + 5); x++)
             {
                 //string x1 = x + ":" + srcAddress + ":" + aprsAddr + ":" + aprsMessage + "{" + msgId;
-                string authCodeBase64 = Convert.ToBase64String(Utils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(x + hashMsg))).Substring(0, 6);
+                string authCodeBase64 = Convert.ToBase64String(CoreUtils.ComputeHmacSha256Hash(authKey, UTF8Encoding.UTF8.GetBytes(x + hashMsg))).Substring(0, 6);
                 if (authCodeBase64Check == authCodeBase64) return AuthState.Success; // Verified authentication
             }
 

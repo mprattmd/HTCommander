@@ -20,14 +20,12 @@ using System.Security.Cryptography;
 
 namespace HTCommander
 {
-    // Cross-platform Core subset of the original src/radio/Utils.cs.
-    // Contains ONLY the platform-neutral helpers required by portable Core code
-    // (e.g. BSSPacket, TncDataFragment). The WinForms-coupled members of the
-    // original Utils (Control/TextBox/RichTextBox helpers, user32.dll P/Invoke,
-    // RtfBuilder) remain in the WinForms project. When the WinForms project is
-    // later wired to reference Core, the pure helpers below should be removed
-    // from src/radio/Utils.cs so this becomes the single canonical definition.
-    public static partial class Utils
+    // Cross-platform Core subset of the platform-neutral helpers from the
+    // original src/radio/Utils.cs (which is WinForms-coupled and stays in the
+    // WinForms project). Named CoreUtils rather than Utils so that when the
+    // WinForms project references Core there is no duplicate-type conflict with
+    // its own HTCommander.Utils class.
+    public static class CoreUtils
     {
         public static string BytesToHex(byte[] Bytes)
         {

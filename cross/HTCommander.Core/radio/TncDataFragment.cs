@@ -56,9 +56,9 @@ namespace HTCommander
 
         public override string ToString()
         {
-            //return "TncFrag2," + channel_id + "," + region_id + "," + channel_name + "," + Utils.BytesToHex(data);
-            //return "TncFrag3," + channel_id + "," + region_id + "," + channel_name + "," + Utils.BytesToHex(data) + "," + (int)encoding + "," + (int)frame_type + "," + (int)corrections;
-            return "TncFrag4," + channel_id + "," + region_id + "," + channel_name + "," + Utils.BytesToHex(data) + "," + (int)encoding + "," + (int)frame_type + "," + (int)corrections + "," + (RadioMac ?? "");
+            //return "TncFrag2," + channel_id + "," + region_id + "," + channel_name + "," + CoreUtils.BytesToHex(data);
+            //return "TncFrag3," + channel_id + "," + region_id + "," + channel_name + "," + CoreUtils.BytesToHex(data) + "," + (int)encoding + "," + (int)frame_type + "," + (int)corrections;
+            return "TncFrag4," + channel_id + "," + region_id + "," + channel_name + "," + CoreUtils.BytesToHex(data) + "," + (int)encoding + "," + (int)frame_type + "," + (int)corrections + "," + (RadioMac ?? "");
         }
 
         public TncDataFragment(byte[] msg)
@@ -104,7 +104,7 @@ namespace HTCommander
 
         public string ToHex()
         {
-            return Utils.BytesToHex(data);
+            return CoreUtils.BytesToHex(data);
         }
     }
 }

@@ -349,7 +349,7 @@ namespace HTCommander
                     continue;
 
                 if (!first) sb.Append(", ");
-                sb.Append(field.Key + ": " + Utils.BytesToHex(field.Value));
+                sb.Append(field.Key + ": " + CoreUtils.BytesToHex(field.Value));
                 first = false;
             }
 
