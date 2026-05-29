@@ -17,7 +17,9 @@ limitations under the License.
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using HTCommander;                       // RadioHtStatus (Core)
 using HTCommander.Core.Abstractions;
 using HTCommander.Platform.Linux;
 using HTCommander.UI.Avalonia.Platform;
@@ -37,13 +39,18 @@ namespace HTCommander.UI.Avalonia.ViewModels;
 /// </summary>
 public sealed class MainViewModel : ViewModelBase
 {
+    private const int GroupBasic = 2;
+    private const int CmdGetHtStatus = 20;
     // BASIC(2) / GET_DEV_INFO(4) / data=3 — same probe Radio sends on connect.
     private static readonly byte[] GetDevInfo = { 0x00, 0x02, 0x00, 0x04, 0x03 };
+    // BASIC(2) / GET_HT_STATUS(20), no payload — polled while connected.
+    private static readonly byte[] GetHtStatus = { 0x00, 0x02, 0x00, 0x14 };
 
     private readonly IUiDispatcher dispatcher;
     private readonly BlueZRadioDiscovery discovery = new();
     private readonly ILogger logger;
     private RadioBluetoothLinux? transport;
+    private CancellationTokenSource? pollCts;
 
     public ObservableCollection<RadioDeviceInfo> Radios { get; } = new();
     public ObservableCollection<string> Log { get; } = new();
@@ -88,6 +95,32 @@ public sealed class MainViewModel : ViewModelBase
     public bool CanConnect => !Connected && SelectedRadio != null;
     public bool CanDisconnect => Connected || transport != null;
 
+    // --- Live HT status telemetry (parsed from GET_HT_STATUS via Core RadioHtStatus) ---
+
+    private bool hasStatus;
+    public bool HasStatus { get => hasStatus; private set => SetField(ref hasStatus, value); }
+
+    private string powerText = "—";
+    public string PowerText { get => powerText; private set => SetField(ref powerText, value); }
+
+    private string txRxState = "—";
+    public string TxRxState { get => txRxState; private set => SetField(ref txRxState, value); }
+
+    private string squelchText = "—";
+    public string SquelchText { get => squelchText; private set => SetField(ref squelchText, value); }
+
+    private int channelId;
+    public int ChannelId { get => channelId; private set => SetField(ref channelId, value); }
+
+    private int rssi;
+    public int Rssi { get => rssi; private set => SetField(ref rssi, value); }
+
+    private int region;
+    public int Region { get => region; private set => SetField(ref region, value); }
+
+    private string gpsText = "—";
+    public string GpsText { get => gpsText; private set => SetField(ref gpsText, value); }
+
     /// <summary>Re-scans BlueZ for adapter availability and compatible radios.</summary>
     public void Refresh()
     {
@@ -120,8 +153,10 @@ public sealed class MainViewModel : ViewModelBase
         transport = new RadioBluetoothLinux(radio.Address, logger,
             reason => dispatcher.Post(() =>
             {
+                StopPolling();
                 Connected = false;
                 transport = null;
+                HasStatus = false;
                 Status = "Disconnected: " + reason;
                 OnPropertyChanged(nameof(CanConnect));
                 OnPropertyChanged(nameof(CanDisconnect));
@@ -131,14 +166,16 @@ public sealed class MainViewModel : ViewModelBase
         {
             Connected = true;
             Status = $"Connected to {radio.Name}";
-            AppendLog("Connected — sending GET_DEV_INFO probe.");
+            AppendLog("Connected — sending GET_DEV_INFO and polling GET_HT_STATUS.");
             transport?.EnqueueWrite(0, GetDevInfo);
+            StartPolling();
         });
 
         transport.ReceivedData += (_, _, value) => dispatcher.Post(() =>
         {
             FrameCount++;
             AppendLog($"<<< [{value.Length}B] {BytesToHex(value)}");
+            TryApplyHtStatus(value);
         });
 
         transport.Connect();
@@ -151,7 +188,53 @@ public sealed class MainViewModel : ViewModelBase
         var t = transport;
         if (t == null) return;
         AppendLog("Disconnecting...");
+        StopPolling();
         Task.Run(() => t.Disconnect());
+    }
+
+    private void StartPolling()
+    {
+        StopPolling();
+        var cts = new CancellationTokenSource();
+        pollCts = cts;
+        CancellationToken ct = cts.Token;
+        Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try { transport?.EnqueueWrite(0, GetHtStatus); } catch (Exception) { }
+                try { await Task.Delay(1500, ct); } catch (Exception) { break; }
+            }
+        });
+    }
+
+    private void StopPolling()
+    {
+        try { pollCts?.Cancel(); } catch (Exception) { }
+        pollCts = null;
+    }
+
+    // Parse a BASIC/GET_HT_STATUS reply into live telemetry (reuses Core RadioHtStatus).
+    private void TryApplyHtStatus(byte[] value)
+    {
+        if (value.Length < 7) return;
+        int group = (value[0] << 8) | value[1];
+        int cmd = ((value[2] << 8) | value[3]) & 0x7FFF;
+        if (group != GroupBasic || cmd != CmdGetHtStatus) return;
+
+        try
+        {
+            var s = new RadioHtStatus(value);
+            HasStatus = true;
+            PowerText = s.is_power_on ? "On" : "Off";
+            TxRxState = s.is_in_tx ? "Transmitting" : s.is_in_rx ? "Receiving" : "Idle";
+            SquelchText = s.is_sq ? "Open" : "Closed";
+            ChannelId = s.channel_id;
+            Rssi = s.rssi;
+            Region = s.curr_region;
+            GpsText = s.is_gps_locked ? "Locked" : "No lock";
+        }
+        catch (Exception) { /* malformed frame — ignore */ }
     }
 
     private void AppendLog(string line)

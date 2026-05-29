@@ -46,13 +46,40 @@
         <!-- Main tabbed area -->
         <TabControl>
             <TabItem Header="Radio">
-                <Grid RowDefinitions="Auto,*" Margin="8">
-                    <TextBlock Grid.Row="0" Margin="0,0,0,6"
-                               Text="Live transport log (BlueZ RFCOMM / GAIA frames)"
-                               FontWeight="Bold"/>
-                    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
-                        <ListBox ItemsSource="{Binding Log}" FontFamily="monospace"/>
+                <Grid ColumnDefinitions="260,*" Margin="8" ColumnSpacing="10">
+
+                    <!-- Live telemetry (parsed GET_HT_STATUS) -->
+                    <Border Grid.Column="0" BorderBrush="#3F3F46" BorderThickness="1" Padding="10"
+                            IsVisible="{Binding HasStatus}" VerticalAlignment="Top">
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                              RowSpacing="6" ColumnSpacing="12">
+                            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Radio status" FontWeight="Bold" Margin="0,0,0,4"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Power"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PowerText}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="State"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TxRxState}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Squelch"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SquelchText}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Channel"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ChannelId}"/>
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="RSSI"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Rssi}"/>
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Region"/>
+                            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Region}"/>
+                            <TextBlock Grid.Row="7" Grid.Column="0" Text="GPS"/>
+                            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding GpsText}"/>
+                        </Grid>
                     </Border>
+
+                    <!-- Live transport log -->
+                    <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Margin="0,0,0,6"
+                                   Text="Live transport log (BlueZ RFCOMM / GAIA frames)"
+                                   FontWeight="Bold"/>
+                        <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                            <ListBox ItemsSource="{Binding Log}" FontFamily="monospace"/>
+                        </Border>
+                    </Grid>
                 </Grid>
             </TabItem>
             <TabItem Header="Voice"><TextBlock Margin="12" Text="Voice — port pending (Phase 3)."/></TabItem>
