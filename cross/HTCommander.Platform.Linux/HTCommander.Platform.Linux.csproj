@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Tmds.DBus" Version="0.94.1" />
+    <PackageReference Include="PortAudioSharp2" Version="1.0.6" />
   </ItemGroup>
 
   <PropertyGroup>
