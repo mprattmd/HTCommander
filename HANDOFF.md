@@ -1,3 +1,72 @@
+# ───────────────────────────────────────────────────────────────────────────
+# SESSION HANDOFF — 2026-05-30 (end of night)
+# ───────────────────────────────────────────────────────────────────────────
+
+**Default branch is now `main`** (the cross-platform port was merged to `main`; the repo
+is now "the repo for the new port"). All work below is on `main`, CI-green on
+ubuntu/windows/macos + WinForms-on-Windows. Latest commit: see `git log -1`.
+
+## State at end of session
+The Linux app is feature-rich and shippable. Highlights added this session:
+- **Polished Avalonia UI**: dark theme, branded header + radio image/battery panel,
+  card-grid **Channels builder** (CSV import/export, **drag-a-card-onto-a-slot to program**,
+  **bank/region selector**, write-to-radio), Mail + BBS tabs, Contacts with connection setup,
+  on-screen **📷 Screenshot** button (+ F12).
+- **Phase 0** (done): Station identity in Config tab (Callsign, Station ID, Allow-Transmit,
+  Winlink password) persisted to DataBroker device 0; **TX is now operator-gated** —
+  `CanTransmit`/`CanSendData` require a valid callsign + Allow-Transmit.
+- **Phase 1a** (done in code, ⏳ needs RF): **APRS message send + conversation** — moved
+  `AprsHandler` to Core, `RadioController` handles `TransmitDataFrame` and publishes a
+  `Channels` array; APRS tab has a messages list + compose bar.
+- **Defect-hardening pass** (committed): AX25Session locking, parser bounds-checks,
+  RFCOMM fcntl/EINTR, SQLite transactions, culture-safe channel parsing.
+- **Docs**: README is Linux-first (AppImage download, **no MSI**, screenshot, credit to
+  Ylian preserved); **[docs/PARITY.md](docs/PARITY.md)** = verified gap list;
+  **[docs/ROADMAP.md](docs/ROADMAP.md)** = phased plan.
+- **Release**: `v0.1.0-linux` with `HTCommander-x86_64.AppImage` attached.
+
+## The plan we're executing — phases 0–4 (holding 5–7)
+Per [docs/ROADMAP.md](docs/ROADMAP.md). **Phase 0 ✅. Phase 1 in progress.**
+- **Phase 1 remaining (next):** beacon/ident **BSS-write** settings (EditBeacon/EditIdent →
+  `SetBssSettings`/`WriteSettings`), per-packet **APRS detail** view, global **APRS routes**
+  manager. (Phase 1a send path is in; needs an `APRS`-named channel on the radio + on-air test.)
+- **Phase 2:** Mail usability — attachments, reply/forward, drafts, move-between-folders,
+  Winlink-over-radio sync UI (Core `WinlinkClient` already supports it), backup/restore.
+- **Phase 3:** Terminal connected-mode (wire Core `AX25Session` into the Terminal tab) +
+  connect dialog; packet-capture decode detail + CSV export.
+- **Phase 4:** GPS details + source config + request-position; richer map (tracks, time
+  filter, GPS markers, offline cache).
+
+## How to resume
+```bash
+cd ~/ClaudeProjects/htcommander && git checkout main && git pull
+dotnet build HTCommander.CrossPlatform.sln          # Linux/Core/Avalonia
+# Run the app (launch from YOUR terminal so it isn't reaped):
+./cross/HTCommander.UI.Avalonia/bin/Debug/net9.0/HTCommander.UI.Avalonia
+```
+Working method: build logic in **Core** (port from `src/` where it exists), wire **Avalonia**
+UI, **smoke-launch foreground a few seconds** before declaring good, commit on a
+`phaseN-*` branch, push, let CI verify Windows, merge to `main`, update PARITY.md statuses.
+
+## Gotchas learned this session (don't relearn them)
+- **Launching the app**: anything Claude starts in the background gets reaped when the
+  shell exits; the **user must launch it from their own terminal** to keep it open.
+  (Chromebook: no F12 key — use the on-screen 📷 button; or Search+= for F12.)
+- **Never `pkill -f HTCommander.UI.Avalonia`** — the pattern matches Claude's own shell
+  command line and kills the shell. Kill by PID instead.
+- **Duplicate `x:Name`** compiles but crashes at startup (NameScope) — smoke-test after
+  XAML edits.
+- Avalonia 12 reworked drag/drop (`DataTransfer`/`TryGetFiles`, `DoDragDropAsync`); the
+  channel card drag uses a **manual pointer drag + hit-test** instead (version-independent).
+- RF/CMS/peer features (APRS send, beacon, Winlink sync, BBS, connected-mode) need the
+  **user's radio/peers** to verify — Claude can only build + offline-verify.
+
+## Pending user verification (on the air)
+- Channel **write-to-radio** (try a spare bank first), **APRS message send** (needs an
+  `APRS`-named channel), Winlink **sync** (reachable CMS), **BBS** (a station calling in).
+
+---
+
 # Cross-Platform Port — Handoff
 
 **For:** a fresh Claude Code session (or developer) continuing the HTCommander

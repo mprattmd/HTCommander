@@ -67,10 +67,10 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Feature | Status | Notes |
 |---|---|---|
 | Receive + decode + station list | ✅ | |
-| **Send APRS message** | ❌ | no send path in Core or UI |
-| Message ACK/REJ tracking | ❌ | |
-| Authenticated messages (send + ✓/❌ display) | ❌ | AprsAuth parser in Core, unused by UI |
-| Message/chat conversation view | ❌ | APRS tab is a station-position list only |
+| **Send APRS message** | ⏳ | Phase 1a: AprsHandler in Core + compose UI; needs an 'APRS' channel + RF to verify |
+| Message ACK/REJ tracking | 🟡 | AprsHandler sends/handles acks; no UI ack indicator yet |
+| Authenticated messages (send + ✓/❌ display) | 🟡 | AprsHandler applies auth on send; no ✓/❌ display |
+| Message/chat conversation view | ✅ | APRS tab now has a messages list + compose bar |
 | Per-packet detail view | ❌ | AprsDetailsForm |
 | Beacon (position) transmit + settings | ❌ | BSS settings read-only; no EditBeaconSettingsForm/SetBssSettings |
 | Ident settings (PTT-release ID) | ❌ | EditIdentSettingsForm |
