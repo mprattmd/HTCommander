@@ -69,6 +69,7 @@ public sealed class RadioController : IDisposable
     private int restoreRegionAfterTx = -1;       // bank to return to after a switched APRS send
     private int restoreChannelAfterTx = -1;      // active channel to return to after a switched APRS send
     private RadioHtStatus? lastStatus;           // cached for channel-busy gating + default ch/region
+    private bool notificationsRegistered;        // registered (after GET_DEV_INFO); reset on stop
     private int lastDeviceChannelCount;          // channels-per-region (from dev info), for RefreshChannels
     private RadioChannelInfo[] channelArray;      // indexed by channel_id; published as "Channels" for APRS/Winlink/BBS lookups
     private int regionBeingRead;                  // the bank whose channels are currently being read (for APRS-channel region)
@@ -209,6 +210,7 @@ public sealed class RadioController : IDisposable
         lastGpsLat = double.NaN;            // re-send an initial SET_POSITION after reconnect
         restoreRegionAfterTx = -1;
         restoreChannelAfterTx = -1;
+        notificationsRegistered = false;
         StopPolling();
         transport.OnConnected -= OnConnected;
         transport.ReceivedData -= OnReceivedData;
@@ -221,10 +223,11 @@ public sealed class RadioController : IDisposable
     {
         connected = true;
         broker.Dispatch(deviceId, "State", "Connected", store: false);
-        // Real-time pushes: HT status changes and received packet data.
-        SendBasic(CmdRegisterNotification, new byte[] { NotifyHtStatusChanged });
-        SendBasic(CmdRegisterNotification, new byte[] { NotifyDataRxd });
-        SendBasic(CmdRegisterNotification, new byte[] { NotifyPositionChange });
+        // NOTE: do NOT register the DATA_RXD notification. The WinForms app never does,
+        // yet still receives unsolicited DATA_RXD events — and explicitly subscribing it
+        // appears to make the firmware stop delivering inbound packet data (TX still works,
+        // RX goes dead), which broke Winlink/BBS connected-mode. HT_STATUS_CHANGED (and
+        // POSITION_CHANGE) are registered after GET_DEV_INFO replies, matching WinForms.
         SendBasic(CmdGetDevInfo, new byte[] { 3 });
         RequestBatteryPercent();
         SendBasic(CmdGetHtStatus, null);
@@ -460,7 +463,7 @@ public sealed class RadioController : IDisposable
         {
             var status = new RadioHtStatus(v);
             lastStatus = status;
-            broker.Dispatch(deviceId, "HtStatus", status, store: false);
+            broker.Dispatch(deviceId, "HtStatus", status, store: true);   // store so GetValue("HtStatus") works (Winlink/SoftwareModem region selection)
 
             // Mirror WinForms ProcessTncQueue: every status update is our signal that the
             // channel may have cleared, so resume any held TX. Without this, a single busy
@@ -508,6 +511,15 @@ public sealed class RadioController : IDisposable
             ChannelCount: channelCount,
             RegionCount: regionCount);
         broker.Dispatch(deviceId, "DeviceInfo", info, store: false);
+
+        // Register real-time notifications now (after GET_DEV_INFO), matching WinForms.
+        // NOT DATA_RXD — see OnConnected. Guard so a re-read of dev info doesn't re-register.
+        if (!notificationsRegistered)
+        {
+            notificationsRegistered = true;
+            SendBasic(CmdRegisterNotification, new byte[] { NotifyHtStatusChanged });
+            SendBasic(CmdRegisterNotification, new byte[] { NotifyPositionChange });
+        }
 
         // The initial read is for the radio's current bank.
         regionBeingRead = lastStatus?.curr_region ?? 0;

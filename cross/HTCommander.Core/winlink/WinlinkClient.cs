@@ -234,8 +234,16 @@ namespace HTCommander
             addresses.Add(AX25Address.GetAddress(destCallsign, destStationId)); // Destination
             addresses.Add(AX25Address.GetAddress(myCallsign, myStationId)); // Source
             
-            // Start the connection
-            ax25Session.Connect(addresses);
+            // Start the connection — but give the radio time to finish switching region/
+            // channel from the SetLock first. Keying the SABM immediately can transmit on
+            // the old channel and miss the peer's UA (the APRS path waits similarly). Skip
+            // the wait if the lock didn't actually change channel.
+            var session = ax25Session;
+            Task.Run(async () =>
+            {
+                try { await Task.Delay(1200); } catch { }
+                if (!_disposed && session == ax25Session) session.Connect(addresses);
+            });
         }
         
         /// <summary>
