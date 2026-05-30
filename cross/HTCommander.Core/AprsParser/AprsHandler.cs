@@ -67,6 +67,8 @@ namespace HTCommander
 
             // Subscribe to SendAprsMessage events from the UI
             _broker.Subscribe(1, "SendAprsMessage", OnSendAprsMessage);
+            // Subscribe to SendAprsBeacon events (app-driven position beacon on the APRS channel)
+            _broker.Subscribe(1, "SendAprsBeacon", OnSendAprsBeacon);
 
             // Subscribe to RequestAprsPackets to provide current packet list on-demand
             _broker.Subscribe(1, "RequestAprsPackets", OnRequestAprsPackets);
@@ -267,6 +269,60 @@ namespace HTCommander
                 // Dispatch the AprsFrame event so the UI shows it as sent
                 _broker.Dispatch(1, "AprsFrame", new AprsFrameEventArgs(aprsPacket, ax25Packet, null), store: false);
             }
+        }
+
+        /// <summary>
+        /// Handles SendAprsBeacon events: builds an APRS position report and transmits it
+        /// on the APRS channel via the radio's TNC (HT_SEND_DATA), independent of the
+        /// channel the radio is tuned to. This is the app-driven beacon (vs. the radio's
+        /// own built-in beacon configured through BSS settings).
+        /// </summary>
+        private void OnSendAprsBeacon(int deviceId, string name, object data)
+        {
+            if (_disposed) return;
+            if (!(data is AprsSendBeaconData beacon)) return;
+
+            string callsign = _broker.GetValue<string>(0, "CallSign", "");
+            int stationIdInt = _broker.GetValue<int>(0, "StationId", 0);
+            string stationId = stationIdInt > 0 ? stationIdInt.ToString() : "";
+            if (string.IsNullOrEmpty(callsign)) { _broker.LogError("Cannot beacon: Callsign not configured"); return; }
+            string srcCallsignWithId = string.IsNullOrEmpty(stationId) ? callsign : callsign + "-" + stationId;
+
+            // APRS position report (no timestamp): !<lat><symTable><lon><symCode><comment>
+            string sym = string.IsNullOrEmpty(beacon.Symbol) ? "/-" : beacon.Symbol;
+            char symTable = sym.Length > 0 ? sym[0] : '/';
+            char symCode = sym.Length > 1 ? sym[1] : '-';
+            string info = "!" + AprsUtil.ConvertLatToNmea(beacon.Latitude) + symTable +
+                          AprsUtil.ConvertLonToNmea(beacon.Longitude) + symCode + (beacon.Comment ?? "");
+
+            // Address list: destination (route or APRS) + source + digipeater path.
+            var addresses = new List<AX25Address>();
+            string destAddress = "APRS";
+            if (beacon.Route != null && beacon.Route.Length >= 2) destAddress = beacon.Route[1];
+            addresses.Add(AX25Address.GetAddress(destAddress));
+            addresses.Add(AX25Address.GetAddress(srcCallsignWithId));
+            if (beacon.Route != null && beacon.Route.Length > 2)
+                for (int i = 2; i < beacon.Route.Length; i++)
+                    if (!string.IsNullOrEmpty(beacon.Route[i])) addresses.Add(AX25Address.GetAddress(beacon.Route[i]));
+
+            var ax25Packet = new AX25Packet(addresses, info, DateTime.Now)
+            {
+                type = AX25Packet.FrameType.U_FRAME_UI, pid = 240, command = true, incoming = false, sent = false,
+            };
+
+            int aprsChannelId = GetAprsChannelId(beacon.RadioDeviceId);
+            if (aprsChannelId < 0) { _broker.LogError("Cannot beacon: No APRS channel found on radio " + beacon.RadioDeviceId); return; }
+            ax25Packet.channel_id = aprsChannelId;
+            ax25Packet.channel_name = "APRS";
+
+            _broker.Dispatch(beacon.RadioDeviceId, "TransmitDataFrame",
+                new TransmitDataFrameData { Packet = ax25Packet, ChannelId = aprsChannelId, RegionId = -1 }, store: false);
+            _broker.LogInfo($"[AprsHandler] Beaconed position on APRS channel {aprsChannelId}: {info}");
+
+            // Surface it in the UI like a sent frame.
+            AprsPacket aprsPacket = AprsPacket.Parse(ax25Packet);
+            if (aprsPacket != null)
+                _broker.Dispatch(1, "AprsFrame", new AprsFrameEventArgs(aprsPacket, ax25Packet, null), store: false);
         }
 
         /// <summary>
@@ -986,6 +1042,21 @@ namespace HTCommander
         /// <summary>
         /// The APRS route to use (optional). Format: [RouteName, Dest, Path1, Path2, ...]
         /// </summary>
+        public string[] Route { get; set; }
+    }
+
+    /// <summary>
+    /// Data class for an app-driven APRS position beacon (sent on the APRS channel).
+    /// </summary>
+    public class AprsSendBeaconData
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        /// <summary>Two-char APRS symbol: table id + code (e.g. "/-").</summary>
+        public string Symbol { get; set; }
+        public string Comment { get; set; }
+        public int RadioDeviceId { get; set; }
+        /// <summary>Optional route. Format: [RouteName, Dest, Path1, Path2, ...]</summary>
         public string[] Route { get; set; }
     }
 

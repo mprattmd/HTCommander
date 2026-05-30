@@ -100,6 +100,7 @@ public partial class MainWindow : Window
         SetFixedPositionButton.Click += (_, _) => Vm?.SetManualPosition();
         CenterGpsButton.Click += (_, _) => CenterOnGps();
         WriteBssButton.Click += (_, _) => Vm?.WriteBssSettings();
+        BeaconNowButton.Click += (_, _) => Vm?.BeaconNow();
         AddRouteButton.Click += (_, _) => Vm?.AddOrUpdateRoute();
         RemoveRouteButton.Click += (_, _) => Vm?.RemoveSelectedRoute();
 

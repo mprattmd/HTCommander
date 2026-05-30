@@ -454,11 +454,32 @@
                             </StackPanel>
                         </Border>
 
-                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasBss}">
-                            <Button x:Name="WriteBssButton" Classes="Accent" Content="⬆ Write beacon/ident to radio" IsEnabled="{Binding CanWriteBss}"/>
-                            <TextBlock Classes="Hint" VerticalAlignment="Center"
-                                       Text="Applies the Beacon + Ident settings above (incl. Share interval) to the radio."/>
-                        </StackPanel>
+                        <!-- Two ways to beacon — clearly distinguished -->
+                        <TextBlock Text="How to beacon (two options)" FontWeight="Bold" FontSize="16" Margin="0,8,0,0" IsVisible="{Binding HasBss}"/>
+
+                        <Border Classes="Card" IsVisible="{Binding HasBss}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="① Radio's built-in beacon" FontWeight="SemiBold"/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="Stores the Beacon + Ident settings above on the radio (incl. Share interval &amp; Share my location). The RADIO then beacons on its own — but on whatever channel it's tuned to, so you must tune the radio to your APRS channel. (This is what the Windows app does.)"/>
+                                <Button x:Name="WriteBssButton" Classes="Accent" Content="⬆ Write beacon/ident to radio"
+                                        IsEnabled="{Binding CanWriteBss}" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="Card" IsVisible="{Binding HasBss}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="② App beacon on the APRS channel" FontWeight="SemiBold"/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="The APP builds a position report and sends it on the channel named &quot;APRS&quot; through the radio's TNC — regardless of what channel the radio is tuned to. Uses your fixed/GPS position plus the APRS symbol &amp; beacon message above. Requires callsign + Allow-transmit and an APRS channel (Load all banks if it's not bank 0)."/>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button x:Name="BeaconNowButton" Classes="Accent" Content="Beacon now" IsEnabled="{Binding CanBeacon}"/>
+                                    <CheckBox Content="Auto-beacon" IsChecked="{Binding AutoBeacon}" IsEnabled="{Binding CanBeacon}" VerticalAlignment="Center"/>
+                                    <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"
+                                               Text="{Binding BeaconInterval, StringFormat='every {0} s (Share interval above)'}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Global APRS routes (named digipeater paths) -->
                         <TextBlock Text="APRS routes" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>

@@ -154,6 +154,7 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanTransmit));
                 OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
+            OnPropertyChanged(nameof(CanBeacon));
                 OnPropertyChanged(nameof(CanWriteChannels));
                 OnPropertyChanged(nameof(CanWriteBss));
                 OnPropertyChanged(nameof(CanCreateAprsChannel));
@@ -164,6 +165,8 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanRequestPosition));
                 OnPropertyChanged(nameof(CanCenterGps));
                 OnPropertyChanged(nameof(CanLoadAllBanks));
+                OnPropertyChanged(nameof(CanBeacon));
+                UpdateAutoBeaconTimer();   // start/stop the app auto-beacon with the connection
             }
         }
     }
@@ -213,6 +216,7 @@ public sealed class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
+            OnPropertyChanged(nameof(CanBeacon));
             OnPropertyChanged(nameof(WindowTitle));
         }
     }
@@ -244,6 +248,7 @@ public sealed class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
+            OnPropertyChanged(nameof(CanBeacon));
         }
     }
 
@@ -787,6 +792,7 @@ public sealed class MainViewModel : ViewModelBase
     private void OnDisconnected(string reason)
     {
         StopVoiceRx();
+        try { autoBeaconTimer?.Stop(); autoBeaconTimer?.Dispose(); autoBeaconTimer = null; } catch (Exception) { }
         CleanupSession();
         SessionState = "Disconnected";
         try { controller?.Dispose(); } catch (Exception) { }
@@ -1803,7 +1809,57 @@ public sealed class MainViewModel : ViewModelBase
         b.PttReleaseSendIdInfo = IdentOnPttRelease;
         b.PttReleaseIdInfo = Clamp(IdentText, 12);
         DataBroker.Dispatch(0, "SetBssSettings", b, store: false);
-        AppendLog("Beacon/ident settings written to the radio.");
+        AppendLog("Beacon/ident settings written to the radio (radio beacons on its tuned channel).");
+    }
+
+    // ---- App-driven beacon (sends a position report on the APRS channel) ----
+    public bool CanBeacon => CanSendData;   // connected + callsign + Allow-Transmit
+
+    private bool TryGetBeaconPosition(out double lat, out double lon)
+    {
+        if (TryParseManualPosition(out lat, out lon)) return true;       // fixed position wins
+        if (MyPosition is { Locked: true } p) { lat = p.Latitude; lon = p.Longitude; return true; }
+        lat = lon = 0; return false;
+    }
+
+    /// <summary>Sends one APRS position report on the APRS channel via the TNC (app-driven beacon).</summary>
+    public void BeaconNow()
+    {
+        if (!Connected) { AppendLog("Connect a radio first."); return; }
+        if (!TxAuthorized) { AppendLog("Set callsign + Allow-Transmit to beacon."); return; }
+        if (!TryGetBeaconPosition(out double lat, out double lon))
+        { AppendLog("No position to beacon — set a fixed position or get a GPS fix first."); return; }
+        DataBroker.Dispatch(1, "SendAprsBeacon", new AprsSendBeaconData
+        {
+            Latitude = lat, Longitude = lon,
+            Symbol = string.IsNullOrEmpty(BeaconSymbol) ? "/-" : BeaconSymbol,
+            Comment = BeaconMessageText ?? "",
+            RadioDeviceId = BbsRadioDeviceId,
+            Route = SelectedSendRoute?.ToRouteArray(),
+        }, store: false);
+        AppendLog($"Beaconed {lat.ToString("0.0000", CultureInfo.InvariantCulture)}, {lon.ToString("0.0000", CultureInfo.InvariantCulture)} on the APRS channel.");
+    }
+
+    private System.Timers.Timer? autoBeaconTimer;
+    private bool autoBeacon;
+    public bool AutoBeacon
+    {
+        get => autoBeacon;
+        set { if (SetField(ref autoBeacon, value)) UpdateAutoBeaconTimer(); }
+    }
+
+    private void UpdateAutoBeaconTimer()
+    {
+        try { autoBeaconTimer?.Stop(); autoBeaconTimer?.Dispose(); } catch (Exception) { }
+        autoBeaconTimer = null;
+        if (autoBeacon && Connected)
+        {
+            int secs = Math.Max(10, BeaconInterval);
+            autoBeaconTimer = new System.Timers.Timer(secs * 1000.0) { AutoReset = true };
+            autoBeaconTimer.Elapsed += (_, _) => dispatcher.Post(BeaconNow);
+            autoBeaconTimer.Start();
+            AppendLog($"Auto-beacon on: every {secs}s on the APRS channel.");
+        }
     }
 
     // ---- Global APRS routes (named digipeater paths) -----------------------
