@@ -86,6 +86,20 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
+    private int micGainPercent = 400;   // 4x default boost (mic was quiet at unity)
+    public int MicGainPercent
+    {
+        get => micGainPercent;
+        set
+        {
+            if (!SetField(ref micGainPercent, value) || loading) return;
+            DataBroker.Dispatch(SettingsDevice, "MicGain", value / 100.0f, store: true);
+        }
+    }
+
+    /// <summary>Linear mic gain (e.g. 4.0) for transmit, from the persisted percent.</summary>
+    public float MicGain => micGainPercent / 100.0f;
+
     private string testStatus = "";
     public string TestStatus { get => testStatus; private set => SetField(ref testStatus, value); }
 
@@ -99,6 +113,7 @@ public sealed class SettingsViewModel : ViewModelBase
             string outId = DataBroker.GetValue<string>(SettingsDevice, "OutputAudioDevice", "") ?? "";
             string inId = DataBroker.GetValue<string>(SettingsDevice, "InputAudioDevice", "") ?? "";
             float vol = DataBroker.GetValue<float>(SettingsDevice, "OutputVolume", 1.0f);
+            float micGain = DataBroker.GetValue<float>(SettingsDevice, "MicGain", 4.0f);
 
             dispatcher.Post(() =>
             {
@@ -108,6 +123,7 @@ public sealed class SettingsViewModel : ViewModelBase
                 SelectedOutput = OutputDevices.FirstOrDefault(d => d.Id == outId) ?? OutputDevices.FirstOrDefault();
                 SelectedInput = InputDevices.FirstOrDefault(d => d.Id == inId) ?? InputDevices.FirstOrDefault();
                 OutputVolumePercent = (int)Math.Round(Math.Clamp(vol, 0f, 1.5f) * 100);
+                MicGainPercent = (int)Math.Round(Math.Clamp(micGain, 1f, 12f) * 100);
                 loading = false;
             });
         });

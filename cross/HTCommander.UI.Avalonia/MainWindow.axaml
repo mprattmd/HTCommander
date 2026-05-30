@@ -239,6 +239,11 @@
                             <Slider Minimum="0" Maximum="150" Value="{Binding OutputVolumePercent}"/>
                         </StackPanel>
 
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding MicGainPercent, StringFormat='Microphone gain (TX): {0}%'}"/>
+                            <Slider Minimum="100" Maximum="1200" Value="{Binding MicGainPercent}"/>
+                        </StackPanel>
+
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <Button x:Name="TestToneButton" Content="Test tone"/>
                             <Button x:Name="RefreshDevicesButton" Content="Refresh devices"/>

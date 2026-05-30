@@ -57,6 +57,9 @@ public sealed class RadioVoiceTransmitter
 
     public bool IsTransmitting => transmitting;
 
+    /// <summary>Linear mic gain applied to PCM before encoding (1.0 = unity). Mirrors the WinForms mic Boost.</summary>
+    public float Gain { get; set; } = 1.0f;
+
     public RadioVoiceTransmitter(IAudioCapture mic, Action<byte[]> send)
     {
         this.mic = mic;
@@ -109,12 +112,24 @@ public sealed class RadioVoiceTransmitter
         }
 
         int off = 0;
+        float gain = Gain;
         using var sbcAll = new MemoryStream();
         int samplesPerFrame = frame.Blocks * frame.Subbands;
         while (buf.Length - off >= pcmFrameBytes)
         {
             short[] samples = new short[samplesPerFrame];
-            Buffer.BlockCopy(buf, off, samples, 0, pcmFrameBytes);
+            for (int i = 0; i < samplesPerFrame; i++)
+            {
+                short s = (short)(buf[off + i * 2] | (buf[off + i * 2 + 1] << 8));
+                if (gain != 1.0f)
+                {
+                    int v = (int)(s * gain);
+                    if (v > short.MaxValue) v = short.MaxValue;
+                    else if (v < short.MinValue) v = short.MinValue;
+                    s = (short)v;
+                }
+                samples[i] = s;
+            }
             byte[] sbc = encoder.Encode(samples, null, frame);
             if (sbc == null || sbc.Length == 0) break;
             sbcAll.Write(sbc, 0, sbc.Length);

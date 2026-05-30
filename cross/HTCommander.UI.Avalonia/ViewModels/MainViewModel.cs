@@ -286,7 +286,7 @@ public sealed class MainViewModel : ViewModelBase
         try
         {
             mic = new PortAudioCapture();
-            voiceTransmitter = new RadioVoiceTransmitter(mic, data => audioChannel?.Send(data));
+            voiceTransmitter = new RadioVoiceTransmitter(mic, data => audioChannel?.Send(data)) { Gain = Settings.MicGain };
             if (voiceTransmitter.Start())
             {
                 Transmitting = true;
