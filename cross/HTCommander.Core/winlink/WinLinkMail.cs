@@ -61,7 +61,7 @@ namespace HTCommander
         public static bool Test2()
         {
             string xm1 = "8A34C7000000ECF57A1C6D66F79F7F89E6E9F47BBD7E9736D6672D87ED00F8E160EFB7961C1DDD7D2A3AD354A1BFA14D52D6D3C00BFCA805FB9FEFA81500825CCB99EFDFE6955BA77C3F15F51C50E4BB8E517FECE77F565F46BF86D198D8F322DCB49688BC56EBDF096CD99DF01F77D993EC16DB62F23CE6914315EA40BF0E3BF26E7B06282D35CE8E6D9E0574026E297E2321BB5B86B0155CB49B091E10E90F187697B0D25C047355ECDFE06D4E379C8A6126C0C4E3503CEE1122";
-            byte[] m1 = Utils.HexStringToByteArray(xm1);
+            byte[] m1 = CoreUtils.HexStringToByteArray(xm1);
             byte[] d1 = new byte[199];
             int dlen1 = WinlinkCompression.Decode(m1, ref d1, true, 199);
             string ds1 = UTF8Encoding.UTF8.GetString(d1);
@@ -69,7 +69,7 @@ namespace HTCommander
             string ds2 = WinLinkMail.SerializeMail(mm1);
             byte[] re1 = new byte[0];
             int clen1 = WinlinkCompression.Encode(UTF8Encoding.UTF8.GetBytes(ds2), ref re1, true);
-            string rm1 = Utils.BytesToHex(re1);
+            string rm1 = CoreUtils.BytesToHex(re1);
             return (xm1 == rm1);
         }
         */
