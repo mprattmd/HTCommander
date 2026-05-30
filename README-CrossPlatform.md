@@ -179,7 +179,16 @@ The original Windows WinForms app lives in `src/` and shares the same `Core`.
 
 ## Credits & license
 
-A cross-platform port of **[Handi-Talky Commander](https://github.com/Ylianst/HTCommander)**
-by Ylian Saint-Hilaire. Licensed under the **Apache License 2.0** (see source headers).
+**Handi-Talky Commander** was created by **Ylian Saint-Hilaire** — the original
+Windows application, the radio/AX.25/APRS/Winlink/BBS protocol work, and the artwork
+are all his. Original project: **https://github.com/Ylianst/HTCommander**.
+
+This is a **cross-platform port** of that work to Linux (Avalonia / .NET 9): the same
+core, rehoused so it runs natively on Linux. All credit for the underlying application
+goes to Ylian and the upstream contributors; this fork only adds the cross-platform UI,
+Linux backends (BlueZ / PortAudio / SQLite), and packaging.
+
+Licensed under the **Apache License 2.0**, same as upstream (see the copyright headers
+in each source file, which retain the original author's attribution).
 
 73! 📡
