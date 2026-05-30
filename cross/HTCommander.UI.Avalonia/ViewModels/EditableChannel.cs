@@ -90,8 +90,7 @@ public readonly struct TrackPoint
 public sealed class MailFolder : ViewModelBase
 {
     public string Name { get; }
-    public MailFolder(string name) { this.name = name; }
-    private readonly string name;
+    public MailFolder(string name) { Name = name; }   // was assigning a shadow field, leaving Name null (blank folders + zero counts)
     private int total, unread;
     public int Total { get => total; set { if (SetField(ref total, value)) OnPropertyChanged(nameof(Display)); } }
     public int Unread { get => unread; set { if (SetField(ref unread, value)) OnPropertyChanged(nameof(Display)); } }
