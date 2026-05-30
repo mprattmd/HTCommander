@@ -45,6 +45,9 @@ public sealed class PortAudioPlayback : IAudioPlayback
     // Ring buffer (bytes of interleaved little-endian PCM).
     private byte[] ring = Array.Empty<byte>();
     private int head, count, capacity;
+    private int latencyTarget;   // cap queued audio to bound latency (drop oldest beyond this)
+    private int prerollBytes;    // accumulate this much before draining (smooths bursty input)
+    private bool draining;       // false until preroll reached; re-armed on underrun
     private byte[] outScratch = Array.Empty<byte>();
 
     public AudioFormat Format { get; set; } = AudioFormat.RadioPcm;
@@ -66,22 +69,36 @@ public sealed class PortAudioPlayback : IAudioPlayback
     public void Stop() { lock (lifeLock) { StopInternal(); } }
     public void Dispose() { lock (lifeLock) { StopInternal(); } }
 
-    public void ClearBuffer() { lock (bufLock) { head = 0; count = 0; } }
+    public void ClearBuffer() { lock (bufLock) { head = 0; count = 0; draining = false; } }
 
     public void AddSamples(byte[] buffer, int offset, int count)
     {
         lock (bufLock)
         {
-            if (capacity == 0) return;
-            int free = capacity - this.count;
-            int n = Math.Min(count, free);              // discard overflow (bounded latency)
+            if (capacity == 0 || count <= 0) return;
+
+            // If a single push is larger than the ring, keep only its most recent tail.
+            if (count > capacity) { offset += count - capacity; count = capacity; }
+
+            // Drop oldest to make room (catch up) — keep the NEWEST audio, not the stalest.
+            int overflow = (this.count + count) - capacity;
+            if (overflow > 0) { head = (head + overflow) % capacity; this.count -= overflow; }
+
             int tail = (head + this.count) % capacity;
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < count; i++)
             {
                 ring[tail] = buffer[offset + i];
                 tail = (tail + 1) % capacity;
             }
-            this.count += n;
+            this.count += count;
+
+            // Bound latency: never hold more than the target queued.
+            if (this.count > latencyTarget)
+            {
+                int drop = this.count - latencyTarget;
+                head = (head + drop) % capacity;
+                this.count -= drop;
+            }
         }
     }
 
@@ -94,9 +111,12 @@ public sealed class PortAudioPlayback : IAudioPlayback
 
         lock (bufLock)
         {
-            capacity = Math.Max(Format.AverageBytesPerSecond * 2, 1 << 16);   // ~2s jitter buffer
+            int bps = Format.AverageBytesPerSecond;
+            capacity = Math.Max(bps, 1 << 16);            // ~1s ring (absorbs bursts)
+            latencyTarget = Math.Max(bps / 2, 16384);     // keep ≤ ~0.5s queued (low latency)
+            prerollBytes = Math.Max(bps / 20, 2048);      // ~50ms before draining (smooths starts)
             ring = new byte[capacity];
-            head = 0; count = 0;
+            head = 0; count = 0; draining = false;
         }
 
         var info = PortAudio.GetDeviceInfo(dev);
@@ -135,13 +155,21 @@ public sealed class PortAudioPlayback : IAudioPlayback
         int filled;
         lock (bufLock)
         {
-            filled = Math.Min(needed, count);
+            // Pre-roll: hold output silent until enough audio has queued, so bursty
+            // input doesn't start us into an immediate underrun. Re-arm on underrun.
+            if (!draining)
+            {
+                if (count >= prerollBytes) draining = true;
+                else filled = 0;
+            }
+            filled = draining ? Math.Min(needed, count) : 0;
             for (int i = 0; i < filled; i++)
             {
                 outScratch[i] = ring[head];
                 head = (head + 1) % capacity;
             }
             count -= filled;
+            if (count == 0) draining = false;   // emptied -> re-arm pre-roll before resuming
         }
 
         if (filled < needed) Array.Clear(outScratch, filled, needed - filled);   // underrun -> silence
