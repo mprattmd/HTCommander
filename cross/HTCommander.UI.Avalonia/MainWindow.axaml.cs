@@ -65,9 +65,22 @@ public partial class MainWindow : Window
 
         // Mail (Winlink)
         MailSyncButton.Click += (_, _) => Vm?.SyncWinlinkInternet();
+        MailSyncRadioButton.Click += (_, _) => Vm?.SyncWinlinkRadio();
         MailComposeButton.Click += (_, _) => Vm?.ComposeSaveToOutbox();
+        MailDraftButton.Click += (_, _) => Vm?.SaveAsDraft();
         MailDeleteButton.Click += (_, _) => Vm?.DeleteSelectedMail();
         MailDisconnectButton.Click += (_, _) => Vm?.DisconnectWinlink();
+        MailNewButton.Click += (_, _) => Vm?.NewMail();
+        MailReplyButton.Click += (_, _) => Vm?.ReplyMail();
+        MailReplyAllButton.Click += (_, _) => Vm?.ReplyAllMail();
+        MailForwardButton.Click += (_, _) => Vm?.ForwardMail();
+        MailMoveButton.Click += (_, _) => { if (Vm != null) Vm.MoveSelectedMailTo(Vm.MoveTarget); };
+        AttachAddButton.Click += async (_, _) => await AddAttachmentAsync();
+        AttachRemoveButton.Click += (_, _) => Vm?.RemoveComposeAttachment();
+        AttachmentOpenButton.Click += (_, _) => Vm?.OpenSelectedAttachment();
+        AttachmentSaveButton.Click += async (_, _) => await SaveAttachmentAsync();
+        MailBackupButton.Click += async (_, _) => await BackupMailAsync();
+        MailRestoreButton.Click += async (_, _) => await RestoreMailAsync();
 
         // BBS
         BbsToggleButton.Click += (_, _) => Vm?.ToggleBbs();
@@ -238,6 +251,67 @@ public partial class MainWindow : Window
         });
         var path = file?.TryGetLocalPath();
         if (path != null) Vm?.ExportChannelsToCsv(path, chirp: false);
+    }
+
+    // ---- Mail (Winlink): attachment + backup/restore file pickers ----
+    private async Task AddAttachmentAsync()
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top == null) return;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Attach a file",
+            AllowMultiple = true,
+        });
+        foreach (var f in files)
+        {
+            var p = f.TryGetLocalPath();
+            if (p != null) Vm?.AddComposeAttachment(p);
+        }
+    }
+
+    private async Task SaveAttachmentAsync()
+    {
+        var att = Vm?.SelectedAttachment;
+        if (att == null) return;
+        var top = TopLevel.GetTopLevel(this);
+        if (top == null) return;
+        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save attachment",
+            SuggestedFileName = att.Name,
+        });
+        var path = file?.TryGetLocalPath();
+        if (path != null) Vm?.SaveAttachmentTo(path);
+    }
+
+    private async Task BackupMailAsync()
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top == null) return;
+        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Back up mail",
+            DefaultExtension = "gz",
+            SuggestedFileName = "htcommander-mail-backup.txt.gz",
+            FileTypeChoices = new[] { new FilePickerFileType("Gzip backup") { Patterns = new[] { "*.gz" } } },
+        });
+        var path = file?.TryGetLocalPath();
+        if (path != null) Vm?.BackupMail(path);
+    }
+
+    private async Task RestoreMailAsync()
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top == null) return;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Restore mail from backup",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { new FilePickerFileType("Gzip backup") { Patterns = new[] { "*.gz" } } },
+        });
+        var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (path != null) Vm?.RestoreMail(path);
     }
 
     private void InitMap()

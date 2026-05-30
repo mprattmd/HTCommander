@@ -42,6 +42,9 @@ namespace HTCommander
             P2P = 4
         }
 
+        /// <summary>True while the Unread flag is set (UI convenience; not serialized).</summary>
+        public bool IsUnread => (Flags & (int)MailFlags.Unread) != 0;
+
         public WinLinkMail() { }
 
         /*

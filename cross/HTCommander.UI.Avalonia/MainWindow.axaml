@@ -422,16 +422,40 @@
                 </Grid>
             </TabItem>
             <TabItem Header="Mail">
-                <Grid ColumnDefinitions="150,300,*" Margin="12" ColumnSpacing="12">
-                    <!-- Mailbox folders -->
-                    <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                <Grid ColumnDefinitions="190,290,*" Margin="12" ColumnSpacing="12">
+                    <!-- Mailbox folders + sync + backup -->
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
                         <TextBlock Grid.Row="0" Text="Mailboxes" Classes="Section"/>
                         <Border Grid.Row="1" Classes="ListCard">
-                            <ListBox ItemsSource="{Binding Mailboxes}" SelectedItem="{Binding SelectedMailbox}"/>
+                            <ListBox ItemsSource="{Binding Folders}" SelectedItem="{Binding SelectedFolder}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:MailFolder">
+                                        <TextBlock Text="{Binding Display}"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                         </Border>
                         <Button Grid.Row="2" Classes="Accent" x:Name="MailSyncButton" HorizontalAlignment="Stretch"
                                 Content="⇅ Sync (internet)"
                                 ToolTip.Tip="Connect to the Winlink CMS over the internet to send Outbox and receive mail"/>
+                        <ComboBox Grid.Row="3" HorizontalAlignment="Stretch" ItemsSource="{Binding WinlinkStations}"
+                                  SelectedItem="{Binding SelectedSyncStation}"
+                                  ToolTip.Tip="A Winlink-type contact to sync with over the radio (add one in Contacts)">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="core:StationInfoClass">
+                                    <TextBlock Text="{Binding Callsign}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Grid.Row="4" x:Name="MailSyncRadioButton" HorizontalAlignment="Stretch"
+                                Content="⇅ Sync (radio)" IsEnabled="{Binding CanSyncRadio}"
+                                ToolTip.Tip="Winlink B2F session to the selected station over the air (needs callsign + Allow-Transmit)"/>
+                        <Border Grid.Row="5" Height="1" Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                        <Grid Grid.Row="6" ColumnDefinitions="*,*" ColumnSpacing="6">
+                            <Button Grid.Column="0" x:Name="MailBackupButton" HorizontalAlignment="Stretch" Content="Backup…"/>
+                            <Button Grid.Column="1" x:Name="MailRestoreButton" HorizontalAlignment="Stretch" Content="Restore…"/>
+                        </Grid>
+                        <Button Grid.Row="7" x:Name="MailDisconnectButton" HorizontalAlignment="Stretch" Content="Disconnect"/>
                     </Grid>
 
                     <!-- Mail list -->
@@ -442,7 +466,11 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="core:WinLinkMail">
                                         <StackPanel Spacing="2" Margin="2">
-                                            <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <TextBlock Grid.Column="0" Text="●" Margin="0,0,5,0" Foreground="{DynamicResource InfoBrush}"
+                                                           IsVisible="{Binding IsUnread}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Subject}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBlock Grid.Column="0" Text="{Binding From}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"/>
                                                 <TextBlock Grid.Column="1" Text="{Binding DateTime, StringFormat='{}{0:MM-dd HH:mm}'}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
@@ -454,26 +482,74 @@
                         </Border>
                     </Grid>
 
-                    <!-- Preview + compose -->
-                    <Grid Grid.Column="2" RowDefinitions="*,Auto">
-                        <Border Grid.Row="0" Classes="Card" IsVisible="{Binding HasSelectedMail}">
-                            <ScrollViewer>
-                                <SelectableTextBlock Text="{Binding MailPreview}" FontFamily="monospace" TextWrapping="Wrap"/>
-                            </ScrollViewer>
+                    <!-- Viewer / compose -->
+                    <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto">
+                        <!-- Toolbar -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+                            <Button x:Name="MailNewButton" Content="New"/>
+                            <Button x:Name="MailReplyButton" Content="Reply" IsEnabled="{Binding HasSelectedMail}"/>
+                            <Button x:Name="MailReplyAllButton" Content="Reply all" IsEnabled="{Binding HasSelectedMail}"/>
+                            <Button x:Name="MailForwardButton" Content="Forward" IsEnabled="{Binding HasSelectedMail}"/>
+                            <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="4,2"/>
+                            <ComboBox ItemsSource="{Binding MoveTargets}" SelectedItem="{Binding MoveTarget}"
+                                      MinWidth="100" IsEnabled="{Binding HasSelectedMail}"
+                                      ToolTip.Tip="Folder to move the selected message into"/>
+                            <Button x:Name="MailMoveButton" Content="Move" IsEnabled="{Binding HasSelectedMail}"/>
+                            <Button x:Name="MailDeleteButton" Content="Delete" IsEnabled="{Binding CanDeleteMail}"/>
+                        </StackPanel>
+
+                        <!-- Read view -->
+                        <Border Grid.Row="1" Classes="Card" IsVisible="{Binding HasSelectedMail}">
+                            <Grid RowDefinitions="*,Auto">
+                                <ScrollViewer Grid.Row="0">
+                                    <SelectableTextBlock Text="{Binding MailPreview}" FontFamily="monospace" TextWrapping="Wrap"/>
+                                </ScrollViewer>
+                                <StackPanel Grid.Row="1" Spacing="4" Margin="0,8,0,0" IsVisible="{Binding HasMailAttachments}">
+                                    <TextBlock Text="Attachments" Classes="Section"/>
+                                    <ListBox MaxHeight="100" ItemsSource="{Binding MailAttachments}" SelectedItem="{Binding SelectedAttachment}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="core:WinLinkMailAttachement">
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Button x:Name="AttachmentOpenButton" Content="Open"/>
+                                        <Button x:Name="AttachmentSaveButton" Content="Save…"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
                         </Border>
-                        <StackPanel Grid.Row="0" Classes="Card" IsVisible="{Binding !HasSelectedMail}" VerticalAlignment="Top" Spacing="8">
-                            <TextBlock Text="Compose" Classes="Section"/>
-                            <TextBox PlaceholderText="To (callsign or email)" Text="{Binding ComposeTo}"/>
-                            <TextBox PlaceholderText="Subject" Text="{Binding ComposeSubject}"/>
-                            <TextBox PlaceholderText="Message" Text="{Binding ComposeBody}" AcceptsReturn="True" Height="160" TextWrapping="Wrap"/>
-                            <Button x:Name="MailComposeButton" Classes="Accent" Content="Save to Outbox" HorizontalAlignment="Left"/>
-                            <TextBlock Classes="Hint" Text="Saved messages go to the Outbox and are sent on the next sync."/>
-                        </StackPanel>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-                            <Button x:Name="MailDeleteButton" Content="Delete" IsEnabled="{Binding HasSelectedMail}"/>
-                            <Button x:Name="MailDisconnectButton" Content="Disconnect"/>
-                            <TextBlock Text="{Binding WinlinkStatus}" Foreground="{DynamicResource InfoBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                        </StackPanel>
+
+                        <!-- Compose view -->
+                        <ScrollViewer Grid.Row="1" IsVisible="{Binding !HasSelectedMail}">
+                            <StackPanel Classes="Card" VerticalAlignment="Top" Spacing="8">
+                                <TextBlock Text="Compose" Classes="Section"/>
+                                <TextBox PlaceholderText="To (callsign or email)" Text="{Binding ComposeTo}"/>
+                                <TextBox PlaceholderText="Cc (optional)" Text="{Binding ComposeCc}"/>
+                                <TextBox PlaceholderText="Subject" Text="{Binding ComposeSubject}"/>
+                                <TextBox PlaceholderText="Message" Text="{Binding ComposeBody}" AcceptsReturn="True" Height="150" TextWrapping="Wrap"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding HasComposeAttachments}">
+                                    <TextBlock Text="Attachments" Classes="Section"/>
+                                    <ListBox MaxHeight="90" ItemsSource="{Binding ComposeAttachments}" SelectedItem="{Binding SelectedComposeAttachment}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="core:WinLinkMailAttachement">
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="MailComposeButton" Classes="Accent" Content="Save to Outbox"/>
+                                    <Button x:Name="MailDraftButton" Content="Save as Draft"/>
+                                    <Button x:Name="AttachAddButton" Content="Attach…"/>
+                                    <Button x:Name="AttachRemoveButton" Content="Remove attachment"/>
+                                </StackPanel>
+                                <TextBlock Classes="Hint" Text="Outbox messages are sent on the next sync; Drafts are not sent."/>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <TextBlock Grid.Row="2" Text="{Binding WinlinkStatus}" Foreground="{DynamicResource InfoBrush}" Margin="0,8,0,0"/>
                     </Grid>
                 </Grid>
             </TabItem>

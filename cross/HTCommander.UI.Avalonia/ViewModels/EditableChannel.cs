@@ -64,6 +64,18 @@ public sealed class AprsRoute : ViewModelBase
     }
 }
 
+/// <summary>A mailbox folder row with live total/unread counts for the Mail folder list.</summary>
+public sealed class MailFolder : ViewModelBase
+{
+    public string Name { get; }
+    public MailFolder(string name) { this.name = name; }
+    private readonly string name;
+    private int total, unread;
+    public int Total { get => total; set { if (SetField(ref total, value)) OnPropertyChanged(nameof(Display)); } }
+    public int Unread { get => unread; set { if (SetField(ref unread, value)) OnPropertyChanged(nameof(Display)); } }
+    public string Display => unread > 0 ? $"{Name}  {total} ({unread})" : (total > 0 ? $"{Name}  {total}" : Name);
+}
+
 /// <summary>One memory-slot tile in the channel grid (mirrors the Windows channel cards).</summary>
 public sealed class ChannelSlot : ViewModelBase
 {

@@ -109,16 +109,16 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 |---|---|---|
 | Local store (SQLite) + 6 folders + list + preview | ✅ | |
 | Compose → Outbox, delete (soft/permanent) | ✅ | |
-| Per-folder unread counts in folder list | ❌ | only selected-folder count |
-| Save as Draft; CC field; To validation | ❌ | compose is To/Subject/Body → Outbox only |
-| Full mail viewer (RTF) | ❌ | inline preview only |
-| Reply / reply-all / forward | ❌ | |
-| Attachments (add on compose, view/open on read) | ❌ | stored in DB, not surfaced |
-| Move between folders (drag/menu) | ❌ | Archive/Sent/Draft unreachable for filing |
+| Per-folder unread counts in folder list | ✅ | Phase 2: folder list shows total + (unread); reading a mail clears its Unread flag |
+| Save as Draft; CC field; To validation | ✅ | Phase 2: CC field, Save-as-Draft, To-required check |
+| Full mail viewer (RTF) | 🟡 | plain headers+body viewer (no RTF) |
+| Reply / reply-all / forward | ✅ | Phase 2: toolbar buttons; reply quotes original, forward keeps attachments |
+| Attachments (add on compose, view/open on read) | ✅ | Phase 2: Attach… on compose; Open (xdg-open) / Save… on read |
+| Move between folders (drag/menu) | ✅ | Phase 2: Move-to folder picker + Move button |
 | CMS sync over internet | ⏳ | wired; needs reachable CMS. (uses 8772/no-TLS vs Win 8773/TLS — reconcile) |
-| CMS sync over radio (station selector) | ❌ (UI) | WinlinkClient supports it; no UI dispatches RadioId/Station |
-| Mail debug/traffic log | ❌ | MailClientDebugForm |
-| Backup / restore (gzip JSON) | ❌ | |
+| CMS sync over radio (station selector) | ⏳ | Phase 2: Winlink-contact picker + "Sync (radio)" dispatches RadioId/Station; needs an RMS gateway on the air |
+| Mail debug/traffic log | ✅ | Phase 2: Winlink session/traffic log (state messages) |
+| Backup / restore (gzip JSON) | ✅ | Phase 2: gzip of the mail serialization (incl. attachments); offline round-trip |
 
 ## BBS
 | Feature | Status | Notes |
