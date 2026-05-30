@@ -1101,9 +1101,9 @@ namespace HTCommander.Controls
                         aprsChannel.name_str = "APRS";
                         aprsChannel.rx_freq = (int)(frequencyMhz * 1000000);
                         aprsChannel.tx_freq = (int)(frequencyMhz * 1000000);
-                        aprsChannel.rx_mod = Radio.RadioModulationType.FM;
-                        aprsChannel.tx_mod = Radio.RadioModulationType.FM;
-                        aprsChannel.bandwidth = Radio.RadioBandwidthType.WIDE;
+                        aprsChannel.rx_mod = RadioModulationType.FM;
+                        aprsChannel.tx_mod = RadioModulationType.FM;
+                        aprsChannel.bandwidth = RadioBandwidthType.WIDE;
                         aprsChannel.mute = true;
                         aprsChannel.pre_de_emph_bypass = true;
                         aprsChannel.scan = false;

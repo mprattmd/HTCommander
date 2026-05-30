@@ -17,6 +17,12 @@ namespace HTCommander
     /// <summary>Radio channel type (was Radio.RadioChannelType).</summary>
     public enum RadioChannelType : int { OFF = 0, A = 1, B = 2 }
 
+    /// <summary>Channel modulation (was Radio.RadioModulationType).</summary>
+    public enum RadioModulationType : int { FM = 0, AM = 1, DMR = 2 }
+
+    /// <summary>Channel bandwidth (was Radio.RadioBandwidthType).</summary>
+    public enum RadioBandwidthType : int { NARROW = 0, WIDE = 1 }
+
     /// <summary>Current lock state of the radio.</summary>
     public class RadioLockState
     {

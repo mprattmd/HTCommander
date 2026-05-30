@@ -6,7 +6,6 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 using System;
 using System.Text;
-using static HTCommander.Radio;
 
 namespace HTCommander
 {
@@ -41,11 +40,11 @@ namespace HTCommander
             raw = msg;
             channel_id = msg[5];
             tx_mod = (RadioModulationType)(msg[6] >> 6);
-            tx_freq = Utils.GetInt(msg, 6) & 0x3FFFFFFF;
+            tx_freq = CoreUtils.GetInt(msg, 6) & 0x3FFFFFFF;
             rx_mod = (RadioModulationType)(msg[10] >> 6);
-            rx_freq = Utils.GetInt(msg, 10) & 0x3FFFFFFF;
-            tx_sub_audio = Utils.GetShort(msg, 14);
-            rx_sub_audio = Utils.GetShort(msg, 16);
+            rx_freq = CoreUtils.GetInt(msg, 10) & 0x3FFFFFFF;
+            tx_sub_audio = CoreUtils.GetShort(msg, 14);
+            rx_sub_audio = CoreUtils.GetShort(msg, 16);
             scan = ((msg[18] & 0x80) != 0);
             tx_at_max_power = ((msg[18] & 0x40) != 0);
             talk_around = ((msg[18] & 0x20) != 0);
@@ -92,12 +91,12 @@ namespace HTCommander
         {
             byte[] r = new byte[25];
             r[0] = (byte)channel_id;
-            Utils.SetInt(r, 1, (int)tx_freq);
+            CoreUtils.SetInt(r, 1, (int)tx_freq);
             r[1] += (byte)(((int)tx_mod & 0x03) << 6);
-            Utils.SetInt(r, 5, (int)rx_freq);
+            CoreUtils.SetInt(r, 5, (int)rx_freq);
             r[5] += (byte)(((int)rx_mod & 0x03) << 6);
-            Utils.SetShort(r, 9, (int)tx_sub_audio);
-            Utils.SetShort(r, 11, (int)rx_sub_audio);
+            CoreUtils.SetShort(r, 9, (int)tx_sub_audio);
+            CoreUtils.SetShort(r, 11, (int)rx_sub_audio);
 
             if (scan) { r[13] |= 0x80; }
             if (tx_at_max_power) { r[13] |= 0x40; }
