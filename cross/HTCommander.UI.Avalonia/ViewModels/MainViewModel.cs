@@ -82,7 +82,7 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "BatteryAsPercentage", (_, _, data) => { if (data is int p) BatteryPercent = p; });
         broker.Subscribe(0, "DeviceInfo", (_, _, data) => { if (data is RadioDeviceSummary d) ApplyDeviceInfo(d); });
         broker.Subscribe(0, "Channel", (_, _, data) => { if (data is RadioChannelSummary c) ApplyChannel(c); });
-        broker.Subscribe(0, "ChannelInfo", (_, _, data) => { if (data is RadioChannelInfo c) radioChannels[c.channel_id] = c; });
+        broker.Subscribe(0, "ChannelInfo", (_, _, data) => { if (data is RadioChannelInfo c) { radioChannels[c.channel_id] = c; UpdateSlotFromChannel(c); } });
         broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
         broker.Subscribe(0, "AprsStation", (_, _, data) => { if (data is AprsStationSummary st) AddStation(st); });
         broker.Subscribe(0, "Settings", (_, _, data) => { if (data is RadioSettingsSummary s) RadioSettings = s; });
@@ -259,6 +259,11 @@ public sealed class MainViewModel : ViewModelBase
             EditName = value.Name ?? "";
             EditDescription = value.Description ?? "";
             EditType = value.StationType;
+            EditChannel = value.Channel ?? "";
+            EditAprsRoute = value.APRSRoute ?? "";
+            EditAx25Destination = value.AX25Destination ?? "";
+            EditWaitForConnection = value.WaitForConnection;
+            EditAuthPassword = value.AuthPassword ?? "";
         }
     }
 
@@ -270,6 +275,21 @@ public sealed class MainViewModel : ViewModelBase
     public string EditDescription { get => editDescription; set => SetField(ref editDescription, value); }
     private StationInfoClass.StationTypes editType = StationInfoClass.StationTypes.Generic;
     public StationInfoClass.StationTypes EditType { get => editType; set => SetField(ref editType, value); }
+
+    // Connection setup for the station (channel/frequency to reach it on, APRS path, etc.)
+    private string editChannel = "";
+    public string EditChannel { get => editChannel; set => SetField(ref editChannel, value); }
+    private string editAprsRoute = "";
+    public string EditAprsRoute { get => editAprsRoute; set => SetField(ref editAprsRoute, value); }
+    private string editAx25Destination = "";
+    public string EditAx25Destination { get => editAx25Destination; set => SetField(ref editAx25Destination, value); }
+    private bool editWaitForConnection;
+    public bool EditWaitForConnection { get => editWaitForConnection; set => SetField(ref editWaitForConnection, value); }
+    private string editAuthPassword = "";
+    public string EditAuthPassword { get => editAuthPassword; set => SetField(ref editAuthPassword, value); }
+
+    /// <summary>Channel names from the radio, for the contact's "Channel" dropdown.</summary>
+    public ObservableCollection<string> ChannelNames { get; } = new();
 
     private void LoadContacts()
     {
@@ -306,6 +326,11 @@ public sealed class MainViewModel : ViewModelBase
         station.Name = EditName ?? "";
         station.Description = EditDescription ?? "";
         station.StationType = EditType;
+        station.Channel = EditChannel ?? "";
+        station.APRSRoute = EditAprsRoute ?? "";
+        station.AX25Destination = EditAx25Destination ?? "";
+        station.WaitForConnection = EditWaitForConnection;
+        station.AuthPassword = EditAuthPassword ?? "";
         if (existing == null) Contacts.Add(station);
         SaveContacts();
         AppendLog($"Saved contact {call}.");
@@ -491,11 +516,15 @@ public sealed class MainViewModel : ViewModelBase
         Rssi = s.rssi;
         Region = s.curr_region;
         GpsText = s.is_gps_locked ? "Locked" : "No lock";
+        currentChannelId = s.curr_ch_id;
+        RefreshActiveSlots();
     }
 
     private void ApplyDeviceInfo(RadioDeviceSummary d)
     {
         DeviceInfoText = $"Vendor {d.VendorId} · Product {d.ProductId} · HW v{d.HardwareVersion} · FW v{d.SoftwareVersion} · {d.ChannelCount} ch · {d.RegionCount} bank(s)";
+        channelCount = Math.Max(1, d.ChannelCount);
+        EnsureSlots();
         RegionCount = Math.Max(1, d.RegionCount);
         loadingBanks = true;
         Banks.Clear();
@@ -511,16 +540,24 @@ public sealed class MainViewModel : ViewModelBase
         // Insert/replace keeping the list ordered by channel id.
         for (int i = 0; i < Channels.Count; i++)
         {
-            if (Channels[i].ChannelId == c.ChannelId) { Channels[i] = c; return; }
-            if (Channels[i].ChannelId > c.ChannelId) { Channels.Insert(i, c); return; }
+            if (Channels[i].ChannelId == c.ChannelId) { Channels[i] = c; UpdateChannelNames(); return; }
+            if (Channels[i].ChannelId > c.ChannelId) { Channels.Insert(i, c); UpdateChannelNames(); return; }
         }
         Channels.Add(c);
+        UpdateChannelNames();
+    }
+
+    private void UpdateChannelNames()
+    {
+        foreach (var ch in Channels)
+            if (!string.IsNullOrWhiteSpace(ch.Name) && !ChannelNames.Contains(ch.Name))
+                ChannelNames.Add(ch.Name);
     }
 
     // ---- Channel builder ---------------------------------------------------
 
     private string builderStatus = "";
-    public string BuilderStatus { get => builderStatus; private set => SetField(ref builderStatus, value); }
+    public string BuilderStatus { get => builderStatus; set => SetField(ref builderStatus, value); }
 
     public bool CanWriteChannels => Connected && controller != null;
 
@@ -543,10 +580,53 @@ public sealed class MainViewModel : ViewModelBase
             {
                 controller.SetRegion(value);          // switch the radio to this bank
                 radioChannels.Clear();
+                foreach (var s in Slots) { s.Name = ""; s.RxMHz = 0; }   // clear while the new bank loads
                 controller.RefreshChannels();         // re-read this bank's channels
                 BuilderStatus = $"Switched to bank {value}; reading its channels…";
             }
         }
+    }
+
+    // ---- Channel slot grid (radio memory tiles, drag-to-program) ----
+    public ObservableCollection<ChannelSlot> Slots { get; } = new();
+    private int channelCount = 32;
+    private int currentChannelId = -1;
+
+    private void EnsureSlots()
+    {
+        while (Slots.Count < channelCount) Slots.Add(new ChannelSlot(Slots.Count));
+        while (Slots.Count > channelCount && Slots.Count > 0) Slots.RemoveAt(Slots.Count - 1);
+    }
+
+    private void UpdateSlotFromChannel(RadioChannelInfo c)
+    {
+        EnsureSlots();
+        if (c.channel_id < 0 || c.channel_id >= Slots.Count) return;
+        var s = Slots[c.channel_id];
+        bool programmed = c.rx_freq != 0 || !string.IsNullOrEmpty(c.name_str);
+        s.Name = programmed ? (c.name_str ?? "") : "";
+        s.RxMHz = c.rx_freq / 1_000_000.0;
+    }
+
+    private void RefreshActiveSlots()
+    {
+        for (int i = 0; i < Slots.Count; i++) Slots[i].IsActive = (i == currentChannelId);
+    }
+
+    /// <summary>Program a single memory slot from an imported channel card (drag-and-drop target).</summary>
+    public void ProgramSlot(int slotId, EditableChannel? ec)
+    {
+        if (ec == null || slotId < 0) return;
+        if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
+        var info = ec.ToRadioChannelInfo(slotId);
+        if (!FreqInRange(info.rx_freq) || !FreqInRange(info.tx_freq)) { BuilderStatus = $"Slot {slotId}: frequency out of range."; return; }
+        if (HasBanks) controller.SetRegion(SelectedBank);
+        controller.WriteChannel(info);
+        EnsureSlots();
+        if (slotId < Slots.Count) { Slots[slotId].Name = info.name_str; Slots[slotId].RxMHz = info.rx_freq / 1_000_000.0; }
+        string where = HasBanks ? $" in bank {SelectedBank}" : "";
+        BuilderStatus = $"Programmed slot {slotId}{where}: {info.name_str}";
+        AppendLog($"Channel builder: programmed slot {slotId}{where} -> {info.name_str}");
     }
 
     /// <summary>Copy the channels last read from the radio into the editable builder.</summary>

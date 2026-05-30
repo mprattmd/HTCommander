@@ -10,6 +10,25 @@ using HTCommander;
 
 namespace HTCommander.UI.Avalonia.ViewModels;
 
+/// <summary>One memory-slot tile in the channel grid (mirrors the Windows channel cards).</summary>
+public sealed class ChannelSlot : ViewModelBase
+{
+    public int SlotId { get; }
+    private string name = "";
+    private double rxMHz;
+    private bool isActive;
+
+    public ChannelSlot(int slotId) { SlotId = slotId; }
+
+    public string Name { get => name; set { if (SetField(ref name, value)) { OnPropertyChanged(nameof(Display)); OnPropertyChanged(nameof(IsEmpty)); } } }
+    public double RxMHz { get => rxMHz; set { if (SetField(ref rxMHz, value)) OnPropertyChanged(nameof(FreqText)); } }
+    public bool IsActive { get => isActive; set => SetField(ref isActive, value); }
+
+    public bool IsEmpty => string.IsNullOrEmpty(name);
+    public string Display => IsEmpty ? (SlotId).ToString() : name;
+    public string FreqText => rxMHz > 0 ? rxMHz.ToString("0.0000", CultureInfo.InvariantCulture) : "";
+}
+
 /// <summary>
 /// A bindable, human-friendly view of a <see cref="RadioChannelInfo"/> for the
 /// channel builder grid: frequencies in MHz, mode/power as short strings. Converts

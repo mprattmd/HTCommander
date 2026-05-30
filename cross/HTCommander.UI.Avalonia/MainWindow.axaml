@@ -252,24 +252,40 @@
                         </Border>
                     </Grid>
                     <!-- editor -->
-                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Top">
-                        <TextBlock Text="Add / edit contact" FontWeight="Bold"/>
-                        <TextBlock Text="Callsign"/>
-                        <TextBox Text="{Binding EditCallsign}"/>
-                        <TextBlock Text="Name"/>
-                        <TextBox Text="{Binding EditName}"/>
-                        <TextBlock Text="Description"/>
-                        <TextBox Text="{Binding EditDescription}" AcceptsReturn="True" Height="56"/>
-                        <TextBlock Text="Type"/>
-                        <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding StationTypeOptions}"
-                                  SelectedItem="{Binding EditType}"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
-                            <Button x:Name="AddContactButton" Content="Add / Update"/>
-                            <Button x:Name="RemoveContactButton" Content="Remove"/>
+                    <ScrollViewer Grid.Column="1" VerticalAlignment="Stretch">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Add / edit contact" FontWeight="Bold"/>
+                            <TextBlock Text="Callsign"/>
+                            <TextBox Text="{Binding EditCallsign}"/>
+                            <TextBlock Text="Name"/>
+                            <TextBox Text="{Binding EditName}"/>
+                            <TextBlock Text="Type"/>
+                            <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding StationTypeOptions}"
+                                      SelectedItem="{Binding EditType}"/>
+
+                            <TextBlock Text="Connect on channel" Margin="0,6,0,0"/>
+                            <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding ChannelNames}"
+                                      SelectedItem="{Binding EditChannel}"
+                                      ToolTip.Tip="Radio memory channel/frequency to use to reach this station"/>
+                            <TextBlock Text="APRS route / path"/>
+                            <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="e.g. WIDE1-1,WIDE2-1"/>
+                            <TextBlock Text="AX.25 destination (for Terminal/BBS)"/>
+                            <TextBox Text="{Binding EditAx25Destination}" PlaceholderText="destination callsign-SSID"/>
+                            <CheckBox Content="Wait for incoming connection" IsChecked="{Binding EditWaitForConnection}"/>
+                            <TextBlock Text="Auth password (Winlink/authenticated)"/>
+                            <TextBox Text="{Binding EditAuthPassword}" PasswordChar="•"/>
+
+                            <TextBlock Text="Description"/>
+                            <TextBox Text="{Binding EditDescription}" AcceptsReturn="True" Height="48"/>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+                                <Button x:Name="AddContactButton" Classes="Accent" Content="Add / Update"/>
+                                <Button x:Name="RemoveContactButton" Content="Remove"/>
+                            </StackPanel>
+                            <TextBlock Classes="Hint" Margin="0,8,0,0"
+                                       Text="Set the channel/frequency (and APRS path) to reach this station. Saved to ~/.config/HTCommander and shared with the radio's station list."/>
                         </StackPanel>
-                        <TextBlock Foreground="#888" TextWrapping="Wrap" Margin="0,8,0,0"
-                                   Text="Contacts are saved to ~/.config/htcommander (JSON), shared with the radio's station list."/>
-                    </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
             <TabItem Header="Mail">
@@ -365,7 +381,7 @@
                 </Grid>
             </TabItem>
             <TabItem Header="Channels">
-                <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12" x:Name="ChannelBuilderRoot">
+                <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="12" x:Name="ChannelBuilderRoot">
                     <!-- Toolbar -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
                         <TextBlock Text="Channel builder" Classes="Section" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -386,28 +402,91 @@
                     </StackPanel>
 
                     <TextBlock Grid.Row="1" Classes="Hint" Margin="0,0,0,8"
-                               Text="Drag a .csv file onto the grid to import. Edit cells directly. Rows write to channel slots top-to-bottom. Frequencies are in MHz; Mode = FM/NFM/AM/DMR; Power = H/M/L; Tone in Hz (0 = none)."/>
+                               Text="Import a CSV (or drag a .csv onto this tab), then drag a channel from the right onto a memory slot on the left to program it. Green = current channel."/>
 
-                    <Border Grid.Row="2" Classes="ListCard">
-                        <DataGrid x:Name="ChannelGrid" ItemsSource="{Binding BuilderChannels}"
-                                  AutoGenerateColumns="False" CanUserReorderColumns="False"
-                                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                                  Background="Transparent">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Slot" Binding="{Binding ChannelId}" Width="55"/>
-                                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="120"/>
-                                <DataGridTextColumn Header="RX MHz" Binding="{Binding RxMHzText}" Width="100"/>
-                                <DataGridTextColumn Header="TX MHz" Binding="{Binding TxMHzText}" Width="100"/>
-                                <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="70"/>
-                                <DataGridTextColumn Header="Power" Binding="{Binding Power}" Width="65"/>
-                                <DataGridTextColumn Header="RX Tone" Binding="{Binding RxToneText}" Width="80"/>
-                                <DataGridTextColumn Header="TX Tone" Binding="{Binding TxToneText}" Width="80"/>
-                                <DataGridCheckBoxColumn Header="Scan" Binding="{Binding Scan}" Width="55"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Border>
+                    <!-- Card grids: radio memory slots (left) + imported channels (right) -->
+                    <Grid Grid.Row="2" ColumnDefinitions="*,12,300">
+                        <!-- Radio memory slots -->
+                        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                            <TextBlock Grid.Row="0" Classes="Section"
+                                       Text="{Binding Slots.Count, StringFormat='Radio memory ({0} slots)'}"/>
+                            <Border Grid.Row="1" Classes="ListCard">
+                                <ScrollViewer>
+                                    <ItemsControl x:Name="SlotCards" ItemsSource="{Binding Slots}" Margin="6">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ChannelSlot">
+                                                <Border Classes="Chan" Classes.empty="{Binding IsEmpty}" Classes.active="{Binding IsActive}"
+                                                        ToolTip.Tip="{Binding FreqText, StringFormat='Slot · {0} MHz'}">
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Classes="cname" Text="{Binding Display}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Classes="cfreq" Text="{Binding FreqText}" HorizontalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
 
-                    <TextBlock Grid.Row="3" Margin="0,8,0,0" Foreground="{DynamicResource InfoBrush}"
+                        <!-- Imported channels (drag sources) -->
+                        <Grid Grid.Column="2" RowDefinitions="Auto,*">
+                            <TextBlock Grid.Row="0" Classes="Section"
+                                       Text="{Binding BuilderChannels.Count, StringFormat='Imported ({0}) — drag onto a slot'}"/>
+                            <Border Grid.Row="1" Classes="ListCard">
+                                <ScrollViewer>
+                                    <ItemsControl x:Name="ImportedCards" ItemsSource="{Binding BuilderChannels}" Margin="6">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:EditableChannel">
+                                                <Border Classes="Chan" Cursor="Hand"
+                                                        ToolTip.Tip="{Binding RxMHzText, StringFormat='{}{0} MHz — drag onto a slot'}">
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Classes="cname" Text="{Binding Name}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Classes="cfreq" Text="{Binding RxMHzText}" HorizontalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Grid>
+
+                    <!-- Advanced: edit imported channels as a table -->
+                    <Expander Grid.Row="3" Header="Edit imported channels as a table (advanced)" Margin="0,8,0,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,6">
+                                <Button x:Name="ChAddRowButton" Content="Add row"/>
+                                <Button x:Name="ChRemoveRowButton" Content="Remove"/>
+                            </StackPanel>
+                            <Border Classes="ListCard" Height="220">
+                                <DataGrid x:Name="ChannelGrid" ItemsSource="{Binding BuilderChannels}"
+                                          AutoGenerateColumns="False" CanUserReorderColumns="False"
+                                          GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                          Background="Transparent">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="120"/>
+                                        <DataGridTextColumn Header="RX MHz" Binding="{Binding RxMHzText}" Width="100"/>
+                                        <DataGridTextColumn Header="TX MHz" Binding="{Binding TxMHzText}" Width="100"/>
+                                        <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="70"/>
+                                        <DataGridTextColumn Header="Power" Binding="{Binding Power}" Width="65"/>
+                                        <DataGridTextColumn Header="RX Tone" Binding="{Binding RxToneText}" Width="80"/>
+                                        <DataGridTextColumn Header="TX Tone" Binding="{Binding TxToneText}" Width="80"/>
+                                        <DataGridCheckBoxColumn Header="Scan" Binding="{Binding Scan}" Width="55"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                        </StackPanel>
+                    </Expander>
+
+                    <TextBlock Grid.Row="4" Margin="0,8,0,0" Foreground="{DynamicResource InfoBrush}"
                                Text="{Binding BuilderStatus}"/>
                 </Grid>
             </TabItem>

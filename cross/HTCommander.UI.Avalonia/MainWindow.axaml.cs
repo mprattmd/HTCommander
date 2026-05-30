@@ -23,6 +23,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using HTCommander;
 using HTCommander.UI.Avalonia.ViewModels;
 using Mapsui;
@@ -137,6 +138,46 @@ public partial class MainWindow : Window
         ChannelBuilderRoot.AddHandler(DragDrop.DragOverEvent, OnChannelDragOver);
         ChannelBuilderRoot.AddHandler(DragDrop.DropEvent, OnChannelDrop);
         DragDrop.SetAllowDrop(ChannelBuilderRoot, true);
+
+        // In-app drag: pick up an imported channel card and drop it on a memory slot to
+        // program it (single-window manual drag — version-independent of the OS DnD API).
+        ImportedCards.AddHandler(PointerPressedEvent, OnImportedPointerPressed, RoutingStrategies.Tunnel);
+        ImportedCards.AddHandler(PointerReleasedEvent, OnImportedPointerReleased, RoutingStrategies.Tunnel);
+    }
+
+    private EditableChannel? _dragChannel;
+
+    private static T? AncestorDataContext<T>(object? source) where T : class
+    {
+        for (var v = source as global::Avalonia.Visual; v != null; v = v.GetVisualParent())
+            if (v is global::Avalonia.StyledElement se && se.DataContext is T t) return t;
+        return null;
+    }
+
+    private void OnImportedPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(ImportedCards).Properties.IsLeftButtonPressed) return;
+        _dragChannel = AncestorDataContext<EditableChannel>(e.Source);
+        if (_dragChannel != null)
+        {
+            e.Pointer.Capture(ImportedCards);   // so we get the release even over the slot grid
+            if (Vm != null) Vm.BuilderStatus = $"Dragging '{_dragChannel.Name}' — drop it on a memory slot.";
+        }
+    }
+
+    private void OnImportedPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        var ch = _dragChannel;
+        _dragChannel = null;
+        e.Pointer.Capture(null);
+        if (ch == null) return;
+
+        // Hit-test the slot grid at the release point.
+        var pos = e.GetPosition(SlotCards);
+        var hit = SlotCards.InputHitTest(pos);
+        var slot = AncestorDataContext<ChannelSlot>(hit);
+        if (slot != null) Vm?.ProgramSlot(slot.SlotId, ch);
+        else if (Vm != null) Vm.BuilderStatus = "Dropped outside the memory grid — nothing programmed.";
     }
 
     // Avalonia 12 drag-drop uses the IDataTransfer model (e.DataTransfer + TryGetFiles).
