@@ -43,6 +43,10 @@ public sealed class RadioVoiceReceiver
 
     public RadioVoiceReceiver(IAudioPlayback playback) => this.playback = playback;
 
+    /// <summary>Raised with each decoded PCM buffer (32k/16/mono): (buffer, byteCount).
+    /// The buffer is reused — copy if retaining. Used to feed the soft-modem + waterfall.</summary>
+    public event Action<byte[], int>? PcmDecoded;
+
     public void Start()
     {
         if (started) return;
@@ -164,6 +168,10 @@ public sealed class RadioVoiceReceiver
             written += bytes;
             off += size; rem -= size;
         }
-        if (written > 0) playback.AddSamples(pcm, 0, written);
+        if (written > 0)
+        {
+            playback.AddSamples(pcm, 0, written);
+            try { PcmDecoded?.Invoke(pcm, written); } catch (Exception) { }
+        }
     }
 }

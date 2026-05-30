@@ -101,7 +101,15 @@ public sealed class RadioController : IDisposable
         broker.Subscribe(deviceId, "SetBssSettings", OnSetBssSettings);
         // Serial-GPS fixes (device 1) are pushed to the radio as SET_POSITION.
         broker.Subscribe(1, "GpsData", OnGpsData);
+        // Frames decoded by the software modem (DataFrame) flow through the same
+        // decode/display/UniqueDataFrame path as hardware-TNC packets.
+        broker.Subscribe(deviceId, "DataFrame", OnSoftModemFrame);
         transport.Connect();
+    }
+
+    private void OnSoftModemFrame(int dev, string name, object data)
+    {
+        if (data is TncDataFragment frag && frag.incoming) PublishPacket(frag);
     }
 
     private void OnTransmitDataFrame(int dev, string name, object data)

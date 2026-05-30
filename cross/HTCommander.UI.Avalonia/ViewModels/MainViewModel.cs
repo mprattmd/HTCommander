@@ -124,6 +124,7 @@ public sealed class MainViewModel : ViewModelBase
         LoadIdentity();
         LoadAprsRoutes();
         LoadClips();
+        LoadSoftModemMode();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -668,6 +669,7 @@ public sealed class MainViewModel : ViewModelBase
                 var playback = new PortAudioPlayback { Volume = Settings.OutputVolume };
                 playback.SetDevice(Settings.OutputDeviceId);     // honor the Settings output pick
                 var rx = new RadioVoiceReceiver(playback);
+                rx.PcmDecoded += OnRxPcm;          // feed the soft-modem + waterfall
                 rx.Start();
                 var ch = new RadioAudioChannelLinux(mac, logger);
                 ch.DataReceived += (b, n) => rx.OnAudioBytes(b, n);
@@ -694,6 +696,43 @@ public sealed class MainViewModel : ViewModelBase
         try { voicePlayback?.Dispose(); } catch (Exception) { }
         audioChannel = null; voiceReceiver = null; voicePlayback = null;
         VoiceRxActive = false;
+    }
+
+    // --- Software modem (demodulate RX audio) + waterfall feed ---------------
+    public string[] SoftModemModes { get; } = { "None", "AFSK1200", "PSK2400", "PSK4800", "G3RUH9600" };
+    private string softModemMode = "None";
+    public string SoftModemMode
+    {
+        get => softModemMode;
+        set
+        {
+            if (!SetField(ref softModemMode, value) || value == null) return;
+            DataBroker.Dispatch(0, "SetSoftwareModemMode", value, store: true);   // SoftwareModem reacts + persists
+        }
+    }
+
+    /// <summary>Raised with a copy of each decoded RX-audio PCM block (32k/16/mono) for the waterfall.</summary>
+    public event Action<byte[], int>? WaterfallPcm;
+
+    // Decoded RX audio: feed the soft-modem (as "AudioDataAvailable") and the waterfall.
+    // Runs on the audio decode thread; we copy the (reused) buffer before handing it on.
+    private void OnRxPcm(byte[] buffer, int count)
+    {
+        if (count <= 0) return;
+        var copy = new byte[count];
+        Buffer.BlockCopy(buffer, 0, copy, 0, count);
+        try { WaterfallPcm?.Invoke(copy, count); } catch (Exception) { }
+        if (softModemMode != "None")
+        {
+            DataBroker.Dispatch(0, "AudioDataAvailable",
+                new { Data = copy, Offset = 0, Length = count, ChannelName = "", Transmit = false }, store: false);
+        }
+    }
+
+    private void LoadSoftModemMode()
+    {
+        string m = DataBroker.GetValue<string>(0, "SoftwareModemMode", "None") ?? "None";
+        if (Array.IndexOf(SoftModemModes, m) >= 0) SetField(ref softModemMode, m, nameof(SoftModemMode));
     }
 
     // --- PTT / transmit (ON-AIR). Operator-triggered only; never automatic. ---
