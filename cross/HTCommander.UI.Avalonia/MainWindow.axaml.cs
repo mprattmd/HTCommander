@@ -72,6 +72,10 @@ public partial class MainWindow : Window
         BbsToggleButton.Click += (_, _) => Vm?.ToggleBbs();
         BbsClearStatsButton.Click += (_, _) => Vm?.ClearBbsStats();
 
+        // F12 saves a PNG of the whole window (compositor-independent) — handy for
+        // docs/screenshots. Written to ~/htcommander-screenshot.png.
+        AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
+
         InitMap();
 
         // The VM is assigned as DataContext after construction; sync to it then.
@@ -82,6 +86,26 @@ public partial class MainWindow : Window
 
     // PTT is press-and-hold (fail-safe): transmit only while held; release or any
     // loss of pointer capture un-keys the radio.
+    private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.F12) return;
+        try
+        {
+            double scale = RenderScaling;
+            var size = new global::Avalonia.PixelSize(
+                System.Math.Max(1, (int)(Bounds.Width * scale)),
+                System.Math.Max(1, (int)(Bounds.Height * scale)));
+            using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(size, new global::Avalonia.Vector(96 * scale, 96 * scale));
+            rtb.Render(this);
+            string path = System.IO.Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
+                "htcommander-screenshot.png");
+            rtb.Save(path);
+            Vm?.NoteScreenshot(path);
+        }
+        catch { /* screenshot is best-effort */ }
+    }
+
     private void WirePtt(Button button)
     {
         button.AddHandler(PointerPressedEvent, (_, _) => Vm?.StartTransmit(), RoutingStrategies.Tunnel);

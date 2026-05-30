@@ -578,6 +578,8 @@ public sealed class MainViewModel : ViewModelBase
         AppendLog($"Channel builder: wrote {written} channel(s) to the radio.");
     }
 
+    public void NoteScreenshot(string path) => AppendLog($"Screenshot saved: {path}");
+
     // ---- Winlink mail -------------------------------------------------------
 
     public string[] Mailboxes { get; } = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
