@@ -56,6 +56,11 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<ReceivedPacketSummary> Packets { get; } = new();
     public ObservableCollection<AprsStationSummary> Stations { get; } = new();
 
+    // Contacts (address book) — Core StationInfoClass, persisted via DataBroker "Stations".
+    public ObservableCollection<StationInfoClass> Contacts { get; } = new();
+    public Array StationTypeOptions { get; } = Enum.GetValues(typeof(StationInfoClass.StationTypes));
+    private bool loadingContacts;
+
     /// <summary>Settings sub-view-model (bound by the Settings tab).</summary>
     public SettingsViewModel Settings { get; }
 
@@ -75,8 +80,10 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "AprsStation", (_, _, data) => { if (data is AprsStationSummary st) AddStation(st); });
         broker.Subscribe(0, "Settings", (_, _, data) => { if (data is RadioSettingsSummary s) RadioSettings = s; });
         broker.Subscribe(0, "BssSettings", (_, _, data) => { if (data is RadioBssSettings b) Bss = b; });
+        broker.Subscribe(0, "Stations", (_, _, data) => { if (data is System.Collections.Generic.List<StationInfoClass> list) ApplyContacts(list); });
 
         Refresh();
+        LoadContacts();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -173,6 +180,78 @@ public sealed class MainViewModel : ViewModelBase
         private set { if (SetField(ref bss, value)) OnPropertyChanged(nameof(HasBss)); }
     }
     public bool HasBss => Bss != null;
+
+    // --- Contacts editor fields ---
+    private StationInfoClass? selectedContact;
+    public StationInfoClass? SelectedContact
+    {
+        get => selectedContact;
+        set
+        {
+            if (!SetField(ref selectedContact, value) || value == null) return;
+            EditCallsign = value.Callsign ?? "";
+            EditName = value.Name ?? "";
+            EditDescription = value.Description ?? "";
+            EditType = value.StationType;
+        }
+    }
+
+    private string editCallsign = "";
+    public string EditCallsign { get => editCallsign; set => SetField(ref editCallsign, value); }
+    private string editName = "";
+    public string EditName { get => editName; set => SetField(ref editName, value); }
+    private string editDescription = "";
+    public string EditDescription { get => editDescription; set => SetField(ref editDescription, value); }
+    private StationInfoClass.StationTypes editType = StationInfoClass.StationTypes.Generic;
+    public StationInfoClass.StationTypes EditType { get => editType; set => SetField(ref editType, value); }
+
+    private void LoadContacts()
+    {
+        Task.Run(() =>
+        {
+            var list = DataBroker.GetValue<System.Collections.Generic.List<StationInfoClass>?>(0, "Stations");
+            if (list != null) dispatcher.Post(() => ApplyContacts(list));
+        });
+    }
+
+    private void ApplyContacts(System.Collections.Generic.List<StationInfoClass> list)
+    {
+        loadingContacts = true;
+        Contacts.Clear();
+        foreach (var s in list) Contacts.Add(s);
+        loadingContacts = false;
+    }
+
+    private void SaveContacts()
+    {
+        if (loadingContacts) return;
+        DataBroker.Dispatch(0, "Stations", Contacts.ToList(), store: true);   // persists + re-publishes
+    }
+
+    /// <summary>Adds a new contact, or updates the existing one with the same callsign.</summary>
+    public void AddOrUpdateContact()
+    {
+        string call = (EditCallsign ?? "").Trim().ToUpperInvariant();
+        if (call.Length == 0) { AppendLog("Contact needs a callsign."); return; }
+
+        var existing = Contacts.FirstOrDefault(c => string.Equals(c.Callsign, call, StringComparison.OrdinalIgnoreCase));
+        var station = existing ?? new StationInfoClass();
+        station.Callsign = call;
+        station.Name = EditName ?? "";
+        station.Description = EditDescription ?? "";
+        station.StationType = EditType;
+        if (existing == null) Contacts.Add(station);
+        SaveContacts();
+        AppendLog($"Saved contact {call}.");
+    }
+
+    public void RemoveSelectedContact()
+    {
+        if (SelectedContact == null) return;
+        Contacts.Remove(SelectedContact);
+        SelectedContact = null;
+        SaveContacts();
+    }
 
     /// <summary>Re-scans BlueZ for adapter availability and compatible radios.</summary>
     public void Refresh()

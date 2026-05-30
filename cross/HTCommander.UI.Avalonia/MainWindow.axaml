@@ -178,7 +178,47 @@
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="Terminal"><TextBlock Margin="12" Text="Terminal — port pending (Phase 3)."/></TabItem>
-            <TabItem Header="Contacts"><TextBlock Margin="12" Text="Contacts — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Contacts">
+                <Grid ColumnDefinitions="*,300" Margin="8" ColumnSpacing="12">
+                    <!-- list -->
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
+                                   Text="{Binding Contacts.Count, StringFormat='Contacts ({0})'}"/>
+                        <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                            <ListBox ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedContact}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="core:StationInfoClass">
+                                        <Grid ColumnDefinitions="120,*,90" ColumnSpacing="8">
+                                            <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Callsign}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}"/>
+                                            <TextBlock Grid.Column="2" Foreground="#9CDCFE" Text="{Binding StationType}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </Grid>
+                    <!-- editor -->
+                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Top">
+                        <TextBlock Text="Add / edit contact" FontWeight="Bold"/>
+                        <TextBlock Text="Callsign"/>
+                        <TextBox Text="{Binding EditCallsign}"/>
+                        <TextBlock Text="Name"/>
+                        <TextBox Text="{Binding EditName}"/>
+                        <TextBlock Text="Description"/>
+                        <TextBox Text="{Binding EditDescription}" AcceptsReturn="True" Height="56"/>
+                        <TextBlock Text="Type"/>
+                        <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding StationTypeOptions}"
+                                  SelectedItem="{Binding EditType}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+                            <Button x:Name="AddContactButton" Content="Add / Update"/>
+                            <Button x:Name="RemoveContactButton" Content="Remove"/>
+                        </StackPanel>
+                        <TextBlock Foreground="#888" TextWrapping="Wrap" Margin="0,8,0,0"
+                                   Text="Contacts are saved to ~/.config/htcommander (JSON), shared with the radio's station list."/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
             <TabItem Header="BBS"><TextBlock Margin="12" Text="BBS — port pending (Phase 3)."/></TabItem>
             <TabItem Header="Channels">
                 <Grid RowDefinitions="Auto,*" Margin="8">

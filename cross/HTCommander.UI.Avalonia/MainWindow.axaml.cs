@@ -53,6 +53,9 @@ public partial class MainWindow : Window
         WirePtt(PttButton);
         WirePtt(PttButton2);   // PTT on the Voice tab too
 
+        AddContactButton.Click += (_, _) => Vm?.AddOrUpdateContact();
+        RemoveContactButton.Click += (_, _) => Vm?.RemoveSelectedContact();
+
         InitMap();
 
         // The VM is assigned as DataContext after construction; sync to it then.
