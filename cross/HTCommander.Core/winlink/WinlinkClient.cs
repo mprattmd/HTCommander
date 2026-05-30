@@ -894,10 +894,14 @@ namespace HTCommander
                     {
                         if ((proposalResponses[j] == "Y") || (proposalResponses[j] == "N"))
                         {
-                            // Move this mail to Sent mailbox using the broker event
+                            // Move this mail out of the Outbox into Sent now that the CMS
+                            // accepted it. (Previously dispatched a "MailMove" broker event
+                            // that nothing consumed, so sent mail stayed in the Outbox.)
                             string mid = proposedMails[j].MID;
                             broker.LogInfo("[WinlinkClient] Moving mail " + mid + " to Sent (response: " + proposalResponses[j] + ")");
-                            broker.Dispatch(0, "MailMove", new { MID = mid, Mailbox = "Sent" }, store: false);
+                            var moveStore = DataBroker.GetDataHandler<IMailStore>("MailStore");
+                            var sentMail = moveStore?.GetMail(mid);
+                            if (sentMail != null) { sentMail.Mailbox = "Sent"; moveStore.UpdateMail(sentMail); }
                         }
                     }
                 }
@@ -1251,9 +1255,11 @@ namespace HTCommander
 
             broker.LogInfo("[WinlinkClient] Received mail " + mail.MID + " for " + mail.To);
 
-            // Add the received mail to the persistent store using broker event
-            // The MailStore will check for duplicates internally
-            broker.Dispatch(0, "MailAdd", mail, store: false);
+            // Add the received mail to the persistent store directly. (Previously
+            // dispatched a "MailAdd" broker event that nothing consumed, so received
+            // mail was never saved.) The store de-duplicates by MID internally.
+            var addStore = DataBroker.GetDataHandler<IMailStore>("MailStore");
+            addStore?.AddMail(mail);
 
             StateMessage("Got mail for " + mail.To + ".");
 

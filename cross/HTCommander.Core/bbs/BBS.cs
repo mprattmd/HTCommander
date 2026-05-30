@@ -484,8 +484,9 @@ namespace HTCommander
 
             // TODO: If others is true, we may need to keep a copy for others to get.
 
-            // Add the received mail to the store via broker
-            broker.Dispatch(0, "MailAdd", mail, store: false);
+            // Add the received mail to the store directly (the "MailAdd" broker event
+            // had no consumer, so BBS-received mail was never saved).
+            DataBroker.GetDataHandler<IMailStore>("MailStore")?.AddMail(mail);
             broker.Dispatch(0, "BbsControlMessage", new { DeviceId = deviceId, Message = "Got mail for " + mail.To + "." });
             broker.LogInfo($"[BBS/{deviceId}] Received mail {mail.MID} for {mail.To}");
 
