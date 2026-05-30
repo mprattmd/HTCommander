@@ -28,9 +28,11 @@ using HTCommander;
 using HTCommander.UI.Avalonia.ViewModels;
 using Mapsui;
 using Mapsui.Layers;
+using Mapsui.Nts;
 using Mapsui.Projections;
 using Mapsui.Styles;
 using Mapsui.Tiling;
+using NetTopologySuite.Geometries;
 
 namespace HTCommander.UI.Avalonia;
 
@@ -93,6 +95,8 @@ public partial class MainWindow : Window
         // APRS message send + routes + beacon/ident + create-channel
         AprsSendButton.Click += (_, _) => Vm?.SendAprsMessage();
         CreateAprsChannelButton.Click += (_, _) => Vm?.CreateAprsChannel();
+        RequestPositionButton.Click += (_, _) => Vm?.RequestPosition();
+        CenterGpsButton.Click += (_, _) => CenterOnGps();
         WriteBssButton.Click += (_, _) => Vm?.WriteBssSettings();
         AddRouteButton.Click += (_, _) => Vm?.AddOrUpdateRoute();
         RemoveRouteButton.Click += (_, _) => Vm?.RemoveSelectedRoute();
@@ -362,29 +366,70 @@ public partial class MainWindow : Window
 
     private void HookViewModel()
     {
-        if (subscribedVm != null) subscribedVm.Stations.CollectionChanged -= OnStationsChanged;
+        if (subscribedVm != null)
+        {
+            subscribedVm.Stations.CollectionChanged -= OnStationsChanged;
+            subscribedVm.PropertyChanged -= OnVmPropertyChanged;
+        }
         subscribedVm = Vm;
-        if (subscribedVm != null) subscribedVm.Stations.CollectionChanged += OnStationsChanged;
+        if (subscribedVm != null)
+        {
+            subscribedVm.Stations.CollectionChanged += OnStationsChanged;
+            subscribedVm.PropertyChanged += OnVmPropertyChanged;
+        }
         RebuildStations();
     }
 
     private void OnStationsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildStations();
 
-    // Rebuild the marker layer from the VM's stations (runs on the UI thread —
-    // DataBroker marshals the station updates that drive the collection).
+    // Map appearance toggles (tracks/markers/time filter) and the radio's own
+    // position fix all trigger a map rebuild.
+    private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(MainViewModel.ShowTracks):
+            case nameof(MainViewModel.LargeMarkers):
+            case nameof(MainViewModel.TrackMinutes):
+            case nameof(MainViewModel.MyPosition):
+                RebuildStations();
+                break;
+        }
+    }
+
+    private static MPoint Merc(double lon, double lat) { var (x, y) = SphericalMercator.FromLonLat(lon, lat); return new MPoint(x, y); }
+
+    // Rebuild the map features from the VM: per-callsign track polylines (time-filtered),
+    // station markers, and the radio's own GPS position. Runs on the UI thread.
     private void RebuildStations()
     {
         if (stationLayer == null || Vm == null) return;
 
-        var features = new List<IFeature>(Vm.Stations.Count);
+        var features = new List<IFeature>();
         MPoint? first = null;
+        double markerScale = Vm.LargeMarkers ? 1.3 : 0.8;
+
         foreach (var s in Vm.Stations)
         {
-            var (x, y) = SphericalMercator.FromLonLat(s.Longitude, s.Latitude);
-            var point = new MPoint(x, y);
+            // Time-filtered track for this callsign.
+            List<TrackPoint>? track = Vm.Tracks.TryGetValue(s.Callsign, out var t) ? t : null;
+            var pts = track == null ? new List<TrackPoint>() : track.Where(p => Vm.WithinTimeFilter(p.Time)).ToList();
+
+            // Skip the station entirely if a time filter is active and it has no recent fix.
+            if (Vm.TrackMinutes > 0 && pts.Count == 0) continue;
+
+            if (Vm.ShowTracks && pts.Count >= 2)
+            {
+                var coords = pts.Select(p => { var m = Merc(p.Longitude, p.Latitude); return new Coordinate(m.X, m.Y); }).ToArray();
+                var line = new GeometryFeature(new LineString(coords));
+                line.Styles.Add(new VectorStyle { Line = new Pen(new Color(40, 120, 220, 200), 2) });
+                features.Add(line);
+            }
+
+            var point = Merc(s.Longitude, s.Latitude);
             first ??= point;
             var f = new PointFeature(point);
-            f.Styles.Add(new SymbolStyle { SymbolScale = 0.8, Fill = new Brush(new Color(220, 40, 40, 255)) });
+            f.Styles.Add(new SymbolStyle { SymbolScale = markerScale, Fill = new Brush(new Color(220, 40, 40, 255)) });
             f.Styles.Add(new LabelStyle
             {
                 Text = s.Callsign,
@@ -393,6 +438,21 @@ public partial class MainWindow : Window
                 Offset = new Offset(0, -18)
             });
             features.Add(f);
+        }
+
+        // The radio's own GPS position (distinct blue marker).
+        if (Vm.MyPosition is { Locked: true } mp)
+        {
+            var me = new PointFeature(Merc(mp.Longitude, mp.Latitude));
+            me.Styles.Add(new SymbolStyle { SymbolScale = markerScale * 1.2, Fill = new Brush(new Color(40, 120, 220, 255)) });
+            me.Styles.Add(new LabelStyle
+            {
+                Text = "GPS",
+                ForeColor = new Color(255, 255, 255, 255),
+                BackColor = new Brush(new Color(40, 120, 220, 220)),
+                Offset = new Offset(0, -18)
+            });
+            features.Add(me);
         }
 
         stationLayer.Features = features;
@@ -405,5 +465,14 @@ public partial class MainWindow : Window
             try { MapControl.Map.Navigator.CenterOnAndZoomTo(first, 150); mapCentered = true; }
             catch (Exception) { }
         }
+    }
+
+    // Center the map on the radio's GPS position.
+    private void CenterOnGps()
+    {
+        var mp = Vm?.MyPosition;
+        if (mp is not { Locked: true }) return;
+        try { MapControl.Map.Navigator.CenterOnAndZoomTo(Merc(mp.Longitude, mp.Latitude), 50); mapCentered = true; }
+        catch (Exception) { }
     }
 }

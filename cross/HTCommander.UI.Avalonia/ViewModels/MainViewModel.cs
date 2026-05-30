@@ -86,6 +86,7 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "ChannelInfo", (_, _, data) => { if (data is RadioChannelInfo c) { radioChannels[c.channel_id] = c; UpdateSlotFromChannel(c); } });
         broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
         broker.Subscribe(0, "AprsStation", (_, _, data) => { if (data is AprsStationSummary st) AddStation(st); });
+        broker.Subscribe(0, "Position", (_, _, data) => { if (data is RadioPositionInfo p) MyPosition = p; });
         broker.Subscribe(0, "Settings", (_, _, data) => { if (data is RadioSettingsSummary s) RadioSettings = s; });
         broker.Subscribe(0, "BssSettings", (_, _, data) =>
         {
@@ -155,6 +156,8 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanConnectSession));
                 OnPropertyChanged(nameof(CanDisconnectSession));
                 OnPropertyChanged(nameof(CanSendSession));
+                OnPropertyChanged(nameof(CanRequestPosition));
+                OnPropertyChanged(nameof(CanCenterGps));
             }
         }
     }
@@ -604,6 +607,8 @@ public sealed class MainViewModel : ViewModelBase
         Channels.Clear();
         Packets.Clear();
         Stations.Clear();
+        Tracks.Clear();
+        MyPosition = null;
         TerminalLog.Clear();
         Status = $"Connecting to {radio.Name} ({radio.Address})...";
         AppendLog(Status);
@@ -732,6 +737,8 @@ public sealed class MainViewModel : ViewModelBase
         Channels.Clear();
         Packets.Clear();
         Stations.Clear();
+        Tracks.Clear();
+        MyPosition = null;
         RadioSettings = null;
         Bss = null;
         Status = "Disconnected: " + reason;
@@ -1380,11 +1387,62 @@ public sealed class MainViewModel : ViewModelBase
 
     private void AddStation(AprsStationSummary s)
     {
+        RecordTrackPoint(s);
         // One entry per callsign; update in place when a station's position changes.
         for (int i = 0; i < Stations.Count; i++)
             if (Stations[i].Callsign == s.Callsign) { Stations[i] = s; return; }
         Stations.Add(s);
     }
+
+    // ---- GPS position (radio) + map tracks/markers -------------------------
+    private RadioPositionInfo? myPosition;
+    public RadioPositionInfo? MyPosition
+    {
+        get => myPosition;
+        private set { if (SetField(ref myPosition, value)) { OnPropertyChanged(nameof(HasMyPosition)); OnPropertyChanged(nameof(CanCenterGps)); } }
+    }
+    public bool HasMyPosition => myPosition is { Locked: true };
+    public bool CanRequestPosition => Connected;
+    public bool CanCenterGps => HasMyPosition;
+
+    /// <summary>Requests a fresh GPS position from the radio (GET_POSITION).</summary>
+    public void RequestPosition()
+    {
+        if (controller == null || !Connected) { AppendLog("Connect a radio to request position."); return; }
+        controller.RequestPosition();
+        AppendLog("Requested fresh GPS position.");
+    }
+
+    // Per-callsign track history (timestamped), for map polylines.
+    public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<TrackPoint>> Tracks { get; } = new();
+    private const int MaxTrackPoints = 300;
+
+    private void RecordTrackPoint(AprsStationSummary s)
+    {
+        if (!Tracks.TryGetValue(s.Callsign, out var list)) { list = new(); Tracks[s.Callsign] = list; }
+        // Skip duplicate consecutive fixes.
+        if (list.Count > 0)
+        {
+            var last = list[list.Count - 1];
+            if (Math.Abs(last.Latitude - s.Latitude) < 1e-7 && Math.Abs(last.Longitude - s.Longitude) < 1e-7) return;
+        }
+        list.Add(new TrackPoint(s.Latitude, s.Longitude, DateTime.Now));
+        while (list.Count > MaxTrackPoints) list.RemoveAt(0);
+    }
+
+    private bool showTracks = true;
+    public bool ShowTracks { get => showTracks; set => SetField(ref showTracks, value); }
+
+    private bool largeMarkers;
+    public bool LargeMarkers { get => largeMarkers; set => SetField(ref largeMarkers, value); }
+
+    // Time filter (minutes); 0 = show all. The map honors this when rebuilding.
+    public int[] TrackMinuteOptions { get; } = { 0, 5, 15, 30, 60, 240 };
+    private int trackMinutes;
+    public int TrackMinutes { get => trackMinutes; set => SetField(ref trackMinutes, value); }
+
+    /// <summary>True if a point/track timestamp passes the current time filter.</summary>
+    public bool WithinTimeFilter(DateTime t) => trackMinutes <= 0 || t >= DateTime.Now.AddMinutes(-trackMinutes);
 
     // ---- APRS messaging (send + conversation) -------------------------------
     public ObservableCollection<AprsMessageRow> AprsMessages { get; } = new();

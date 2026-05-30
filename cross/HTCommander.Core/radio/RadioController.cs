@@ -46,11 +46,13 @@ public sealed class RadioController : IDisposable
     private const int CmdReadBssSettings = 33;
     private const int CmdWriteBssSettings = 34;   // WRITE_BSS_SETTINGS (beacon/ident)
     private const int CmdGetHtStatus = 20;
+    private const int CmdGetPosition = 76;        // GET_POSITION
     private const int CmdSendData = 31;          // HT_SEND_DATA
     private const int MaxMtu = 50;               // TNC fragment payload size
     private const int StateIncorrect = 6;        // RadioCommandState.INCORRECT_STATE (channel busy)
     private const int NotifyHtStatusChanged = 1;
     private const int NotifyDataRxd = 2;
+    private const int NotifyPositionChange = 13;
     private const int PowerStatusBatteryPercent = 4;
 
     private readonly IRadioTransport transport;
@@ -132,11 +134,13 @@ public sealed class RadioController : IDisposable
         // Real-time pushes: HT status changes and received packet data.
         SendBasic(CmdRegisterNotification, new byte[] { NotifyHtStatusChanged });
         SendBasic(CmdRegisterNotification, new byte[] { NotifyDataRxd });
+        SendBasic(CmdRegisterNotification, new byte[] { NotifyPositionChange });
         SendBasic(CmdGetDevInfo, new byte[] { 3 });
         RequestBatteryPercent();
         SendBasic(CmdGetHtStatus, null);
         SendBasic(CmdReadSettings, null);
         SendBasic(CmdReadBssSettings, null);
+        SendBasic(CmdGetPosition, null);
         StartPolling();
     }
 
@@ -157,11 +161,13 @@ public sealed class RadioController : IDisposable
             case CmdReadBssSettings: HandleBssSettings(v); break;
             case CmdWriteBssSettings: if (v.Length > 4 && v[4] != 0) logger?.Debug($"WRITE_BSS_SETTINGS error: {v[4]}"); break;
             case CmdSendData: HandleSendDataResponse(v); break;
+            case CmdGetPosition: HandlePosition(v); break;
             case CmdEventNotification:
                 if (v.Length > 4)
                 {
                     if (v[4] == NotifyHtStatusChanged) PublishHtStatus(v);
                     else if (v[4] == NotifyDataRxd) HandleDataReceived(v);
+                    else if (v[4] == NotifyPositionChange) RequestPosition();   // re-fetch the authoritative GET_POSITION reply
                 }
                 break;
         }
@@ -182,6 +188,49 @@ public sealed class RadioController : IDisposable
     }
 
     private void RequestBatteryPercent() => SendBasic(CmdReadStatus, new byte[] { 0x00, PowerStatusBatteryPercent });
+
+    /// <summary>Requests a fresh GPS position from the radio (GET_POSITION); the reply
+    /// is published to DataBroker "Position". Operator-/UI-initiated.</summary>
+    public void RequestPosition() => SendBasic(CmdGetPosition, null);
+
+    // 24-bit two's-complement → decimal degrees (protocol scale 60*500).
+    private static double DecodeDegrees(int raw24)
+    {
+        if ((raw24 & 0x800000) != 0) raw24 |= unchecked((int)0xFF000000);
+        else raw24 &= 0x00FFFFFF;
+        return raw24 / 60.0 / 500.0;
+    }
+
+    private void HandlePosition(byte[] v)
+    {
+        if (v.Length < 4) return;
+        int status = v[4];                              // RadioCommandState; 0 = SUCCESS
+        if (status != 0 || v.Length < 11)
+        {
+            broker.Dispatch(deviceId, "Position",
+                new RadioPositionInfo(false, 0, 0, 0, 0, 0, default, 0), store: false);
+            return;
+        }
+        try
+        {
+            double lat = DecodeDegrees((v[5] << 16) | (v[6] << 8) | v[7]);
+            double lon = DecodeDegrees((v[8] << 16) | (v[9] << 8) | v[10]);
+            int alt = 0, speed = 0, heading = 0, accuracy = 0;
+            DateTime t = default;
+            if (v.Length > 22)
+            {
+                alt = (v[11] << 8) | v[12];
+                speed = (v[13] << 8) | v[14];
+                heading = (v[15] << 8) | v[16];
+                long timeRaw = ((long)v[17] << 24) | ((long)v[18] << 16) | ((long)v[19] << 8) | v[20];
+                if (timeRaw > 0) t = DateTimeOffset.FromUnixTimeSeconds(timeRaw).UtcDateTime;
+                accuracy = (v[21] << 8) | v[22];
+            }
+            broker.Dispatch(deviceId, "Position",
+                new RadioPositionInfo(true, lat, lon, alt, speed, heading, t, accuracy), store: false);
+        }
+        catch (Exception) { }
+    }
 
     // --- transmit data (HT_SEND_DATA) ---
 
@@ -599,6 +648,16 @@ public sealed record ReceivedPacketSummary(
 /// <summary>An APRS station position fix decoded from a received packet.</summary>
 public sealed record AprsStationSummary(
     string Callsign, double Latitude, double Longitude, string Symbol, string Comment);
+
+/// <summary>The radio's own GPS position decoded from a GET_POSITION reply.</summary>
+public sealed record RadioPositionInfo(
+    bool Locked, double Latitude, double Longitude,
+    int AltitudeM, int SpeedKnots, int HeadingDeg, DateTime TimeUtc, int Accuracy)
+{
+    public string PositionText => $"{Latitude:0.00000}, {Longitude:0.00000}";
+    public string DetailText => $"Alt {AltitudeM} m · {SpeedKnots} kn · hdg {HeadingDeg}° · ±{Accuracy} m";
+    public string TimeText => TimeUtc == default ? "" : TimeUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+}
 
 /// <summary>Read-only subset of READ_SETTINGS worth displaying.</summary>
 public sealed record RadioSettingsSummary(
