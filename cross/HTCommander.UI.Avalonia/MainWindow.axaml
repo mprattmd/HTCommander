@@ -3,7 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
-        xmlns:pl="using:HTCommander.Platform.Linux"
+        xmlns:abs="using:HTCommander.Core.Abstractions"
         xmlns:audio="using:HTCommander.Core.Abstractions.Audio"
         xmlns:core="using:HTCommander"
         xmlns:ui="using:HTCommander.UI.Avalonia"
@@ -40,7 +40,7 @@
                               ItemsSource="{Binding Radios}"
                               SelectedItem="{Binding SelectedRadio}">
                         <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="pl:RadioDeviceInfo">
+                            <DataTemplate x:DataType="abs:RadioDeviceInfo">
                                 <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Address}"/>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>

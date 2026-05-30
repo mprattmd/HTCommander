@@ -32,9 +32,10 @@ using HTCommander.UI.Avalonia.Platform;
 namespace HTCommander.UI.Avalonia.ViewModels;
 
 /// <summary>
-/// Shell view model. Lists compatible radios (<see cref="BlueZRadioDiscovery"/>),
-/// opens the <see cref="RadioBluetoothLinux"/> transport, and drives it through a
-/// portable <see cref="RadioController"/> (Core). The controller publishes parsed
+/// Shell view model. Lists compatible radios and opens a transport through the
+/// platform-neutral <see cref="IRadioPlatform"/> seam (Linux BlueZ / macOS
+/// IOBluetooth), and drives it through a portable
+/// <see cref="RadioController"/> (Core). The controller publishes parsed
 /// results — HT status, battery, device info — to the <c>DataBroker</c>; this VM
 /// subscribes (device 0) and binds them to the UI, i.e. the shell is a pure
 /// DataBroker consumer. Cross-thread updates are marshalled via <see cref="IUiDispatcher"/>
@@ -43,10 +44,11 @@ namespace HTCommander.UI.Avalonia.ViewModels;
 public sealed class MainViewModel : ViewModelBase
 {
     private readonly IUiDispatcher dispatcher;
-    private readonly BlueZRadioDiscovery discovery = new();
+    private readonly IRadioPlatform radioPlatform;
+    private readonly IRadioTransportDiscovery discovery;
     private readonly ILogger logger;
     private readonly DataBrokerClient broker = new DataBrokerClient();
-    private RadioBluetoothLinux? transport;
+    private IRadioTransport? transport;
     private RadioController? controller;
     private RadioAudioChannelLinux? audioChannel;
     private string? connectedMac;   // set on connect; used to open voice audio on demand
@@ -75,9 +77,11 @@ public sealed class MainViewModel : ViewModelBase
     /// <summary>Settings sub-view-model (bound by the Settings tab).</summary>
     public SettingsViewModel Settings { get; }
 
-    public MainViewModel(IUiDispatcher dispatcher, IAudioDeviceEnumerator audioDevices)
+    public MainViewModel(IUiDispatcher dispatcher, IAudioDeviceEnumerator audioDevices, IRadioPlatform radioPlatform)
     {
         this.dispatcher = dispatcher;
+        this.radioPlatform = radioPlatform;
+        discovery = radioPlatform.CreateDiscovery();
         logger = new CallbackLogger(AppendLog);
         Settings = new SettingsViewModel(dispatcher, audioDevices);
 
@@ -663,7 +667,7 @@ public sealed class MainViewModel : ViewModelBase
         Status = $"Connecting to {radio.Name} ({radio.Address})...";
         AppendLog(Status);
 
-        transport = new RadioBluetoothLinux(radio.Address, logger,
+        transport = radioPlatform.CreateTransport(radio.Address, logger,
             reason => dispatcher.Post(() => OnDisconnected(reason)));
 
         transport.OnConnected += () => dispatcher.Post(() =>

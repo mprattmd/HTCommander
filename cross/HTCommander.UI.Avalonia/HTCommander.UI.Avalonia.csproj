@@ -30,9 +30,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HTCommander.Core\HTCommander.Core.csproj" />
-    <!-- Linux composition root: the app wires the Linux platform backends
-         (BlueZ transport, PortAudio, JSON config). A cross-platform build would
-         select Win/Linux/Mac here via RID/OS conditions. -->
+    <!-- Both platform backends are referenced; the composition root (App.axaml.cs)
+         picks one at runtime via the IRadioPlatform seam (OperatingSystem.IsMacOS()).
+         Platform.Linux also provides the portable PortAudio/SQLite/JSON services. -->
     <ProjectReference Include="..\HTCommander.Platform.Linux\HTCommander.Platform.Linux.csproj" />
+    <ProjectReference Include="..\HTCommander.Platform.Mac\HTCommander.Platform.Mac.csproj" />
   </ItemGroup>
 </Project>

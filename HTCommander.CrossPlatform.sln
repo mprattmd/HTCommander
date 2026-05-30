@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HTCommander.Platform.Linux"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HTCommander.UI.Avalonia", "cross\HTCommander.UI.Avalonia\HTCommander.UI.Avalonia.csproj", "{1F9F3BD8-879A-4430-8FFF-DF60E87C94EE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HTCommander.Platform.Mac", "cross\HTCommander.Platform.Mac\HTCommander.Platform.Mac.csproj", "{89148139-176D-48A4-AD73-5DF72C171F77}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,18 @@ Global
 		{1F9F3BD8-879A-4430-8FFF-DF60E87C94EE}.Release|x64.Build.0 = Release|Any CPU
 		{1F9F3BD8-879A-4430-8FFF-DF60E87C94EE}.Release|x86.ActiveCfg = Release|Any CPU
 		{1F9F3BD8-879A-4430-8FFF-DF60E87C94EE}.Release|x86.Build.0 = Release|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Debug|x64.Build.0 = Debug|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Debug|x86.Build.0 = Debug|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Release|x64.ActiveCfg = Release|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Release|x64.Build.0 = Release|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Release|x86.ActiveCfg = Release|Any CPU
+		{89148139-176D-48A4-AD73-5DF72C171F77}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -65,5 +79,6 @@ Global
 		{B1412491-3E2D-48AF-8CAB-1CF89C49D2EC} = {55ABD941-22EC-9BDF-563B-2C4D6A73212A}
 		{26ACCBEA-38C0-417E-920E-04CFEED877C0} = {55ABD941-22EC-9BDF-563B-2C4D6A73212A}
 		{1F9F3BD8-879A-4430-8FFF-DF60E87C94EE} = {55ABD941-22EC-9BDF-563B-2C4D6A73212A}
+		{89148139-176D-48A4-AD73-5DF72C171F77} = {55ABD941-22EC-9BDF-563B-2C4D6A73212A}
 	EndGlobalSection
 EndGlobal
