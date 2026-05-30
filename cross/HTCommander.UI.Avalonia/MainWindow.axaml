@@ -739,6 +739,9 @@
                         <ComboBox x:Name="ChBankCombo" MinWidth="70" IsVisible="{Binding HasBanks}"
                                   ItemsSource="{Binding Banks}" SelectedItem="{Binding SelectedBank}"
                                   ToolTip.Tip="Channel bank (region/zone) to read and write"/>
+                        <Button x:Name="ChLoadAllBanksButton" Content="Load all banks"
+                                IsVisible="{Binding HasBanks}" IsEnabled="{Binding CanLoadAllBanks}"
+                                ToolTip.Tip="Read every bank so all channels appear in the channel pickers (briefly cycles the radio through each bank, then returns)"/>
                         <Button x:Name="ChWriteButton" Classes="Accent" Content="⬆ Write to radio"
                                 IsEnabled="{Binding CanWriteChannels}"
                                 ToolTip.Tip="Writes every row to the selected bank's memory (reconfigures the radio)"/>

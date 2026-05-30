@@ -170,6 +170,7 @@ public partial class MainWindow : Window
         ChImportButton.Click += async (_, _) => await ImportChannelsAsync();
         ChExportButton.Click += async (_, _) => await ExportChannelsAsync();
         ChLoadRadioButton.Click += (_, _) => Vm?.LoadChannelsFromRadio();
+        ChLoadAllBanksButton.Click += (_, _) => Vm?.LoadAllBanks();
         ChAddRowButton.Click += (_, _) => Vm?.AddBuilderChannel();
         ChRemoveRowButton.Click += (_, _) => Vm?.RemoveBuilderChannel(ChannelGrid.SelectedItem as EditableChannel);
         ChWriteButton.Click += (_, _) => Vm?.WriteChannelsToRadio();

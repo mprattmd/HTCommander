@@ -162,6 +162,7 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanSendSession));
                 OnPropertyChanged(nameof(CanRequestPosition));
                 OnPropertyChanged(nameof(CanCenterGps));
+                OnPropertyChanged(nameof(CanLoadAllBanks));
             }
         }
     }
@@ -860,7 +861,7 @@ public sealed class MainViewModel : ViewModelBase
     // selected bank; switching banks re-reads that bank's channels from the radio.
     public ObservableCollection<int> Banks { get; } = new();
     private int regionCount = 1;
-    public int RegionCount { get => regionCount; private set { if (SetField(ref regionCount, value)) OnPropertyChanged(nameof(HasBanks)); } }
+    public int RegionCount { get => regionCount; private set { if (SetField(ref regionCount, value)) { OnPropertyChanged(nameof(HasBanks)); OnPropertyChanged(nameof(CanLoadAllBanks)); } } }
     public bool HasBanks => regionCount > 1;
 
     private bool loadingBanks;
@@ -880,6 +881,47 @@ public sealed class MainViewModel : ViewModelBase
                 BuilderStatus = $"Switched to bank {value}; reading its channels…";
             }
         }
+    }
+
+    private bool sweepingBanks;
+    /// <summary>True while the radio has more than one bank (enables "Load all banks").</summary>
+    public bool CanLoadAllBanks => HasBanks && Connected && !sweepingBanks;
+
+    /// <summary>
+    /// Reads every bank's channels so the channel pickers (Contacts, etc.) list all
+    /// banks — the radio only exposes one bank at a time, so this sweeps each bank,
+    /// accumulating channel names, then returns the radio to the bank it started on.
+    /// </summary>
+    public void LoadAllBanks()
+    {
+        if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
+        if (RegionCount <= 1) { LoadChannelsFromRadio(); return; }
+        if (sweepingBanks) return;
+        sweepingBanks = true;
+        OnPropertyChanged(nameof(CanLoadAllBanks));
+        int start = SelectedBank;
+        int banks = RegionCount;
+        Task.Run(async () =>
+        {
+            try
+            {
+                for (int b = 0; b < banks; b++)
+                {
+                    controller.SetRegion(b);
+                    controller.RefreshChannels();
+                    int shown = b;
+                    dispatcher.Post(() => BuilderStatus = $"Reading bank {shown} of {banks - 1}…");
+                    await Task.Delay(1200);            // let this bank's channel replies arrive
+                }
+                // Restore the bank the operator was on and re-read it cleanly.
+                dispatcher.Post(() => { radioChannels.Clear(); foreach (var s in Slots) { s.Name = ""; s.RxMHz = 0; } });
+                controller.SetRegion(start);
+                controller.RefreshChannels();
+                dispatcher.Post(() => BuilderStatus = $"Loaded all {banks} banks — the channel picker now lists every bank.");
+            }
+            catch (Exception ex) { dispatcher.Post(() => BuilderStatus = "Load all banks failed: " + ex.Message); }
+            finally { dispatcher.Post(() => { sweepingBanks = false; OnPropertyChanged(nameof(CanLoadAllBanks)); }); }
+        });
     }
 
     // ---- Channel slot grid (radio memory tiles, drag-to-program) ----
