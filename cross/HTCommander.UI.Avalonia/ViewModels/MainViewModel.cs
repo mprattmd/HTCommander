@@ -87,6 +87,7 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
         broker.Subscribe(0, "AprsStation", (_, _, data) => { if (data is AprsStationSummary st) AddStation(st); });
         broker.Subscribe(0, "Position", (_, _, data) => { if (data is RadioPositionInfo p) MyPosition = p; });
+        broker.Subscribe(1, "GpsData", (_, _, data) => SerialPosition = data as HTCommander.Gps.GpsData);
         broker.Subscribe(0, "Settings", (_, _, data) => { if (data is RadioSettingsSummary s) RadioSettings = s; });
         broker.Subscribe(0, "BssSettings", (_, _, data) =>
         {
@@ -1403,7 +1404,16 @@ public sealed class MainViewModel : ViewModelBase
     }
     public bool HasMyPosition => myPosition is { Locked: true };
     public bool CanRequestPosition => Connected;
-    public bool CanCenterGps => HasMyPosition;
+    public bool CanCenterGps => HasMyPosition || HasSerialPosition;
+
+    // Serial-GPS fix (device 1, from GpsSerialHandler) — shown as a distinct map marker.
+    private HTCommander.Gps.GpsData? serialPosition;
+    public HTCommander.Gps.GpsData? SerialPosition
+    {
+        get => serialPosition;
+        private set { if (SetField(ref serialPosition, value)) { OnPropertyChanged(nameof(HasSerialPosition)); OnPropertyChanged(nameof(CanCenterGps)); } }
+    }
+    public bool HasSerialPosition => serialPosition is { IsFixed: true };
 
     /// <summary>Requests a fresh GPS position from the radio (GET_POSITION).</summary>
     public void RequestPosition()

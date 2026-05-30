@@ -61,6 +61,9 @@ public partial class App : Application
             DataBroker.AddDataHandler("BbsHandler", new BbsHandler());
             // APRS message send/receive handler (builds frames, tracks history, applies auth).
             DataBroker.AddDataHandler("AprsHandler", new AprsHandler());
+            // GPS serial reader: reacts to GpsSerialPort/GpsBaudRate (device 0), parses
+            // NMEA and publishes GpsData (device 1). Cross-platform (System.IO.Ports).
+            DataBroker.AddDataHandler("GpsSerialHandler", new HTCommander.Gps.GpsSerialHandler());
 
             // Winlink B2F client: listens for "WinlinkSync"/"WinlinkDisconnect" and
             // drives CMS sessions (over the internet or via the radio). Held alive by

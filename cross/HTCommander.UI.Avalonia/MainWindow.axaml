@@ -845,6 +845,24 @@
                             <TextBlock Text="{Binding TestStatus}" VerticalAlignment="Center" Foreground="#9CDCFE"/>
                         </StackPanel>
 
+                        <TextBlock Text="GPS source" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Serial port"/>
+                            <ComboBox HorizontalAlignment="Stretch"
+                                      ItemsSource="{Binding SerialPorts}" SelectedItem="{Binding SelectedGpsPort}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Baud rate"/>
+                            <ComboBox HorizontalAlignment="Left" MinWidth="120"
+                                      ItemsSource="{Binding BaudRates}" SelectedItem="{Binding SelectedGpsBaud}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button x:Name="RefreshSerialButton" Content="Rescan ports"/>
+                            <TextBlock Text="{Binding GpsStatus, StringFormat='GPS: {0}'}" VerticalAlignment="Center" Foreground="#9CDCFE"/>
+                        </StackPanel>
+                        <TextBlock Classes="Hint" Foreground="#888" TextWrapping="Wrap"
+                                   Text="Reads NMEA from a serial GPS; positions show on the Map (green) and are pushed to the radio. Set port to None to disable."/>
+
                         <TextBlock Text="Settings persist to ~/.config/htcommander/ via JSON config."
                                    Foreground="#888" TextWrapping="Wrap" Margin="0,8,0,0"/>
                     </StackPanel>

@@ -21,6 +21,7 @@ using System.Threading.Tasks;
 using HTCommander;                       // DataBroker
 using HTCommander.Core.Abstractions;
 using HTCommander.Core.Abstractions.Audio;
+using HTCommander.Platform.Linux;
 using HTCommander.Platform.Linux.Audio;
 
 namespace HTCommander.UI.Avalonia.ViewModels;
@@ -48,7 +49,63 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         this.dispatcher = dispatcher;
         this.enumerator = enumerator;
+        gpsBroker = new DataBrokerClient();
+        gpsBroker.Subscribe(1, "GpsStatus", (_, _, data) => dispatcher.Post(() => { if (data is string s) GpsStatus = s; }));
         RefreshDevices();
+        RefreshSerialPorts();
+    }
+
+    // ---- GPS source (serial NMEA) -----------------------------------------
+    private readonly DataBrokerClient gpsBroker;
+    private const string NoPort = "None";
+
+    public ObservableCollection<string> SerialPorts { get; } = new();
+    public int[] BaudRates { get; } = { 4800, 9600, 19200, 38400, 57600, 115200 };
+
+    private string selectedGpsPort = NoPort;
+    public string SelectedGpsPort
+    {
+        get => selectedGpsPort;
+        set
+        {
+            if (!SetField(ref selectedGpsPort, value) || loading || value == null) return;
+            DataBroker.Dispatch(SettingsDevice, "GpsSerialPort", value, store: true);   // GpsSerialHandler reacts to this
+        }
+    }
+
+    private int selectedGpsBaud = 4800;
+    public int SelectedGpsBaud
+    {
+        get => selectedGpsBaud;
+        set
+        {
+            if (!SetField(ref selectedGpsBaud, value) || loading) return;
+            DataBroker.Dispatch(SettingsDevice, "GpsBaudRate", value, store: true);
+        }
+    }
+
+    private string gpsStatus = "Disabled";
+    public string GpsStatus { get => gpsStatus; private set => SetField(ref gpsStatus, value); }
+
+    /// <summary>Re-scans available serial ports and restores the persisted GPS selection.</summary>
+    public void RefreshSerialPorts()
+    {
+        Task.Run(() =>
+        {
+            var ports = SerialPortEnumerator.ListPorts();
+            string savedPort = DataBroker.GetValue<string>(SettingsDevice, "GpsSerialPort", NoPort) ?? NoPort;
+            int savedBaud = DataBroker.GetValue<int>(SettingsDevice, "GpsBaudRate", 4800);
+            dispatcher.Post(() =>
+            {
+                loading = true;
+                SerialPorts.Clear();
+                SerialPorts.Add(NoPort);
+                foreach (var p in ports) SerialPorts.Add(p);
+                SelectedGpsPort = SerialPorts.Contains(savedPort) ? savedPort : NoPort;
+                SelectedGpsBaud = BaudRates.Contains(savedBaud) ? savedBaud : 4800;
+                loading = false;
+            });
+        });
     }
 
     private AudioDevice? selectedOutput;

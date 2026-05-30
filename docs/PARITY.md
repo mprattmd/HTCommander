@@ -88,7 +88,7 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Time filter (last N min) / show-tracks toggle | ✅ | Phase 4: Tracks toggle + last-N-min filter on the Map toolbar |
 | Large/small marker toggle | ✅ | Phase 4: Large markers toggle |
 | Offline mode + tile cache (prefetch/clear) | ❌ | online OSM only |
-| Radio-GPS + serial-GPS markers, "center to GPS" | 🟡 | Phase 4: radio-GPS marker + Center-to-GPS; serial-GPS marker pending the serial backend (4b) |
+| Radio-GPS + serial-GPS markers, "center to GPS" | ✅ | Phase 4: radio-GPS (blue) marker + Center-to-GPS; Phase 4b: serial-GPS (green) marker |
 | Voice-channel markers; ADS-B airplane markers | ❌ | |
 | Persisted zoom/center; zoom buttons | 🟡 | built-in pan/zoom; not persisted |
 
@@ -154,11 +154,11 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 ## GPS
 | Feature | Status | Notes |
 |---|---|---|
-| GPS serial → position to radio | 🟡 | Core plumbing; serial reader/config = Phase 4b (needs a Linux serial backend) |
+| GPS serial → position to radio | ⏳ | Phase 4b: GpsSerialHandler (NMEA, System.IO.Ports) → GpsData → RadioController SET_POSITION; needs a real GPS + radio to verify |
 | Radio position details (lat/lon/alt/speed/heading) | ⏳ | Phase 4: GET_POSITION parsed → details shown in Config; needs a GPS fix on the radio to verify |
 | Request fresh position | ✅ | Phase 4: "Request fresh" button (GET_POSITION) |
-| Serial-GPS live details window | ❌ | Phase 4b (serial backend) |
-| GPS source config (port/baud) | ❌ | Phase 4b (serial backend) |
+| Serial-GPS live details window | 🟡 | Phase 4b: GPS status + serial fix shown (Settings + Map marker); no dedicated details window |
+| GPS source config (port/baud) | ✅ | Phase 4b: Settings → GPS source (serial port + baud + rescan), persisted |
 
 ## Packaging / platforms
 | Feature | Status | Notes |
