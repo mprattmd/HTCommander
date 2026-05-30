@@ -250,19 +250,16 @@
                         <TextBlock Text="(connect a radio to edit beacon/ident)" Foreground="#888" IsVisible="{Binding !HasBss}"/>
                         <Border Classes="Card" IsVisible="{Binding HasBss}">
                             <StackPanel Spacing="8">
-                                <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
-                                    <TextBlock Grid.Row="0" Text="APRS callsign" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="0" Grid.Column="1" MaxLength="6" Text="{Binding BeaconCallsign}" PlaceholderText="e.g. KE4AXW"/>
-                                    <TextBlock Grid.Row="1" Text="APRS SSID" VerticalAlignment="Center"/>
-                                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="80"
-                                              ItemsSource="{Binding StationIdOptions}" SelectedItem="{Binding BeaconSsid}"/>
-                                    <TextBlock Grid.Row="2" Text="APRS symbol" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="2" Grid.Column="1" MaxLength="2" Width="60" HorizontalAlignment="Left"
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="Beacons use your station callsign + SSID (set in Identity above). Set the APRS symbol and comment here."/>
+                                <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
+                                    <TextBlock Grid.Row="0" Text="APRS symbol" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" MaxLength="2" Width="60" HorizontalAlignment="Left"
                                              Text="{Binding BeaconSymbol}" ToolTip.Tip="Two-char APRS symbol, e.g. /- (house) or /[ (person)"/>
-                                    <TextBlock Grid.Row="3" Text="Beacon message" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="3" Grid.Column="1" MaxLength="18" Text="{Binding BeaconMessageText}" PlaceholderText="comment (max 18 chars)"/>
-                                    <TextBlock Grid.Row="4" Text="Share interval (s)" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="4" Grid.Column="1" Width="100" HorizontalAlignment="Left" Text="{Binding BeaconInterval}"/>
+                                    <TextBlock Grid.Row="1" Text="Beacon message" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" MaxLength="18" Text="{Binding BeaconMessageText}" PlaceholderText="comment (max 18 chars)"/>
+                                    <TextBlock Grid.Row="2" Text="Share interval (s)" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Width="100" HorizontalAlignment="Left" Text="{Binding BeaconInterval}"/>
                                 </Grid>
                                 <CheckBox IsChecked="{Binding BeaconShareLocation}" Content="Share my location (beacon position)"/>
                                 <CheckBox IsChecked="{Binding BeaconOnPttRelease}" Content="Send position on PTT release"/>
