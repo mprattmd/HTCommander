@@ -1845,8 +1845,8 @@ public sealed class MainViewModel : ViewModelBase
     {
         if (!CanWriteBss) { AppendLog("Connect to a radio (and let settings load) before writing beacon/ident."); return; }
         var b = Bss!.Clone();
-        b.AprsCallsign = Clamp((BeaconCallsign ?? "").Trim().ToUpperInvariant(), 6);
-        b.AprsSsid = Math.Clamp(BeaconSsid, 0, 15);
+        b.AprsCallsign = Clamp((MyCallsign ?? "").Trim().ToUpperInvariant(), 6);   // from station identity (no duplicate field)
+        b.AprsSsid = Math.Clamp(MyStationId, 0, 15);
         b.AprsSymbol = Clamp(string.IsNullOrEmpty(BeaconSymbol) ? "/-" : BeaconSymbol, 2);
         b.BeaconMessage = Clamp(BeaconMessageText, 18);
         b.LocationShareInterval = Math.Max(0, BeaconInterval);
