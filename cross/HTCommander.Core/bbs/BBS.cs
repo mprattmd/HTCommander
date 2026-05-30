@@ -8,7 +8,6 @@ using System;
 using System.IO;
 using System.Text;
 using System.Diagnostics;
-using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using aprsparser;
@@ -23,7 +22,6 @@ namespace HTCommander
     public class BBS : IDisposable
     {
         private readonly DataBrokerClient broker;
-        private readonly string adventureAppDataPath;
         private readonly int deviceId;
         private AX25Session session;
         private bool disposed = false;
@@ -61,7 +59,6 @@ namespace HTCommander
             public int packetsOut = 0;
             public int bytesIn = 0;
             public int bytesOut = 0;
-            public ListViewItem listViewItem = null;
         }
 
         /// <summary>
@@ -72,10 +69,6 @@ namespace HTCommander
         {
             this.deviceId = deviceId;
             broker = new DataBrokerClient();
-
-            // Get application data path for adventure game saves
-            adventureAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HTCommander", "Adventure");
-            if (!Directory.Exists(adventureAppDataPath)) { try { Directory.CreateDirectory(adventureAppDataPath); } catch (Exception) { } }
 
             // Create the AX25 session for this device
             session = new AX25Session(deviceId);
@@ -228,10 +221,9 @@ namespace HTCommander
 
         private string GetVersion()
         {
-            string exePath = Application.ExecutablePath;
-            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(exePath);
-            string[] vers = versionInfo.FileVersion.Split('.');
-            return vers[0] + "." + vers[1];
+            // Portable: assembly major.minor (was Application.ExecutablePath + FileVersionInfo).
+            Version v = typeof(BBS).Assembly.GetName().Version;
+            return v == null ? "1.0" : v.Major + "." + v.Minor;
         }
 
         public void ProcessStreamState(AX25Session session, AX25Session.ConnectionState state)
@@ -502,7 +494,7 @@ namespace HTCommander
         private bool WeHaveEmail(string mid)
         {
             // Check if mail exists using MailStore via DataBroker handler
-            MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+            IMailStore mailStore = DataBroker.GetDataHandler<IMailStore>("MailStore");
             return mailStore?.MailExists(mid) ?? false;
         }
 
@@ -515,7 +507,6 @@ namespace HTCommander
             string mode = null;
             if (session.sessionState.ContainsKey("mode")) { mode = (string)session.sessionState["mode"]; }
             if (mode == "mail") { ProcessMailStream(session, data); return; }
-            if (mode == "adventure") { ProcessAdventureStream(session, data); return; }
             ProcessBbsStream(session, data);
         }
 
@@ -567,7 +558,6 @@ namespace HTCommander
                     sb.Append("Welcome to our BBS\r");
                     sb.Append("---\r");
                     sb.Append("[M]ain menu\r");
-                    sb.Append("[A]dventure game\r");
                     sb.Append("[D]isconnect\r");
                     sb.Append("[S]oftware information\r");
                     sb.Append("---\r");
@@ -576,11 +566,6 @@ namespace HTCommander
                 {
                     sb.Append("This BBS is run by Handy-Talky Commander, an open source software available at https://github.com/Ylianst/HTCommander. This BBS can also handle Winlink messages in a limited way.\r");
                 }
-                else if ((key == "A") || (key == "ADVENTURE"))
-                {
-                    session.sessionState["mode"] = "adventure";
-                    ProcessAdventureStream(session, null, true);
-                }
                 else if ((key == "D") || (key == "DISC") || (key == "DISCONNECT"))
                 {
                     session.Disconnect();
@@ -588,40 +573,6 @@ namespace HTCommander
                 }
 
                 SessionSend(session, sb.ToString());
-            }
-        }
-
-        /// <summary>
-        /// Process traffic from a user playing the adventure game.
-        /// </summary>
-        public void ProcessAdventureStream(AX25Session session, byte[] data, bool start = false)
-        {
-            if (!Enabled) return;
-
-            string dataStr = null;
-            if (data != null) { dataStr = UTF8Encoding.UTF8.GetString(data).Replace("\r\n", "\r").Replace("\n", "\r").Split('\r')[0]; }
-            if (start) { dataStr = "help"; }
-
-            string gameFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Adventurer", "adv01.dat");
-            if (!File.Exists(gameFilePath))
-            {
-                broker.LogError($"[BBS/{deviceId}] Adventure game data file not found: {gameFilePath}");
-                session.sessionState["mode"] = "bbs";
-                SessionSend(session, "Adventure game data file not found. Returning to BBS.\r[M] for menu.\r");
-                return;
-            }
-
-            Adventurer.GameRunner runner = new Adventurer.GameRunner();
-            string output = runner.RunTurn(gameFilePath, Path.Combine(adventureAppDataPath, session.Addresses[0].CallSignWithId + ".sav"), dataStr).Replace("\r\n\r\n", "\r\n").Trim();
-            if ((output != null) && (output.Length > 0))
-            {
-                if (start) { output = "Welcome to the Adventure Game\r\"quit\" to go back to BBS.\r" + output; }
-                if (string.Compare(dataStr.Trim(), "quit", true) == 0)
-                {
-                    session.sessionState["mode"] = "bbs";
-                    output += "\rBack to BBS, [M] for menu.";
-                }
-                SessionSend(session, output + "\r");
             }
         }
 
@@ -904,7 +855,7 @@ namespace HTCommander
             }
 
             // Get mails from MailStore via DataBroker handler
-            MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+            IMailStore mailStore = DataBroker.GetDataHandler<IMailStore>("MailStore");
             List<WinLinkMail> mails = mailStore?.GetAllMails() ?? new List<WinLinkMail>();
 
             foreach (WinLinkMail mail in mails)
@@ -1019,8 +970,8 @@ namespace HTCommander
             byte[] r1 = UTF8Encoding.UTF8.GetBytes(s);
             if ((pid == 241) || (pid == 242) || (pid == 243))
             {
-                byte[] r2 = Utils.CompressBrotli(r1);
-                byte[] r3 = Utils.CompressDeflate(r1);
+                byte[] r2 = CoreUtils.CompressBrotli(r1);
+                byte[] r3 = CoreUtils.CompressDeflate(r1);
                 return Math.Min(r1.Length, Math.Min(r2.Length, r3.Length));
             }
             return r1.Length;
@@ -1031,8 +982,8 @@ namespace HTCommander
             byte[] r1 = UTF8Encoding.UTF8.GetBytes(s);
             if ((pid == 241) || (pid == 242) || (pid == 243))
             {
-                byte[] r2 = Utils.CompressBrotli(r1);
-                byte[] r3 = Utils.CompressDeflate(r1);
+                byte[] r2 = CoreUtils.CompressBrotli(r1);
+                byte[] r3 = CoreUtils.CompressDeflate(r1);
                 if ((r1.Length <= r2.Length) && (r1.Length <= r3.Length)) { outpid = 241; return r1; }
                 if (r2.Length <= r3.Length) { outpid = 242; return r2; }
                 outpid = 243;
@@ -1040,77 +991,6 @@ namespace HTCommander
             }
             outpid = 240;
             return r1;
-        }
-
-        private void ProcessRawFrame(AX25Packet p, int frameLength)
-        {
-            if (!Enabled) return;
-
-            string dataStr = p.dataStr;
-            if (p.pid == 242) { try { dataStr = UTF8Encoding.Default.GetString(Utils.DecompressBrotli(p.data)); } catch (Exception) { } }
-            if (p.pid == 243) { try { dataStr = UTF8Encoding.Default.GetString(Utils.CompressDeflate(p.data)); } catch (Exception) { } }
-
-            broker.Dispatch(0, "BbsTraffic", new { DeviceId = deviceId, Callsign = p.addresses[1].ToString(), Outgoing = false, Message = dataStr });
-
-            string gameFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Adventurer", "adv01.dat");
-            if (!File.Exists(gameFilePath))
-            {
-                broker.LogError($"[BBS/{deviceId}] Adventure game data file not found: {gameFilePath}");
-                return;
-            }
-
-            Adventurer.GameRunner runner = new Adventurer.GameRunner();
-            string output = runner.RunTurn(gameFilePath, Path.Combine(adventureAppDataPath, p.addresses[1].CallSignWithId + ".sav"), p.dataStr).Replace("\r\n\r\n", "\r\n").Trim();
-            if ((output != null) && (output.Length > 0))
-            {
-                broker.Dispatch(0, "BbsTraffic", new { DeviceId = deviceId, Callsign = p.addresses[1].ToString(), Outgoing = true, Message = output });
-
-                List<string> stringList = new List<string>();
-                StringBuilder sb = new StringBuilder();
-                string[] outputSplit = output.Replace("\r\n", "\n").Replace("\n\n", "\n").Split('\n');
-                foreach (string s in outputSplit)
-                {
-                    if (GetCompressedLength(p.pid, sb + s) < 310)
-                    {
-                        if (sb.Length > 0) { sb.Append("\n"); }
-                        sb.Append(s);
-                    }
-                    else
-                    {
-                        stringList.Add(sb.ToString());
-                        sb.Clear();
-                        sb.Append(s);
-                    }
-                }
-                if (sb.Length > 0) { stringList.Add(sb.ToString()); }
-
-                List<AX25Address> addresses = new List<AX25Address>(1);
-                addresses.Add(p.addresses[1]);
-
-                int bytesOut = 0;
-                int packetsOut = 0;
-                byte outPid = 0;
-                for (int i = 0; i < stringList.Count; i++)
-                {
-                    AX25Packet packet = new AX25Packet(addresses, GetCompressed(p.pid, stringList[i], out outPid), DateTime.Now);
-                    packet.pid = outPid;
-                    packet.channel_id = p.channel_id;
-                    packet.channel_name = p.channel_name;
-
-                    // Request packet transmission via broker
-                    broker.Dispatch(deviceId, "BbsTransmitPacket", new { Packet = packet, ChannelId = packet.channel_id });
-                    packetsOut++;
-                }
-
-                if ((p.pid == 241) || (p.pid == 242) || (p.pid == 243))
-                {
-                    UpdateStats(p.addresses[1].ToString(), "AX.25 Compress", 1, packetsOut, frameLength, bytesOut);
-                }
-                else
-                {
-                    UpdateStats(p.addresses[1].ToString(), "AX.25 RAW", 1, packetsOut, frameLength, bytesOut);
-                }
-            }
         }
 
         private void ProcessAprsPacket(AX25Packet p, AprsPacket aprsPacket, int frameLength, bool aprsChannel)
