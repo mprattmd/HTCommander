@@ -115,9 +115,8 @@ namespace HTCommander
             BSS_SETTINGS_CHANGED = 11, DATA_TXD = 12, POSITION_CHANGE = 13
         }
 
-        // RadioChannelType moved to HTCommander.Core (RadioDataTypes.cs) as a top-level type.
-        public enum RadioModulationType : int { FM = 0, AM = 1, DMR = 2 }
-        public enum RadioBandwidthType : int { NARROW = 0, WIDE = 1 }
+        // RadioChannelType, RadioModulationType and RadioBandwidthType moved to
+        // HTCommander.Core (RadioDataTypes.cs) as top-level types.
 
         public enum RadioUpdateNotification : int
         {

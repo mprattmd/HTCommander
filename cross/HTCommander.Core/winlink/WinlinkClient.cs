@@ -10,7 +10,6 @@ using System.Text;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Net.Security;
-using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
@@ -190,7 +189,7 @@ namespace HTCommander
             string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
             string myCallsign;
             int myStationId;
-            if (!Utils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
+            if (!CoreUtils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
             {
                 myCallsign = myCallsignWithId;
                 myStationId = 0;
@@ -199,7 +198,7 @@ namespace HTCommander
             // Parse the destination callsign
             string destCallsign;
             int destStationId;
-            if (!Utils.ParseCallsignWithId(station.Callsign, out destCallsign, out destStationId))
+            if (!CoreUtils.ParseCallsignWithId(station.Callsign, out destCallsign, out destStationId))
             {
                 destCallsign = station.Callsign;
                 destStationId = 0;
@@ -829,15 +828,10 @@ namespace HTCommander
 
         private string GetVersion()
         {
-            // Get the path of the currently running executable
-            string exePath = Application.ExecutablePath;
-
-            // Get the FileVersionInfo for the executable
-            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(exePath);
-
-            // Return the FileVersion as a string
-            string[] vers = versionInfo.FileVersion.Split('.');
-            return vers[0] + "." + vers[1];
+            // Portable: report the assembly's major.minor (was Application.ExecutablePath
+            // + FileVersionInfo, which is WinForms/host-path coupled).
+            Version v = typeof(WinlinkClient).Assembly.GetName().Version;
+            return v == null ? "1.0" : v.Major + "." + v.Minor;
         }
 
         private string[] ParseProposalResponses(string value)
@@ -983,7 +977,7 @@ namespace HTCommander
                     }
 
                     // Get mails from MailStore via DataBroker handler
-                    MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+                    IMailStore mailStore = DataBroker.GetDataHandler<IMailStore>("MailStore");
                     List<WinLinkMail> mails = mailStore?.GetAllMails() ?? new List<WinLinkMail>();
 
                     // Send proposals with checksum
@@ -1250,7 +1244,7 @@ namespace HTCommander
         private bool WeHaveEmail(string mid)
         {
             // Check if mail exists using MailStore via DataBroker handler
-            MailStore mailStore = DataBroker.GetDataHandler<MailStore>("MailStore");
+            IMailStore mailStore = DataBroker.GetDataHandler<IMailStore>("MailStore");
             return mailStore?.MailExists(mid) ?? false;
         }
 

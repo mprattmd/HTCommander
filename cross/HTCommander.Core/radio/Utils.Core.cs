@@ -92,6 +92,35 @@ namespace HTCommander
             catch (Exception) { return null; }
         }
 
+        // --- Big-endian byte helpers (ported verbatim from src/radio/Utils.cs)
+        // so on-wire frame parsing/serialization matches the WinForms build byte-for-byte.
+
+        public static int GetShort(byte[] d, int p) { return ((int)d[p] << 8) + (int)d[p + 1]; }
+        public static int GetInt(byte[] d, int p) { return ((int)d[p] << 24) + (int)(d[p + 1] << 16) + (int)(d[p + 2] << 8) + (int)d[p + 3]; }
+        public static void SetShort(byte[] d, int p, int v) { d[p] = (byte)((v >> 8) & 0xFF); d[p + 1] = (byte)(v & 0xFF); }
+        public static void SetInt(byte[] d, int p, int v) { d[p] = (byte)(v >> 24); d[p + 1] = (byte)((v >> 16) & 0xFF); d[p + 2] = (byte)((v >> 8) & 0xFF); d[p + 3] = (byte)(v & 0xFF); }
+
+        // Parse "CALLSIGN-SSID" into its parts; returns false if malformed.
+        // Ported verbatim from src/radio/Utils.cs.
+        public static bool ParseCallsignWithId(string callsignWithId, out string xcallsign, out int xstationId)
+        {
+            xcallsign = null;
+            xstationId = -1;
+            if (callsignWithId == null) return false;
+            string[] destSplit = callsignWithId.Split('-');
+            if (destSplit.Length != 2) return false;
+            int destStationId = -1;
+            if (destSplit[0].Length < 3) return false;
+            if (destSplit[0].Length > 6) return false;
+            if (destSplit[1].Length < 1) return false;
+            if (destSplit[1].Length > 2) return false;
+            if (int.TryParse(destSplit[1], out destStationId) == false) return false;
+            if ((destStationId < 0) || (destStationId > 15)) return false;
+            xcallsign = destSplit[0];
+            xstationId = destStationId;
+            return true;
+        }
+
         // --- Compression (Brotli/Deflate) — used by BBS + Winlink mail.
         // Ported verbatim from the WinForms Utils so on-air framing matches byte-for-byte.
 
