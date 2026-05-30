@@ -108,6 +108,14 @@ public sealed class SettingsViewModel : ViewModelBase
         });
     }
 
+    // aprs.fi API key (used by the Map tab's internet station lookup).
+    private string aprsFiApiKey = "";
+    public string AprsFiApiKey
+    {
+        get => aprsFiApiKey;
+        set { if (SetField(ref aprsFiApiKey, value) && !loading) DataBroker.Dispatch(SettingsDevice, "AprsFiApiKey", value, store: true); }
+    }
+
     private AudioDevice? selectedOutput;
     public AudioDevice? SelectedOutput
     {
@@ -178,6 +186,7 @@ public sealed class SettingsViewModel : ViewModelBase
             string inId = DataBroker.GetValue<string>(SettingsDevice, "InputAudioDevice", "") ?? "";
             float vol = DataBroker.GetValue<float>(SettingsDevice, "OutputVolume", 1.0f);
             float micGain = DataBroker.GetValue<float>(SettingsDevice, "MicGain", 4.0f);   // 4x default (matches MicGainPercent)
+            string aprsFiKey = DataBroker.GetValue<string>(SettingsDevice, "AprsFiApiKey", "") ?? "";
 
             dispatcher.Post(() =>
             {
@@ -188,6 +197,7 @@ public sealed class SettingsViewModel : ViewModelBase
                 SelectedInput = InputDevices.FirstOrDefault(d => d.Id == inId) ?? InputDevices.FirstOrDefault();
                 OutputVolumePercent = (int)Math.Round(Math.Clamp(vol, 0f, 1.5f) * 100);
                 MicGainPercent = (int)Math.Round(Math.Clamp(micGain, 1f, 40f) * 100);
+                AprsFiApiKey = aprsFiKey;
                 loading = false;
             });
         });

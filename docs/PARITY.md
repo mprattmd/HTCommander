@@ -90,6 +90,7 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Offline mode + tile cache (prefetch/clear) | ❌ | online OSM only |
 | Radio-GPS + serial-GPS markers, "center to GPS" | ✅ | Phase 4: radio-GPS (blue) marker + Center-to-GPS; Phase 4b: serial-GPS (green) marker |
 | Voice-channel markers; ADS-B airplane markers | ❌ | |
+| Internet (aprs.fi) station lookup on the map | ✅ (extra) | look up callsigns via the aprs.fi API + plot (orange); auto-load-all-banks on connect |
 | Persisted zoom/center; zoom buttons | 🟡 | built-in pan/zoom; not persisted |
 
 ## Packet / Terminal

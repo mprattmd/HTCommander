@@ -335,10 +335,10 @@
                 </Grid>
             </TabItem>
             <TabItem Header="Map">
-                <Grid RowDefinitions="Auto,*">
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="8,6">
+                <Grid RowDefinitions="Auto,Auto,*">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="8,6,8,2">
                         <TextBlock FontWeight="Bold" VerticalAlignment="Center"
-                                   Text="{Binding Stations.Count, StringFormat='APRS map — stations ({0})'}"/>
+                                   Text="{Binding Stations.Count, StringFormat='APRS map — RF stations ({0})'}"/>
                         <CheckBox Content="Tracks" IsChecked="{Binding ShowTracks}" VerticalAlignment="Center"/>
                         <CheckBox Content="Large markers" IsChecked="{Binding LargeMarkers}" VerticalAlignment="Center"/>
                         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
@@ -349,7 +349,17 @@
                         </StackPanel>
                         <Button x:Name="CenterGpsButton" Content="Center to GPS" IsEnabled="{Binding CanCenterGps}"/>
                     </StackPanel>
-                    <mapsui:MapControl Grid.Row="1" x:Name="MapControl"/>
+                    <!-- Internet (aprs.fi) station lookup — plots stations beyond RF range -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="8,0,8,4">
+                        <TextBlock Text="aprs.fi:" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBox Width="240" Text="{Binding AprsFiCallsigns}" VerticalAlignment="Center"
+                                 PlaceholderText="callsigns to look up (comma-separated)"/>
+                        <CheckBox Content="incl. me" IsChecked="{Binding AprsFiIncludeMe}" VerticalAlignment="Center"
+                                  ToolTip.Tip="Also look up your own callsign (to confirm your beacon reached the network)"/>
+                        <Button x:Name="AprsFiFetchButton" Content="Look up"/>
+                        <TextBlock Text="{Binding AprsFiStatus}" VerticalAlignment="Center" Foreground="{DynamicResource InfoBrush}"/>
+                    </StackPanel>
+                    <mapsui:MapControl Grid.Row="2" x:Name="MapControl"/>
                 </Grid>
             </TabItem>
             <TabItem Header="Config">
@@ -471,7 +481,7 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="② App beacon on the APRS channel" FontWeight="SemiBold"/>
                                 <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                           Text="The APP builds a position report and sends it on the channel named &quot;APRS&quot; through the radio's TNC — regardless of what channel the radio is tuned to. Uses your fixed/GPS position plus the APRS symbol &amp; beacon message above. Requires callsign + Allow-transmit and an APRS channel (Load all banks if it's not bank 0)."/>
+                                           Text="The APP builds a position report and sends it on the channel named &quot;APRS&quot; through the radio's TNC — regardless of what channel the radio is tuned to. Requires callsign + Allow-transmit, a position (fixed or GPS), and — importantly — a memory channel literally named &quot;APRS&quot; (use APRS tab → Create APRS channel, then Load all banks if it's in another bank). Without that channel this does nothing. Uses the APRS symbol &amp; beacon message above."/>
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button x:Name="BeaconNowButton" Classes="Accent" Content="Beacon now" IsEnabled="{Binding CanBeacon}"/>
                                     <CheckBox Content="Auto-beacon" IsChecked="{Binding AutoBeacon}" IsEnabled="{Binding CanBeacon}" VerticalAlignment="Center"/>
@@ -790,6 +800,9 @@
                         <Button x:Name="ChLoadAllBanksButton" Content="Load all banks"
                                 IsVisible="{Binding HasBanks}" IsEnabled="{Binding CanLoadAllBanks}"
                                 ToolTip.Tip="Read every bank so all channels appear in the channel pickers (briefly cycles the radio through each bank, then returns)"/>
+                        <CheckBox Content="on connect" IsChecked="{Binding AutoLoadAllBanks}" IsVisible="{Binding HasBanks}"
+                                  VerticalAlignment="Center"
+                                  ToolTip.Tip="Automatically load all banks shortly after connecting (so the APRS channel is always found)"/>
                         <Button x:Name="ChWriteButton" Classes="Accent" Content="⬆ Write to radio"
                                 IsEnabled="{Binding CanWriteChannels}"
                                 ToolTip.Tip="Writes every row to the selected bank's memory (reconfigures the radio)"/>
@@ -1008,6 +1021,15 @@
                         </StackPanel>
                         <TextBlock Classes="Hint" Foreground="#888" TextWrapping="Wrap"
                                    Text="Reads NMEA from a serial GPS; positions show on the Map (green) and are pushed to the radio. Set port to None to disable."/>
+
+                        <TextBlock Text="aprs.fi (internet station lookup)" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="API key"/>
+                            <TextBox HorizontalAlignment="Stretch" Text="{Binding AprsFiApiKey}" PasswordChar="•"
+                                     PlaceholderText="free key from aprs.fi → My account"/>
+                        </StackPanel>
+                        <TextBlock Classes="Hint" Foreground="#888" TextWrapping="Wrap"
+                                   Text="Get a free API key at aprs.fi (My account → API key). Used on the Map tab to look up stations by callsign and plot them (orange) — useful to confirm your beacon reached the network. Viewing/looking up needs no licence."/>
 
                         <TextBlock Text="Settings persist to ~/.config/htcommander/ via JSON config."
                                    Foreground="#888" TextWrapping="Wrap" Margin="0,8,0,0"/>
