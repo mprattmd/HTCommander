@@ -18,6 +18,8 @@ using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using HTCommander;                       // RadioController, RadioHtStatus, RadioDeviceSummary, DataBrokerClient (Core)
 using HTCommander.Core.Abstractions;
@@ -126,6 +128,8 @@ public sealed class MainViewModel : ViewModelBase
         LoadClips();
         LoadSoftModemMode();
         LoadFixedPosition();
+        autoLoadAllBanks = DataBroker.GetValue<bool>(0, "AutoLoadAllBanks", true);
+        LoadAprsFiSettings();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -631,6 +635,7 @@ public sealed class MainViewModel : ViewModelBase
         if (!CanConnect) return;
         var radio = SelectedRadio!;
         FrameCount = 0;
+        autoSwept = false;
         Channels.Clear();
         Packets.Clear();
         Stations.Clear();
@@ -846,6 +851,23 @@ public sealed class MainViewModel : ViewModelBase
         else selectedBank = Math.Max(0, Region);   // default to the radio's current bank
         loadingBanks = false;
         OnPropertyChanged(nameof(SelectedBank));
+
+        // Optionally sweep every bank shortly after connect so the APRS channel (and
+        // all channels) are available in the pickers without a manual "Load all banks".
+        if (AutoLoadAllBanks && RegionCount > 1 && !autoSwept && Connected)
+        {
+            autoSwept = true;
+            _ = Task.Run(async () => { await Task.Delay(2000); dispatcher.Post(LoadAllBanks); });
+        }
+    }
+
+    private bool autoSwept;   // guard: auto-sweep at most once per connection
+    private bool autoLoadAllBanks = true;
+    /// <summary>Read every bank's channels automatically on connect (default on).</summary>
+    public bool AutoLoadAllBanks
+    {
+        get => autoLoadAllBanks;
+        set { if (SetField(ref autoLoadAllBanks, value)) DataBroker.Dispatch(0, "AutoLoadAllBanks", value, store: true); }
     }
 
     private void ApplyChannel(RadioChannelSummary c)
@@ -2201,6 +2223,94 @@ public sealed class MainViewModel : ViewModelBase
             AppendLog($"Renamed clip to {newName}.");
         }
         catch (Exception ex) { AppendLog("Rename clip failed: " + ex.Message); }
+    }
+
+    // ---- aprs.fi internet station lookup (plots stations beyond RF range) ----
+    private static readonly HttpClient aprsFiHttp = CreateAprsFiHttp();
+    private static HttpClient CreateAprsFiHttp()
+    {
+        var c = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("HTCommander/0.2 (+https://github.com/mprattmd/HTCommander)");
+        return c;
+    }
+
+    /// <summary>Stations fetched from aprs.fi (internet), plotted as a separate map layer.</summary>
+    public ObservableCollection<AprsStationSummary> InternetStations { get; } = new();
+
+    // The API key lives in Settings (SettingsViewModel), persisted to "AprsFiApiKey".
+    private string aprsFiCallsigns = "";
+    public string AprsFiCallsigns { get => aprsFiCallsigns; set { if (SetField(ref aprsFiCallsigns, value) && !loadingAprsFi) DataBroker.Dispatch(0, "AprsFiCallsigns", value, store: true); } }
+    private bool aprsFiIncludeMe = true;
+    public bool AprsFiIncludeMe { get => aprsFiIncludeMe; set { if (SetField(ref aprsFiIncludeMe, value) && !loadingAprsFi) DataBroker.Dispatch(0, "AprsFiIncludeMe", value, store: true); } }
+    private string aprsFiStatus = "";
+    public string AprsFiStatus { get => aprsFiStatus; private set => SetField(ref aprsFiStatus, value); }
+    private bool loadingAprsFi;
+
+    private void LoadAprsFiSettings()
+    {
+        loadingAprsFi = true;
+        AprsFiCallsigns = DataBroker.GetValue<string>(0, "AprsFiCallsigns", "") ?? "";
+        AprsFiIncludeMe = DataBroker.GetValue<bool>(0, "AprsFiIncludeMe", true);
+        loadingAprsFi = false;
+    }
+
+    /// <summary>Looks up the configured callsigns on aprs.fi and plots them on the map.</summary>
+    public async void FetchAprsFi()
+    {
+        string key = (DataBroker.GetValue<string>(0, "AprsFiApiKey", "") ?? "").Trim();
+        if (key.Length == 0) { AprsFiStatus = "Enter your aprs.fi API key in Settings."; return; }
+
+        var calls = new System.Collections.Generic.List<string>();
+        if (AprsFiIncludeMe && HasValidCallsign)
+            calls.Add(MyStationId > 0 ? $"{MyCallsign}-{MyStationId}" : MyCallsign);
+        foreach (var c in (AprsFiCallsigns ?? "").Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            calls.Add(c.Trim().ToUpperInvariant());
+        string names = string.Join(",", calls.Distinct().Take(20));
+        if (names.Length == 0) { AprsFiStatus = "Add a callsign (or enable 'include my callsign')."; return; }
+
+        AprsFiStatus = "Querying aprs.fi…";
+        try
+        {
+            string url = $"https://api.aprs.fi/api/get?name={Uri.EscapeDataString(names)}&what=loc&apikey={Uri.EscapeDataString(key)}&format=json";
+            string json = await aprsFiHttp.GetStringAsync(url);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            string result = root.TryGetProperty("result", out var r) ? r.GetString() ?? "" : "";
+            if (result != "ok")
+            {
+                string desc = root.TryGetProperty("description", out var d) ? (d.GetString() ?? "query failed") : "query failed";
+                dispatcher.Post(() => AprsFiStatus = "aprs.fi: " + desc);
+                return;
+            }
+            var found = new System.Collections.Generic.List<AprsStationSummary>();
+            if (root.TryGetProperty("entries", out var entries) && entries.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var e in entries.EnumerateArray())
+                {
+                    string nm = e.TryGetProperty("name", out var n) ? (n.GetString() ?? "") : "";
+                    if (!TryGetJsonDouble(e, "lat", out double lat) || !TryGetJsonDouble(e, "lng", out double lon)) continue;
+                    string sym = e.TryGetProperty("symbol", out var s) ? (s.GetString() ?? "") : "";
+                    string com = e.TryGetProperty("comment", out var cm) ? (cm.GetString() ?? "") : "";
+                    found.Add(new AprsStationSummary(nm, lat, lon, sym, com));
+                }
+            }
+            dispatcher.Post(() =>
+            {
+                InternetStations.Clear();
+                foreach (var st in found) InternetStations.Add(st);
+                AprsFiStatus = found.Count > 0 ? $"aprs.fi: {found.Count} station(s) plotted." : "aprs.fi: no positions found for those calls.";
+            });
+        }
+        catch (Exception ex) { dispatcher.Post(() => AprsFiStatus = "aprs.fi error: " + ex.Message); }
+    }
+
+    private static bool TryGetJsonDouble(JsonElement e, string prop, out double val)
+    {
+        val = 0;
+        if (!e.TryGetProperty(prop, out var p)) return false;
+        if (p.ValueKind == JsonValueKind.String) return double.TryParse(p.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out val);
+        if (p.ValueKind == JsonValueKind.Number) { val = p.GetDouble(); return true; }
+        return false;
     }
 
     private void AppendLog(string line)

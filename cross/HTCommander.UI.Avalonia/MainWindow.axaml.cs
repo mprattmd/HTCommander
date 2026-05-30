@@ -99,6 +99,7 @@ public partial class MainWindow : Window
         RequestPositionButton.Click += (_, _) => Vm?.RequestPosition();
         SetFixedPositionButton.Click += (_, _) => Vm?.SetManualPosition();
         CenterGpsButton.Click += (_, _) => CenterOnGps();
+        AprsFiFetchButton.Click += (_, _) => Vm?.FetchAprsFi();
         WriteBssButton.Click += (_, _) => Vm?.WriteBssSettings();
         BeaconNowButton.Click += (_, _) => Vm?.BeaconNow();
         AddRouteButton.Click += (_, _) => Vm?.AddOrUpdateRoute();
@@ -384,6 +385,7 @@ public partial class MainWindow : Window
         if (subscribedVm != null)
         {
             subscribedVm.Stations.CollectionChanged -= OnStationsChanged;
+            subscribedVm.InternetStations.CollectionChanged -= OnStationsChanged;
             subscribedVm.PropertyChanged -= OnVmPropertyChanged;
             subscribedVm.WaterfallPcm -= OnWaterfallPcm;
         }
@@ -391,6 +393,7 @@ public partial class MainWindow : Window
         if (subscribedVm != null)
         {
             subscribedVm.Stations.CollectionChanged += OnStationsChanged;
+            subscribedVm.InternetStations.CollectionChanged += OnStationsChanged;
             subscribedVm.PropertyChanged += OnVmPropertyChanged;
             subscribedVm.WaterfallPcm += OnWaterfallPcm;
         }
@@ -489,6 +492,22 @@ public partial class MainWindow : Window
                 Offset = new Offset(0, -18)
             });
             features.Add(f);
+        }
+
+        // Internet (aprs.fi) stations — distinct orange markers, no tracks.
+        foreach (var s in Vm.InternetStations)
+        {
+            var f = new PointFeature(Merc(s.Longitude, s.Latitude));
+            f.Styles.Add(new SymbolStyle { SymbolScale = markerScale, Fill = new Brush(new Color(240, 150, 30, 255)) });
+            f.Styles.Add(new LabelStyle
+            {
+                Text = s.Callsign,
+                ForeColor = new Color(20, 20, 20, 255),
+                BackColor = new Brush(new Color(250, 210, 150, 220)),
+                Offset = new Offset(0, -18)
+            });
+            features.Add(f);
+            first ??= Merc(s.Longitude, s.Latitude);
         }
 
         stationLayer.Features = features;

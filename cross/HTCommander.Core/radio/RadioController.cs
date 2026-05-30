@@ -68,6 +68,7 @@ public sealed class RadioController : IDisposable
     private RadioHtStatus? lastStatus;           // cached for channel-busy gating + default ch/region
     private int lastDeviceChannelCount;          // channels-per-region (from dev info), for RefreshChannels
     private RadioChannelInfo[] channelArray;      // indexed by channel_id; published as "Channels" for APRS/Winlink/BBS lookups
+    private int regionBeingRead;                  // the bank whose channels are currently being read (for APRS-channel region)
 
     private sealed class TxFragment
     {
@@ -428,6 +429,9 @@ public sealed class RadioController : IDisposable
             RegionCount: regionCount);
         broker.Dispatch(deviceId, "DeviceInfo", info, store: false);
 
+        // The initial read is for the radio's current bank.
+        regionBeingRead = lastStatus?.curr_region ?? 0;
+
         // Read each channel now that we know how many there are.
         for (int ch = 0; ch < channelCount && ch < 256; ch++)
             SendBasic(CmdReadRfChannel, new byte[] { (byte)ch });
@@ -465,6 +469,11 @@ public sealed class RadioController : IDisposable
                 channelArray[full.channel_id] = full;
                 broker.Dispatch(deviceId, "Channels", channelArray, store: true);
             }
+            // Remember which bank the APRS channel lives in, so APRS TX targets the
+            // right (region, channel) pair — channel ids repeat across banks.
+            if (string.Equals(name, "APRS", StringComparison.OrdinalIgnoreCase))
+                broker.Dispatch(deviceId, "AprsChannel",
+                    new AprsChannelLocation(regionBeingRead, full.channel_id), store: true);
         }
         catch { /* malformed channel row — skip */ }
     }
@@ -488,6 +497,7 @@ public sealed class RadioController : IDisposable
     public void SetRegion(int regionId)
     {
         if (regionId < 0) return;
+        regionBeingRead = regionId;     // channels read after this belong to this bank
         SendBasic(CmdSetRegion, new byte[] { (byte)regionId });
     }
 
@@ -730,6 +740,10 @@ public sealed record ReceivedPacketSummary(
 /// <summary>An APRS station position fix decoded from a received packet.</summary>
 public sealed record AprsStationSummary(
     string Callsign, double Latitude, double Longitude, string Symbol, string Comment);
+
+/// <summary>Which bank (region) + channel id the APRS channel lives in, so APRS TX
+/// targets the right channel even when channel ids repeat across banks.</summary>
+public sealed record AprsChannelLocation(int RegionId, int ChannelId);
 
 /// <summary>The radio's own GPS position decoded from a GET_POSITION reply.</summary>
 public sealed record RadioPositionInfo(

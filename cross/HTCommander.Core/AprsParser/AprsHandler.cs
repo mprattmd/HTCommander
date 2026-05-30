@@ -230,8 +230,8 @@ namespace HTCommander
             ax25Packet.sent = false;
             ax25Packet.authState = authApplied ? AX25Packet.AuthState.Success : AX25Packet.AuthState.None;
 
-            // Find the APRS channel ID for this radio
-            int aprsChannelId = GetAprsChannelId(messageData.RadioDeviceId);
+            // Find the APRS channel ID (and its bank) for this radio
+            int aprsChannelId = GetAprsChannel(messageData.RadioDeviceId, out int aprsRegionId);
             if (aprsChannelId < 0)
             {
                 _broker.LogError("Cannot send APRS message: No APRS channel found on radio " + messageData.RadioDeviceId);
@@ -242,12 +242,12 @@ namespace HTCommander
             ax25Packet.channel_id = aprsChannelId;
             ax25Packet.channel_name = "APRS";
 
-            // Dispatch the TransmitDataFrame event to the radio
+            // Dispatch the TransmitDataFrame event to the radio (with the APRS channel's bank)
             var txData = new TransmitDataFrameData
             {
                 Packet = ax25Packet,
                 ChannelId = aprsChannelId,
-                RegionId = -1 // Not applicable for APRS
+                RegionId = aprsRegionId
             };
 
             _broker.Dispatch(messageData.RadioDeviceId, "TransmitDataFrame", txData, store: false);
@@ -310,13 +310,13 @@ namespace HTCommander
                 type = AX25Packet.FrameType.U_FRAME_UI, pid = 240, command = true, incoming = false, sent = false,
             };
 
-            int aprsChannelId = GetAprsChannelId(beacon.RadioDeviceId);
+            int aprsChannelId = GetAprsChannel(beacon.RadioDeviceId, out int aprsRegionId);
             if (aprsChannelId < 0) { _broker.LogError("Cannot beacon: No APRS channel found on radio " + beacon.RadioDeviceId); return; }
             ax25Packet.channel_id = aprsChannelId;
             ax25Packet.channel_name = "APRS";
 
             _broker.Dispatch(beacon.RadioDeviceId, "TransmitDataFrame",
-                new TransmitDataFrameData { Packet = ax25Packet, ChannelId = aprsChannelId, RegionId = -1 }, store: false);
+                new TransmitDataFrameData { Packet = ax25Packet, ChannelId = aprsChannelId, RegionId = aprsRegionId }, store: false);
             _broker.LogInfo($"[AprsHandler] Beaconed position on APRS channel {aprsChannelId}: {info}");
 
             // Surface it in the UI like a sent frame.
@@ -332,19 +332,26 @@ namespace HTCommander
         /// <returns>The channel ID of the APRS channel, or -1 if not found.</returns>
         private int GetAprsChannelId(int radioDeviceId)
         {
-            // Get the channels array from the DataBroker for this radio
+            return GetAprsChannel(radioDeviceId, out _);
+        }
+
+        /// <summary>
+        /// Resolves the APRS channel id AND its bank/region for a radio. Prefers the
+        /// region-aware "AprsChannel" location (recorded as channels are read per bank),
+        /// because channel ids repeat across banks — transmitting on the wrong bank would
+        /// key a different channel (e.g. the Winlink channel). Falls back to a name scan
+        /// (region -1 = current bank) if the location hasn't been recorded yet.
+        /// </summary>
+        private int GetAprsChannel(int radioDeviceId, out int regionId)
+        {
+            var loc = _broker.GetValue<AprsChannelLocation>(radioDeviceId, "AprsChannel", null);
+            if (loc != null) { regionId = loc.RegionId; return loc.ChannelId; }
+
+            regionId = -1;   // unknown bank → current bank
             var channels = _broker.GetValue<RadioChannelInfo[]>(radioDeviceId, "Channels", null);
             if (channels == null) return -1;
-
-            // Find the channel named "APRS"
             for (int i = 0; i < channels.Length; i++)
-            {
-                if (channels[i] != null && channels[i].name_str == "APRS")
-                {
-                    return i;
-                }
-            }
-
+                if (channels[i] != null && channels[i].name_str == "APRS") return i;
             return -1;
         }
 
