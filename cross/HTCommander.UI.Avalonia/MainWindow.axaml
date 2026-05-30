@@ -279,23 +279,28 @@
                         </Border>
 
                         <!-- Two ways to beacon — clearly distinguished -->
-                        <TextBlock Text="How to beacon (two options)" FontWeight="Bold" FontSize="16" Margin="0,8,0,0" IsVisible="{Binding HasBss}"/>
+                        <!-- Beacon method: a single choice (mutually exclusive) -->
+                        <Grid ColumnDefinitions="160,*" IsVisible="{Binding HasBss}">
+                            <TextBlock Grid.Column="0" Text="Beacon method" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="180"
+                                      ItemsSource="{Binding BeaconModes}" SelectedItem="{Binding BeaconMode}"/>
+                        </Grid>
 
-                        <Border Classes="Card" IsVisible="{Binding HasBss}">
+                        <!-- Radio's built-in beacon -->
+                        <Border Classes="Card" IsVisible="{Binding IsRadioBeacon}">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="① Radio's built-in beacon" FontWeight="SemiBold"/>
                                 <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                           Text="Stores the Beacon + Ident settings above on the radio (incl. Share interval &amp; Share my location). The RADIO then beacons on its own — but on whatever channel it's tuned to, so you must tune the radio to your APRS channel. (This is what the Windows app does.)"/>
+                                           Text="The RADIO beacons on its own using the settings above — but on whatever channel it's TUNED to, so tune the radio to your APRS channel. Click Write to apply (also writes Ident)."/>
                                 <Button x:Name="WriteBssButton" Classes="Accent" Content="⬆ Write beacon/ident to radio"
                                         IsEnabled="{Binding CanWriteBss}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Classes="Card" IsVisible="{Binding HasBss}">
+                        <!-- App beacon via the radio's TNC -->
+                        <Border Classes="Card" IsVisible="{Binding IsAppBeacon}">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="② App beacon on the APRS channel" FontWeight="SemiBold"/>
                                 <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                           Text="The APP builds a position report and sends it on your APRS channel (set above) through the radio's hardware TNC — regardless of the channel the radio is tuned to (it briefly locks to the APRS channel, then restores). Requires: the radio's TNC / packet-data mode ENABLED on the radio, callsign + Allow-transmit, a position (fixed or GPS), and an APRS channel selected above. Uses the APRS symbol &amp; beacon message above."/>
+                                           Text="The APP sends a position report on your APRS channel (above) via the radio's hardware TNC, regardless of the tuned channel (it briefly locks to the APRS channel, then restores). Requires the radio's TNC / packet-data mode ENABLED, callsign + Allow-transmit, and a position (fixed or GPS). The radio's own beacon is turned off in this mode."/>
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button x:Name="BeaconNowButton" Classes="Accent" Content="Beacon now" IsEnabled="{Binding CanBeacon}"/>
                                     <CheckBox Content="Auto-beacon" IsChecked="{Binding AutoBeacon}" IsEnabled="{Binding CanBeacon}" VerticalAlignment="Center"/>
@@ -304,6 +309,9 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
+
+                        <TextBlock Classes="Hint" IsVisible="{Binding HasBss}" Foreground="#888" TextWrapping="Wrap"
+                                   Text="Off = no beaconing. Only one method is active at a time (prevents double transmissions)."/>
 
                         <!-- Global APRS routes (named digipeater paths) -->
                         <TextBlock Text="APRS routes" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
