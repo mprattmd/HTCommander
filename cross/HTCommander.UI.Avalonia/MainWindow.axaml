@@ -430,8 +430,44 @@
                         </Grid>
                     </Grid>
 
-                    <!-- Advanced: edit imported channels as a table -->
-                    <Expander Grid.Row="3" Header="Edit imported channels as a table (advanced)" Margin="0,8,0,0">
+                    <!-- Inline single-channel editor: appears over the tiles when a slot is clicked -->
+                    <Border Grid.Row="2" IsVisible="{Binding IsEditingChannel}" Background="#CC1E1E1E"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                        <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="6" Padding="16" Width="360"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                DataContext="{Binding EditingChannel}" x:DataType="vm:EditableChannel">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{Binding ChannelId, StringFormat='Edit channel slot {0}'}" FontWeight="Bold" FontSize="15"/>
+                                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Name" VerticalAlignment="Center"/>
+                                    <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding Name}" MaxLength="10"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="RX MHz" VerticalAlignment="Center"/>
+                                    <TextBox  Grid.Row="1" Grid.Column="1" Text="{Binding RxMHzText}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="TX MHz" VerticalAlignment="Center"/>
+                                    <TextBox  Grid.Row="2" Grid.Column="1" Text="{Binding TxMHzText}"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Tone RX/TX" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                        <TextBox Width="80" Text="{Binding RxToneText}"/>
+                                        <TextBox Width="80" Text="{Binding TxToneText}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Mode / Power" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                        <ComboBox MinWidth="80" ItemsSource="{Binding $parent[Window].((vm:MainViewModel)DataContext).ChannelModes}" SelectedItem="{Binding Mode}"/>
+                                        <ComboBox MinWidth="70" ItemsSource="{Binding $parent[Window].((vm:MainViewModel)DataContext).ChannelPowers}" SelectedItem="{Binding Power}"/>
+                                    </StackPanel>
+                                    <CheckBox Grid.Row="5" Grid.Column="1" Content="Scan" IsChecked="{Binding Scan}"/>
+                                </Grid>
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                    <Button x:Name="ChEditCancelButton" Content="Cancel"/>
+                                    <Button x:Name="ChEditSaveButton" Classes="Accent" Content="⬆ Save to radio"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+
+                    <!-- Edit channels as a table (auto-loaded from the radio on connect) -->
+                    <Expander Grid.Row="3" Header="Edit channels as a table" IsExpanded="True" Margin="0,8,0,0">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,6">
                                 <Button x:Name="ChAddRowButton" Content="Add row"/>

@@ -179,6 +179,11 @@ public partial class MainWindow : Window
         ChRemoveRowButton.Click += (_, _) => Vm?.RemoveBuilderChannel(ChannelGrid.SelectedItem as EditableChannel);
         ChWriteButton.Click += (_, _) => Vm?.WriteChannelsToRadio();
 
+        // Inline single-channel editor: click a radio-memory tile to edit that channel.
+        ChEditSaveButton.Click += (_, _) => Vm?.SaveEditingChannel();
+        ChEditCancelButton.Click += (_, _) => Vm?.CancelEditingChannel();
+        SlotCards.AddHandler(PointerPressedEvent, OnSlotPressed, RoutingStrategies.Bubble);
+
         // Drag a .csv file onto the builder to import it (matches the Windows builder).
         ChannelBuilderRoot.AddHandler(DragDrop.DragOverEvent, OnChannelDragOver);
         ChannelBuilderRoot.AddHandler(DragDrop.DropEvent, OnChannelDrop);
@@ -188,6 +193,16 @@ public partial class MainWindow : Window
         // program it (single-window manual drag — version-independent of the OS DnD API).
         ImportedCards.AddHandler(PointerPressedEvent, OnImportedPointerPressed, RoutingStrategies.Tunnel);
         ImportedCards.AddHandler(PointerReleasedEvent, OnImportedPointerReleased, RoutingStrategies.Tunnel);
+    }
+
+    // Click a radio-memory tile -> open the inline editor for that slot. Ignored while a
+    // channel card is being dragged onto a slot (that path programs the slot instead).
+    private void OnSlotPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_dragChannel != null) return;
+        if (!e.GetCurrentPoint(SlotCards).Properties.IsLeftButtonPressed) return;
+        var slot = AncestorDataContext<ChannelSlot>(e.Source);
+        if (slot != null) Vm?.BeginEditSlot(slot.SlotId);
     }
 
     private EditableChannel? _dragChannel;

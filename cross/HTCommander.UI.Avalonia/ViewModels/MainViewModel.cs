@@ -667,6 +667,8 @@ public sealed class MainViewModel : ViewModelBase
             connectedMac = radio.Address;  // voice audio is opened on demand: holding the BT audio
                                            // (AOC) link open re-routes the radio's TX audio and stops
                                            // the hardware TNC's AFSK reaching the air (packet goes silent).
+            builderAutoLoaded = false;     // re-arm the one-time channel-table auto-load for this session
+            _ = Task.Run(async () => { await Task.Delay(3000); dispatcher.Post(MaybeAutoLoadBuilder); });
             // If a fixed position is configured, re-apply it once the connect settles.
             _ = Task.Run(async () => { await Task.Delay(1500); dispatcher.Post(PushFixedPositionIfSet); });
         });
@@ -1040,6 +1042,50 @@ public sealed class MainViewModel : ViewModelBase
                 BuilderChannels.Add(new EditableChannel(kv.Value));
         BuilderStatus = $"Loaded {BuilderChannels.Count} channel(s) from the radio.";
     }
+
+    // Populate the editable table from the radio once, shortly after connect, so channels
+    // are there to edit without the operator having to click "Load from radio" first.
+    private bool builderAutoLoaded;
+    private void MaybeAutoLoadBuilder()
+    {
+        if (builderAutoLoaded || sweepingBanks || radioChannels.Count == 0 || BuilderChannels.Count > 0) return;
+        builderAutoLoaded = true;
+        LoadChannelsFromRadio();
+    }
+
+    // ---- Click-a-tile single-channel editor -------------------------------
+    public string[] ChannelModes { get; } = { "FM", "NFM", "AM", "DMR" };
+    public string[] ChannelPowers { get; } = { "H", "M", "L" };
+    private int editingSlotId = -1;
+    private EditableChannel? editingChannel;
+    public EditableChannel? EditingChannel
+    {
+        get => editingChannel;
+        private set { if (SetField(ref editingChannel, value)) OnPropertyChanged(nameof(IsEditingChannel)); }
+    }
+    public bool IsEditingChannel => editingChannel != null;
+
+    /// <summary>Opens the inline editor for a radio memory slot (existing channel or empty slot).</summary>
+    public void BeginEditSlot(int slotId)
+    {
+        editingSlotId = slotId;
+        EditingChannel = radioChannels.TryGetValue(slotId, out var info) && (info.rx_freq != 0 || info.tx_freq != 0)
+            ? new EditableChannel(info)
+            : new EditableChannel { ChannelId = slotId, Name = "" };
+    }
+
+    /// <summary>Writes the single edited channel to the radio at its slot.</summary>
+    public void SaveEditingChannel()
+    {
+        if (EditingChannel == null || controller == null) return;
+        if (!CanWriteChannels) { BuilderStatus = "Connect to a radio first to write channels."; return; }
+        int id = editingSlotId >= 0 ? editingSlotId : EditingChannel.ChannelId;
+        controller.WriteChannel(EditingChannel.ToRadioChannelInfo(id));
+        BuilderStatus = $"Wrote channel {id} ({EditingChannel.Name}) to the radio.";
+        EditingChannel = null; editingSlotId = -1;
+    }
+
+    public void CancelEditingChannel() { EditingChannel = null; editingSlotId = -1; }
 
     /// <summary>Import channels from a CSV file (CHIRP / native / RepeaterBook formats).</summary>
     public void ImportChannelsFromCsv(string path)
