@@ -100,6 +100,13 @@ public sealed class SettingsViewModel : ViewModelBase
     /// <summary>Linear mic gain (e.g. 4.0) for transmit, from the persisted percent.</summary>
     public float MicGain => micGainPercent / 100.0f;
 
+    /// <summary>Linear output volume for RX playback.</summary>
+    public float OutputVolume => outputVolumePercent / 100.0f;
+
+    /// <summary>Selected output/input device ids ("" = system default) for the voice path.</summary>
+    public string? OutputDeviceId => SelectedOutput?.Id;
+    public string? InputDeviceId => SelectedInput?.Id;
+
     private string testStatus = "";
     public string TestStatus { get => testStatus; private set => SetField(ref testStatus, value); }
 

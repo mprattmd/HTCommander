@@ -247,7 +247,8 @@ public sealed class MainViewModel : ViewModelBase
         {
             try
             {
-                var playback = new PortAudioPlayback();
+                var playback = new PortAudioPlayback { Volume = Settings.OutputVolume };
+                playback.SetDevice(Settings.OutputDeviceId);     // honor the Settings output pick
                 var rx = new RadioVoiceReceiver(playback);
                 rx.Start();
                 var ch = new RadioAudioChannelLinux(mac, logger);
@@ -286,6 +287,7 @@ public sealed class MainViewModel : ViewModelBase
         try
         {
             mic = new PortAudioCapture();
+            mic.SetDevice(Settings.InputDeviceId);              // honor the Settings input pick
             voiceTransmitter = new RadioVoiceTransmitter(mic, data => audioChannel?.Send(data)) { Gain = Settings.MicGain };
             if (voiceTransmitter.Start())
             {
