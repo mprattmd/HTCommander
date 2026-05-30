@@ -99,7 +99,7 @@ public sealed class MainViewModel : ViewModelBase
 
         // Winlink mail: reflect store changes (e.g. mail received during a sync) and
         // surface the client's state messages. WinlinkStateMessage/Busy ride device 1.
-        broker.Subscribe(1, "WinlinkStateMessage", (_, _, data) => { if (data is string s) dispatcher.Post(() => WinlinkStatus = s); });
+        broker.Subscribe(1, "WinlinkStateMessage", (_, _, data) => { if (data is string s) dispatcher.Post(() => { WinlinkStatus = s; AppendWinlinkLog(s); }); });
         broker.Subscribe(1, "AprsFrame", (_, _, data) => dispatcher.Post(() => OnAprsFrame(data)));
         var store = DataBroker.GetDataHandler<IMailStore>("MailStore");
         if (store != null) store.MailsChanged += (_, _) => dispatcher.Post(RefreshMails);
@@ -113,9 +113,11 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(1, "BbsCreateFailed", (_, _, data) => dispatcher.Post(() => { BbsActive = false; AppendBbs("BBS failed to start: " + (data as BbsErrorData)?.Error); }));
         broker.Subscribe(1, "BbsRemoveFailed", (_, _, data) => dispatcher.Post(() => AppendBbs("BBS stop failed: " + (data as BbsErrorData)?.Error)));
 
+        ComposeAttachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasComposeAttachments));
+
         Refresh();
         LoadContacts();
-        RefreshMails();
+        SelectedFolder = Folders.FirstOrDefault();   // Inbox; triggers the first RefreshMails
         LoadIdentity();
         LoadAprsRoutes();
     }
@@ -149,6 +151,7 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanWriteChannels));
                 OnPropertyChanged(nameof(CanWriteBss));
                 OnPropertyChanged(nameof(CanCreateAprsChannel));
+                OnPropertyChanged(nameof(CanSyncRadio));
             }
         }
     }
@@ -193,6 +196,7 @@ public sealed class MainViewModel : ViewModelBase
             if (!loadingIdentity) DataBroker.Dispatch(0, "CallSign", value, store: true);
             OnPropertyChanged(nameof(HasValidCallsign));
             OnPropertyChanged(nameof(TxAuthorized));
+            OnPropertyChanged(nameof(CanSyncRadio));
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
@@ -216,6 +220,7 @@ public sealed class MainViewModel : ViewModelBase
             if (!SetField(ref allowTransmit, value)) return;
             if (!loadingIdentity) DataBroker.Dispatch(0, "AllowTransmit", value, store: true);
             OnPropertyChanged(nameof(TxAuthorized));
+            OnPropertyChanged(nameof(CanSyncRadio));
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
@@ -381,6 +386,13 @@ public sealed class MainViewModel : ViewModelBase
         Contacts.Clear();
         foreach (var s in list) Contacts.Add(s);
         loadingContacts = false;
+
+        // Winlink-type contacts populate the over-radio sync picker.
+        var keep = SelectedSyncStation?.Callsign;
+        WinlinkStations.Clear();
+        foreach (var s in list.Where(s => s.StationType == StationInfoClass.StationTypes.Winlink))
+            WinlinkStations.Add(s);
+        SelectedSyncStation = WinlinkStations.FirstOrDefault(s => s.Callsign == keep) ?? WinlinkStations.FirstOrDefault();
     }
 
     private void SaveContacts()
@@ -789,14 +801,25 @@ public sealed class MainViewModel : ViewModelBase
 
     // ---- Winlink mail -------------------------------------------------------
 
-    public string[] Mailboxes { get; } = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
+    public static readonly string[] MailboxNames = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
+
+    /// <summary>Mailbox folders with live total/unread counts.</summary>
+    public ObservableCollection<MailFolder> Folders { get; } = new(MailboxNames.Select(n => new MailFolder(n)));
+
+    /// <summary>Folders a message can be filed into (everything except Trash, which is Delete).</summary>
+    public string[] MoveTargets { get; } = MailboxNames.Where(n => n != "Trash").ToArray();
+    private string moveTarget = "Archive";
+    public string MoveTarget { get => moveTarget; set => SetField(ref moveTarget, value); }
+
+    private MailFolder? selectedFolder;
+    public MailFolder? SelectedFolder
+    {
+        get => selectedFolder;
+        set { if (SetField(ref selectedFolder, value) && value != null) { selectedMailbox = value.Name; RefreshMails(); } }
+    }
 
     private string selectedMailbox = "Inbox";
-    public string SelectedMailbox
-    {
-        get => selectedMailbox;
-        set { if (SetField(ref selectedMailbox, value)) RefreshMails(); }
-    }
+    public string SelectedMailbox => selectedMailbox;
 
     public ObservableCollection<WinLinkMail> Mails { get; } = new();
 
@@ -804,9 +827,27 @@ public sealed class MainViewModel : ViewModelBase
     public WinLinkMail? SelectedMail
     {
         get => selectedMail;
-        set { if (SetField(ref selectedMail, value)) { OnPropertyChanged(nameof(MailPreview)); OnPropertyChanged(nameof(HasSelectedMail)); } }
+        set
+        {
+            if (!SetField(ref selectedMail, value)) return;
+            OnPropertyChanged(nameof(MailPreview));
+            OnPropertyChanged(nameof(HasSelectedMail));
+            OnPropertyChanged(nameof(MailAttachments));
+            OnPropertyChanged(nameof(HasMailAttachments));
+            OnPropertyChanged(nameof(CanDeleteMail));
+            MarkSelectedRead();
+        }
     }
     public bool HasSelectedMail => selectedMail != null;
+    public bool CanDeleteMail => selectedMail != null;
+
+    /// <summary>Attachments on the currently-open mail (for the viewer's list).</summary>
+    public System.Collections.Generic.List<WinLinkMailAttachement> MailAttachments =>
+        selectedMail?.Attachments ?? new System.Collections.Generic.List<WinLinkMailAttachement>();
+    public bool HasMailAttachments => selectedMail?.Attachments is { Count: > 0 };
+
+    private WinLinkMailAttachement? selectedAttachment;
+    public WinLinkMailAttachement? SelectedAttachment { get => selectedAttachment; set => SetField(ref selectedAttachment, value); }
 
     public string MailPreview => selectedMail == null ? "" :
         $"From: {selectedMail.From}\nTo: {selectedMail.To}\n" +
@@ -814,13 +855,34 @@ public sealed class MainViewModel : ViewModelBase
         $"Date: {selectedMail.DateTime:yyyy-MM-dd HH:mm}\nSubject: {selectedMail.Subject}\n" +
         new string('-', 40) + "\n" + selectedMail.Body;
 
-    private string composeTo = "", composeSubject = "", composeBody = "";
+    private string composeTo = "", composeCc = "", composeSubject = "", composeBody = "";
     public string ComposeTo { get => composeTo; set => SetField(ref composeTo, value); }
+    public string ComposeCc { get => composeCc; set => SetField(ref composeCc, value); }
     public string ComposeSubject { get => composeSubject; set => SetField(ref composeSubject, value); }
     public string ComposeBody { get => composeBody; set => SetField(ref composeBody, value); }
 
+    /// <summary>Attachments staged on the message being composed.</summary>
+    public ObservableCollection<WinLinkMailAttachement> ComposeAttachments { get; } = new();
+    public bool HasComposeAttachments => ComposeAttachments.Count > 0;
+    private WinLinkMailAttachement? selectedComposeAttachment;
+    public WinLinkMailAttachement? SelectedComposeAttachment { get => selectedComposeAttachment; set => SetField(ref selectedComposeAttachment, value); }
+
     private string winlinkStatus = "Idle.";
     public string WinlinkStatus { get => winlinkStatus; private set => SetField(ref winlinkStatus, value); }
+
+    /// <summary>Winlink session/traffic log (state messages from the client).</summary>
+    public ObservableCollection<string> WinlinkLog { get; } = new();
+    private void AppendWinlinkLog(string line)
+    {
+        WinlinkLog.Add($"{DateTime.Now:HH:mm:ss}  {line}");
+        while (WinlinkLog.Count > 500) WinlinkLog.RemoveAt(0);
+    }
+
+    /// <summary>Contacts that are Winlink gateways/stations, for the over-radio sync picker.</summary>
+    public ObservableCollection<StationInfoClass> WinlinkStations { get; } = new();
+    private StationInfoClass? selectedSyncStation;
+    public StationInfoClass? SelectedSyncStation { get => selectedSyncStation; set { if (SetField(ref selectedSyncStation, value)) OnPropertyChanged(nameof(CanSyncRadio)); } }
+    public bool CanSyncRadio => Connected && SelectedSyncStation != null && TxAuthorized;
 
     private IMailStore? MailStore => DataBroker.GetDataHandler<IMailStore>("MailStore");
 
@@ -828,39 +890,189 @@ public sealed class MainViewModel : ViewModelBase
     {
         var store = MailStore;
         if (store == null) return;
+        var all = store.GetAllMails();
         Mails.Clear();
-        foreach (var m in store.GetAllMails())
-            if (string.Equals(m.Mailbox, SelectedMailbox, StringComparison.OrdinalIgnoreCase))
+        foreach (var m in all)
+            if (string.Equals(m.Mailbox, selectedMailbox, StringComparison.OrdinalIgnoreCase))
                 Mails.Add(m);
+        UpdateFolderCounts(all);
         OnPropertyChanged(nameof(MailCountText));
     }
 
-    public string MailCountText => $"{SelectedMailbox} ({Mails.Count})";
+    private void UpdateFolderCounts(System.Collections.Generic.List<WinLinkMail> all)
+    {
+        foreach (var f in Folders)
+        {
+            f.Total = all.Count(m => string.Equals(m.Mailbox, f.Name, StringComparison.OrdinalIgnoreCase));
+            f.Unread = all.Count(m => string.Equals(m.Mailbox, f.Name, StringComparison.OrdinalIgnoreCase) && (m.Flags & (int)WinLinkMail.MailFlags.Unread) != 0);
+        }
+    }
+
+    public string MailCountText => $"{selectedMailbox} ({Mails.Count})";
+
+    // Reading a message clears its Unread flag and refreshes the folder badges.
+    private void MarkSelectedRead()
+    {
+        var store = MailStore;
+        if (store == null || selectedMail == null) return;
+        if ((selectedMail.Flags & (int)WinLinkMail.MailFlags.Unread) == 0) return;
+        selectedMail.Flags &= ~(int)WinLinkMail.MailFlags.Unread;
+        try { store.UpdateMail(selectedMail); } catch (Exception) { }
+        UpdateFolderCounts(store.GetAllMails());
+    }
+
+    private string MyCall() => string.IsNullOrEmpty(TerminalMyCall)
+        ? (DataBroker.GetValue<string>(0, "CallSign", "") ?? "")
+        : TerminalMyCall;
+
+    private WinLinkMail BuildOutgoing(string mailbox)
+    {
+        return new WinLinkMail
+        {
+            MID = WinLinkMail.GenerateMID(),
+            DateTime = DateTime.Now,
+            From = MyCall(),
+            To = (ComposeTo ?? "").Trim(),
+            Cc = (ComposeCc ?? "").Trim(),
+            Subject = ComposeSubject ?? "",
+            Body = ComposeBody ?? "",
+            Mailbox = mailbox,
+            Flags = 0,
+            Attachments = ComposeAttachments.Count > 0
+                ? new System.Collections.Generic.List<WinLinkMailAttachement>(ComposeAttachments)
+                : null,
+        };
+    }
+
+    private void ClearCompose()
+    {
+        ComposeTo = ComposeCc = ComposeSubject = ComposeBody = "";
+        ComposeAttachments.Clear();
+    }
+
+    /// <summary>Clears the compose form and switches to the compose view.</summary>
+    public void NewMail()
+    {
+        SelectedMail = null;
+        ClearCompose();
+        WinlinkStatus = "New message.";
+    }
 
     /// <summary>Compose a new message and queue it in the Outbox for the next sync.</summary>
     public void ComposeSaveToOutbox()
     {
         var store = MailStore;
         if (store == null) { WinlinkStatus = "Mail store unavailable."; return; }
-        string to = (ComposeTo ?? "").Trim();
-        if (to.Length == 0) { WinlinkStatus = "Compose: 'To' is required."; return; }
-
-        string mine = TerminalMyCall ?? DataBroker.GetValue<string>(0, "CallSign", "") ?? "";
-        var mail = new WinLinkMail
-        {
-            MID = WinLinkMail.GenerateMID(),
-            DateTime = DateTime.Now,
-            From = mine,
-            To = to,
-            Subject = ComposeSubject ?? "",
-            Body = ComposeBody ?? "",
-            Mailbox = "Outbox",
-            Flags = 0,
-        };
+        if ((ComposeTo ?? "").Trim().Length == 0) { WinlinkStatus = "Compose: 'To' is required."; return; }
+        var mail = BuildOutgoing("Outbox");
         store.AddMail(mail);
-        ComposeTo = ComposeSubject = ComposeBody = "";
+        ClearCompose();
         WinlinkStatus = $"Saved to Outbox: {mail.Subject}";
-        SelectedMailbox = "Outbox";
+        SelectFolder("Outbox");
+    }
+
+    /// <summary>Save the message being composed to the Draft folder (not sent on sync).</summary>
+    public void SaveAsDraft()
+    {
+        var store = MailStore;
+        if (store == null) { WinlinkStatus = "Mail store unavailable."; return; }
+        var mail = BuildOutgoing("Draft");
+        store.AddMail(mail);
+        ClearCompose();
+        WinlinkStatus = $"Saved to Draft: {mail.Subject}";
+        SelectFolder("Draft");
+    }
+
+    private void SelectFolder(string name)
+    {
+        var f = Folders.FirstOrDefault(x => x.Name == name);
+        if (f != null) SelectedFolder = f; else { selectedMailbox = name; RefreshMails(); }
+    }
+
+    // ---- Reply / reply-all / forward (populate the compose form) ----
+    private void ComposeFrom(WinLinkMail original, string to, string cc, string subjectPrefix,
+                             string header, bool keepAttachments)
+    {
+        SelectedMail = null;
+        ComposeTo = to;
+        ComposeCc = cc;
+        ComposeSubject = original.Subject.StartsWith(subjectPrefix, StringComparison.OrdinalIgnoreCase)
+            ? original.Subject : subjectPrefix + original.Subject;
+        ComposeBody = $"\n\n{header}\n{original.Body}";
+        ComposeAttachments.Clear();
+        if (keepAttachments && original.Attachments != null)
+            foreach (var a in original.Attachments) ComposeAttachments.Add(a);
+        WinlinkStatus = "Editing reply/forward.";
+    }
+
+    public void ReplyMail()
+    {
+        if (selectedMail is not { } m) return;
+        ComposeFrom(m, m.From, "", "Re: ",
+            $"--- Original Message ---\nFrom: {m.From}\nDate: {m.DateTime.ToLocalTime()}\n", false);
+    }
+
+    public void ReplyAllMail()
+    {
+        if (selectedMail is not { } m) return;
+        ComposeFrom(m, m.From, m.Cc ?? "", "Re: ",
+            $"--- Original Message ---\nFrom: {m.From}\nDate: {m.DateTime.ToLocalTime()}\n", false);
+    }
+
+    public void ForwardMail()
+    {
+        if (selectedMail is not { } m) return;
+        ComposeFrom(m, "", "", "Fwd: ",
+            $"--- Forwarded Message ---\nFrom: {m.From}\nTo: {m.To}\nDate: {m.DateTime.ToLocalTime()}\nSubject: {m.Subject}\n", true);
+    }
+
+    // ---- Attachments ----
+    public void AddComposeAttachment(string path)
+    {
+        try
+        {
+            var data = System.IO.File.ReadAllBytes(path);
+            ComposeAttachments.Add(new WinLinkMailAttachement { Name = System.IO.Path.GetFileName(path), Data = data });
+            WinlinkStatus = $"Attached {System.IO.Path.GetFileName(path)} ({data.Length} bytes).";
+        }
+        catch (Exception ex) { WinlinkStatus = "Attach failed: " + ex.Message; }
+    }
+
+    public void RemoveComposeAttachment()
+    {
+        if (SelectedComposeAttachment != null) ComposeAttachments.Remove(SelectedComposeAttachment);
+    }
+
+    /// <summary>Saves the selected viewer attachment to a chosen path.</summary>
+    public void SaveAttachmentTo(string path)
+    {
+        if (SelectedAttachment?.Data == null) return;
+        try { System.IO.File.WriteAllBytes(path, SelectedAttachment.Data); WinlinkStatus = $"Saved {SelectedAttachment.Name}."; }
+        catch (Exception ex) { WinlinkStatus = "Save failed: " + ex.Message; }
+    }
+
+    /// <summary>Writes the selected attachment to a temp file and opens it with the OS handler.</summary>
+    public void OpenSelectedAttachment()
+    {
+        if (SelectedAttachment?.Data == null) return;
+        try
+        {
+            string tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), SelectedAttachment.Name);
+            System.IO.File.WriteAllBytes(tmp, SelectedAttachment.Data);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", $"\"{tmp}\"") { UseShellExecute = false });
+            WinlinkStatus = $"Opened {SelectedAttachment.Name}.";
+        }
+        catch (Exception ex) { WinlinkStatus = "Open failed: " + ex.Message; }
+    }
+
+    // ---- Move between folders ----
+    public void MoveSelectedMailTo(string folder)
+    {
+        var store = MailStore;
+        if (store == null || selectedMail == null || string.IsNullOrEmpty(folder)) return;
+        selectedMail.Mailbox = folder;
+        store.UpdateMail(selectedMail);
+        WinlinkStatus = $"Moved to {folder}.";
         RefreshMails();
     }
 
@@ -882,12 +1094,64 @@ public sealed class MainViewModel : ViewModelBase
         RefreshMails();
     }
 
+    // ---- Backup / restore (gzip of the WinLinkMail text serialization) ----
+    public void BackupMail(string path)
+    {
+        var store = MailStore;
+        if (store == null) { WinlinkStatus = "Mail store unavailable."; return; }
+        try
+        {
+            string text = WinLinkMail.Serialize(store.GetAllMails());
+            byte[] raw = System.Text.Encoding.UTF8.GetBytes(text);
+            using var fs = System.IO.File.Create(path);
+            using var gz = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.Optimal);
+            gz.Write(raw, 0, raw.Length);
+            WinlinkStatus = $"Backed up {store.Count} message(s) to {System.IO.Path.GetFileName(path)}.";
+        }
+        catch (Exception ex) { WinlinkStatus = "Backup failed: " + ex.Message; }
+    }
+
+    public void RestoreMail(string path)
+    {
+        var store = MailStore;
+        if (store == null) { WinlinkStatus = "Mail store unavailable."; return; }
+        try
+        {
+            using var fs = System.IO.File.OpenRead(path);
+            using var gz = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionMode.Decompress);
+            using var ms = new System.IO.MemoryStream();
+            gz.CopyTo(ms);
+            string text = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+            var mails = WinLinkMail.Deserialize(text);
+            int added = 0;
+            foreach (var m in mails)
+                if (!store.MailExists(m.MID)) { store.AddMail(m); added++; }
+            WinlinkStatus = $"Restored {added} new message(s) from {System.IO.Path.GetFileName(path)}.";
+            RefreshMails();
+        }
+        catch (Exception ex) { WinlinkStatus = "Restore failed: " + ex.Message; }
+    }
+
     /// <summary>Start a Winlink session over the internet (Telnet CMS) to send Outbox
     /// mail and receive new mail. Needs network + a reachable CMS.</summary>
     public void SyncWinlinkInternet()
     {
         WinlinkStatus = "Connecting to Winlink CMS (internet)…";
+        AppendWinlinkLog("Sync (internet) requested.");
         DataBroker.Dispatch(1, "WinlinkSync", new { Server = "server.winlink.org", Port = 8772, UseTls = false }, store: false);
+    }
+
+    /// <summary>Start a Winlink B2F session over the radio to a selected gateway station.
+    /// ON-AIR — needs a connected, TX-authorized radio and a chosen Winlink contact.</summary>
+    public void SyncWinlinkRadio()
+    {
+        if (!Connected) { WinlinkStatus = "Connect a radio first."; return; }
+        if (SelectedSyncStation == null) { WinlinkStatus = "Pick a Winlink station (a Winlink-type contact)."; return; }
+        if (!TxAuthorized) { WinlinkStatus = "Set callsign + Allow-Transmit before a radio sync."; return; }
+        WinlinkStatus = $"Connecting to {SelectedSyncStation.Callsign} over the radio…";
+        AppendWinlinkLog($"Sync (radio) → {SelectedSyncStation.Callsign} requested.");
+        DataBroker.Dispatch(1, "WinlinkSync",
+            new { RadioId = BbsRadioDeviceId, Station = SelectedSyncStation }, store: false);
     }
 
     public void DisconnectWinlink()
