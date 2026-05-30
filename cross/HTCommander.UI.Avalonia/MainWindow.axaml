@@ -241,7 +241,7 @@
 
                         <StackPanel Spacing="4">
                             <TextBlock Text="{Binding MicGainPercent, StringFormat='Microphone gain (TX): {0}%'}"/>
-                            <Slider Minimum="100" Maximum="1200" Value="{Binding MicGainPercent}"/>
+                            <Slider Minimum="100" Maximum="4000" Value="{Binding MicGainPercent}"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="10">

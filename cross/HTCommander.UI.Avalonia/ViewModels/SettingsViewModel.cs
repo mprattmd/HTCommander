@@ -120,7 +120,7 @@ public sealed class SettingsViewModel : ViewModelBase
             string outId = DataBroker.GetValue<string>(SettingsDevice, "OutputAudioDevice", "") ?? "";
             string inId = DataBroker.GetValue<string>(SettingsDevice, "InputAudioDevice", "") ?? "";
             float vol = DataBroker.GetValue<float>(SettingsDevice, "OutputVolume", 1.0f);
-            float micGain = DataBroker.GetValue<float>(SettingsDevice, "MicGain", 4.0f);
+            float micGain = DataBroker.GetValue<float>(SettingsDevice, "MicGain", 8.0f);
 
             dispatcher.Post(() =>
             {
@@ -130,7 +130,7 @@ public sealed class SettingsViewModel : ViewModelBase
                 SelectedOutput = OutputDevices.FirstOrDefault(d => d.Id == outId) ?? OutputDevices.FirstOrDefault();
                 SelectedInput = InputDevices.FirstOrDefault(d => d.Id == inId) ?? InputDevices.FirstOrDefault();
                 OutputVolumePercent = (int)Math.Round(Math.Clamp(vol, 0f, 1.5f) * 100);
-                MicGainPercent = (int)Math.Round(Math.Clamp(micGain, 1f, 12f) * 100);
+                MicGainPercent = (int)Math.Round(Math.Clamp(micGain, 1f, 40f) * 100);
                 loading = false;
             });
         });
