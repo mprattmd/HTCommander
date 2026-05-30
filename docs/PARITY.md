@@ -15,6 +15,22 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 
 ---
 
+## Recent — packet TX/RX parity audit
+
+A multi-agent audit of the Windows `src/` against the port surfaced several real divergences in the packet path; the fixes below are in:
+
+- **`DATA_RXD` notification removed.** The port registered the `DATA_RXD` notification on connect; the WinForms app never does (it gets unsolicited data). Explicitly subscribing it appears to make the firmware stop delivering inbound packets — TX kept working, RX went dead. This was the prime suspect for Winlink/BBS "never connects."
+- **Channel lock implemented.** `SetLock`/`SetUnlock` were dispatched by Winlink/BBS but never consumed; the port now switches region+channel (scan/dual-watch off) for the session and restores on unlock, and `SendPacket` stays on the locked channel mid-session (no per-burst restore).
+- **TX gate fixed.** Channel-free check uses `!is_in_rx` (not `rssi==0`, which never went true on a noisy channel and stalled all TX); the TX queue is re-kicked on every status update.
+- **RX routing.** Incoming frames are stamped with channel/usage; a `channel_name=="APRS"` gate that dropped all received APRS was removed.
+- **Allow-Transmit** is enforced in `SendPacket`; HtStatus is stored for region resolution.
+
+> ⚠️ **Operational note (Benshi UV-PRO):** the radio's **"Digital mode" must be OFF** to use the app/TNC (KISS) path — Winlink, BBS, and the App-TNC beacon. Digital mode is only for the radio's **built-in** beacon and disables the TNC. The two are mutually exclusive.
+
+**Still open from the audit (low priority / features):** APRS C-bit left as the standard command-frame convention; **connectionless BBS** (`ProcessAprsPacket`) is an unimplemented feature; radio-settings knobs (scan/dual-watch/squelch/volume toggles) need a settings UI.
+
+---
+
 ## Core radio / connection
 | Feature | Status | Notes |
 |---|---|---|
@@ -33,10 +49,10 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Feature | Status | Notes |
 |---|---|---|
 | Audio settings (in/out device, volume, mic gain) | ✅ | Settings tab |
-| **Callsign / Station ID** | ❌ | no settings field — needed by APRS/Winlink/BBS identity |
-| **Allow-Transmit master switch** | ❌ | Windows gates TX on callsign + this flag |
+| **Callsign / Station ID** | ✅ | Phase 0: Station tab identity (callsign + SSID), drives APRS/Winlink/BBS |
+| **Allow-Transmit master switch** | ✅ | Phase 0: TX gated on callsign + Allow-Transmit; now also enforced in `SendPacket` (regulatory) |
 | License tab / info | ❌ | |
-| Winlink credentials (password, use-station-ID, account) | ❌ | sync runs but unconfigurable |
+| Winlink credentials (password, use-station-ID, account) | ✅ | Phase 0: Winlink password in Station identity |
 | Web server (enable/port) | ❌ | WebServerClass not ported |
 | AGWPE server (enable/port) | ❌ | not ported (incomplete upstream) |
 | GPS source config (serial port + baud) | ❌ | |
@@ -66,16 +82,16 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 ## APRS
 | Feature | Status | Notes |
 |---|---|---|
-| Receive + decode + station list | ✅ | |
-| **Send APRS message** | ⏳ | Phase 1a: AprsHandler in Core + compose UI; needs an 'APRS' channel + RF to verify |
+| Receive + decode + station list | ✅ | RX path fixed (dropped a `channel_name=="APRS"` gate that discarded all received APRS) |
+| **Send APRS message** | ✅ | AprsHandler + compose UI; transmits via the hardware TNC (needs Digital mode OFF on the radio); sends on the current channel if no APRS channel is set |
 | Message ACK/REJ tracking | 🟡 | AprsHandler sends/handles acks; no UI ack indicator yet |
 | Authenticated messages (send + ✓/❌ display) | 🟡 | AprsHandler applies auth on send; no ✓/❌ display |
 | Message/chat conversation view | ✅ | APRS tab now has a messages list + compose bar |
 | Per-packet detail view | ✅ | Phase 1b: Packets tab is now list+detail (time, src/dest, path, APRS type/symbol/position/comment, raw info) |
-| Beacon (position) transmit + settings | ⏳ | Phase 1b: editable Beacon section in Config → SetBssSettings (WRITE_BSS_SETTINGS); needs RF to verify |
-| Ident settings (PTT-release ID) | ⏳ | Phase 1b: editable Ident section in Config → SetBssSettings; needs RF to verify |
+| Beacon (position) transmit + settings | ✅ | Single beacon-method selector (Off / Radio built-in / App-TNC). Radio beacon targets the APRS channel via `auto_share_loc_ch` (needs Digital mode ON); App beacon sends via the TNC (needs Digital mode OFF). Mutually exclusive — the app enforces it |
+| Ident settings (PTT-release ID) | ✅ | editable Ident section → SetBssSettings |
 | APRS routes/paths manager (global) | ✅ | Phase 1b: routes editor in Config (AprsRoutes key) + route picker on the compose bar |
-| APRS channel setup (create "APRS" channel) | ⏳ | Phase 1b: "Create APRS channel" (144.39 FM/wide) on the APRS tab → WriteChannel; write needs RF to verify |
+| APRS channel setup (create "APRS" channel) | ✅ | "Create APRS channel" on the APRS tab + a dedicated APRS-channel picker (persisted); resolved across all banks |
 | APRS-over-SMS | ❌ | |
 | APRS weather (WXBOT) | ❌ | |
 | Copy message/callsign, context menu | ❌ | |
@@ -117,7 +133,7 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Attachments (add on compose, view/open on read) | ✅ | Phase 2: Attach… on compose; Open (xdg-open) / Save… on read |
 | Move between folders (drag/menu) | ✅ | Phase 2: Move-to folder picker + Move button |
 | CMS sync over internet | ⏳ | wired; needs reachable CMS. (uses 8772/no-TLS vs Win 8773/TLS — reconcile) |
-| CMS sync over radio (station selector) | ⏳ | Phase 2: Winlink-contact picker + "Sync (radio)" dispatches RadioId/Station; needs an RMS gateway on the air |
+| CMS sync over radio (station selector) | ⏳ | Channel now resolved across all banks; SetLock/SetUnlock implemented (region+channel lock, scan/dual-watch off); stays on-channel mid-session; stopped registering DATA_RXD (was killing inbound packet delivery). SABM TX verified (err=0). Needs a reachable 1200-baud packet RMS gateway + Digital mode OFF to confirm a full connect |
 | Mail debug/traffic log | ✅ | Phase 2: Winlink session/traffic log (state messages) |
 | Backup / restore (gzip JSON) | ✅ | Phase 2: gzip of the mail serialization (incl. attachments); offline round-trip |
 
@@ -137,8 +153,8 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Card grid display + current-channel highlight | ✅ | |
 | CSV import (CHIRP/RepeaterBook/native) | ✅ | file picker + drag .csv |
 | CSV export | 🟡 | UI only exports native; CHIRP path exists but unexposed |
-| Drag-to-program slot; bank select; write; load-from-radio | ✅ | write path ⏳ verify on hardware |
-| Single-channel edit dialog (advanced fields) | 🟡 | table editor lacks talk-around/bandwidth/de-emphasis/mute/tx-disable |
+| Drag-to-program slot; bank select; write; load-from-radio | ✅ | drag-to-program + bank select + write + load-all-banks (verified on UV-PRO) |
+| Single-channel edit (click a memory tile) | ✅ | click a memory tile → inline editor (name, RX/TX, CTCSS, mode, power, scan) → writes that one channel; table editor still lacks talk-around/bandwidth/de-emphasis/mute/tx-disable |
 | Per-field frequency validation feedback | 🟡 | validated on write only |
 
 ## Contacts

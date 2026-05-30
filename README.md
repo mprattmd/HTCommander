@@ -44,6 +44,11 @@ The Linux app today (tracked in [docs/PARITY.md](docs/PARITY.md)). Items marked
 **(needs RF)** / **(needs CMS)** / **(needs peer)** are implemented and offline-tested
 but await on-air / server / station verification:
 
+> ⚠️ **Packet on the Benshi UV-PRO:** the radio's **"Digital mode" must be OFF** to use
+> the app/TNC (KISS) path — that's Winlink, BBS, and the App-TNC APRS beacon. Digital mode
+> is only for the radio's **built-in** beacon and disables the TNC; the two are mutually
+> exclusive.
+
 - **Bluetooth connect** (BlueZ, raw RFCOMM/SDP) — verified on UV-PRO.
 - **Radio status** — battery, channel, RSSI, region, GPS-lock telemetry.
 - **Live voice RX/TX** over Bluetooth audio (SBC) with **press-and-hold PTT**, mic
@@ -51,13 +56,13 @@ but await on-air / server / station verification:
 - **APRS** — receive + decode + station list; **send messages** with a global
   **routes** manager and a destination picker; a **per-packet decode detail** view;
   a **"create APRS channel"** helper; and a **fixed/manual position** (beacon without GPS).
-- **APRS beaconing — two ways** *(needs RF to verify)*:
-  - **Radio's built-in beacon** — write the Beacon/Ident (BSS) settings to the radio;
-    the radio beacons on its own, on whatever channel it's *tuned to* (so tune it to
-    your APRS channel). This matches the Windows app.
-  - **App beacon on the APRS channel** — *Beacon now* / *Auto-beacon* builds a position
-    report and sends it on the channel named `APRS` via the radio's TNC, regardless of
-    the tuned channel (uses your fixed/GPS position + symbol + comment).
+- **APRS beaconing — one selector, two methods** (mutually exclusive):
+  - **Radio's built-in beacon** — writes the Beacon/Ident (BSS) settings and points the
+    radio's own beacon at your **APRS channel** (`auto_share_loc_ch`), so it beacons there
+    regardless of the tuned channel. **Needs "Digital mode" ON** on the radio.
+  - **App beacon via the TNC** — *Beacon now* / *Auto-beacon* builds a position report and
+    sends it on your APRS channel through the radio's hardware TNC (uses your fixed/GPS
+    position + symbol + comment). **Needs "Digital mode" OFF** on the radio.
 - **Map** (OpenStreetMap) — station markers, **per-callsign track polylines**, a
   last-N-minutes **time filter**, large/small marker toggle, a **radio + serial GPS
   marker**, and **center-to-GPS**.
@@ -67,8 +72,10 @@ but await on-air / server / station verification:
 - **Terminal** — connectionless UI-frame send **and connected-mode AX.25 sessions**
   (connect panel: protocol / station / channel) *(a session needs a peer)*.
 - **Packet capture** — live list, decode detail, **CSV export** and **load capture**.
-- **Channel builder** — drag-and-drop slot programming, CSV import
-  (CHIRP / RepeaterBook / native), CSV export, bank selector, and write-to-radio.
+- **Channel builder** — **click a memory tile to edit it** (name, RX/TX, CTCSS, mode,
+  power, scan → write that one channel), plus drag-and-drop slot programming, CSV import
+  (CHIRP / RepeaterBook / native), CSV export, bank selector, load-all-banks, and
+  write-to-radio.
 - **Contacts** / address book with connection setup (channel / path / AX.25 dest / auth).
 - **Winlink mail** — local SQLite store, six folders with unread counts, compose with
   **CC + attachments**, **reply / reply-all / forward**, **save as draft**, **move
