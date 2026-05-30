@@ -108,6 +108,10 @@ public sealed class RadioController : IDisposable
         broker.Subscribe(deviceId, "TransmitDataFrame", OnTransmitDataFrame);
         // Beacon/ident settings writes dispatched by the UI.
         broker.Subscribe(deviceId, "SetBssSettings", OnSetBssSettings);
+        // Channel lock/unlock for exclusive use (Winlink/BBS): switch region+channel,
+        // disable scan/dual-watch for the session, then restore on unlock.
+        broker.Subscribe(deviceId, "SetLock", OnSetLock);
+        broker.Subscribe(deviceId, "SetUnlock", OnSetUnlock);
         // Serial-GPS fixes (device 1) are pushed to the radio as SET_POSITION.
         broker.Subscribe(1, "GpsData", OnGpsData);
         // Frames decoded by the software modem (DataFrame) flow through the same
@@ -598,6 +602,73 @@ public sealed class RadioController : IDisposable
         SendBasic(CmdWriteSettings, buf);
         SendBasic(CmdReadSettings, null);               // re-read so our cached settings stay accurate
         logger?.Debug($"Radio beacon channel set to auto_share_loc_ch={value} (channel_id {channelId}).");
+        return true;
+    }
+
+    // ---- Channel lock (Winlink/BBS exclusive use) -------------------------
+    // Ported from the WinForms Radio.OnSetLockEvent/OnSetUnlockEvent: a higher layer
+    // (Winlink, BBS) locks the radio to a specific region+channel for the session, with
+    // scan and dual-watch disabled, and we restore the prior state on unlock. Without
+    // this, those features transmit on whatever channel the operator is tuned to.
+    private RadioLockState? lockState;
+    private int savedLockRegionId, savedLockChannelId, savedLockDualWatch;
+    private bool savedLockScan;
+
+    private void OnSetLock(int dev, string name, object data)
+    {
+        if (data is not SetLockData lockData) return;
+        if (lockState != null) return;                       // already locked
+        if (rawSettings == null || rawSettings.Length <= 14) return;
+
+        savedLockRegionId = lastStatus?.curr_region ?? 0;
+        savedLockChannelId = ActiveChannelA;
+        savedLockScan = (rawSettings[6] & 0x80) != 0;
+        savedLockDualWatch = (rawSettings[6] & 0x30) >> 4;
+
+        int targetRegion = lockData.RegionId >= 0 ? lockData.RegionId : savedLockRegionId;
+        int targetChannel = lockData.ChannelId >= 0 ? lockData.ChannelId : savedLockChannelId;
+
+        lockState = new RadioLockState { IsLocked = true, Usage = lockData.Usage, RegionId = targetRegion, ChannelId = targetChannel };
+        broker.Dispatch(deviceId, "LockState", lockState, store: true);
+        logger?.Debug($"Radio locked for '{lockData.Usage}': region {targetRegion}, channel {targetChannel} (was region {savedLockRegionId}, channel {savedLockChannelId}).");
+
+        if (targetRegion != savedLockRegionId) SetRegion(targetRegion);
+        WriteLockSettings(targetChannel, scan: false, doubleChannel: 0);   // scan + dual-watch off while locked
+    }
+
+    private void OnSetUnlock(int dev, string name, object data)
+    {
+        if (data is not SetUnlockData unlockData) return;
+        if (lockState == null) return;
+        if (lockState.Usage != unlockData.Usage) return;     // only the holder may unlock
+        if (rawSettings == null || rawSettings.Length <= 14) return;
+
+        int curRegion = lastStatus?.curr_region ?? savedLockRegionId;
+        if (savedLockRegionId != curRegion && savedLockRegionId >= 0) SetRegion(savedLockRegionId);
+        WriteLockSettings(savedLockChannelId, savedLockScan, savedLockDualWatch);   // restore prior state
+
+        string usage = lockState.Usage;
+        lockState = null;
+        broker.Dispatch(deviceId, "LockState", new RadioLockState { IsLocked = false, Usage = usage }, store: true);
+        logger?.Debug($"Radio unlocked from '{usage}': restored region {savedLockRegionId}, channel {savedLockChannelId}.");
+    }
+
+    /// <summary>
+    /// Writes channel_a + scan + dual-watch via WRITE_SETTINGS, preserving every other
+    /// setting byte-for-byte. Used by the channel lock (mirrors WinForms ToByteArray):
+    /// scan is bit 7 and double_channel is bits 5-4 of settings byte 1 (read-frame byte 6).
+    /// </summary>
+    private bool WriteLockSettings(int channelId, bool scan, int doubleChannel)
+    {
+        if (rawSettings == null || rawSettings.Length <= 14 || channelId < 0) return false;
+        int n = rawSettings.Length - 5;
+        byte[] buf = new byte[n];
+        Array.Copy(rawSettings, 5, buf, 0, n);
+        buf[0] = (byte)((buf[0] & 0x0F) | ((channelId & 0x0F) << 4));    // channel_a low nibble
+        buf[9] = (byte)((buf[9] & 0x0F) | (channelId & 0xF0));           // channel_a high nibble
+        buf[1] = (byte)((buf[1] & ~0xB0) | (scan ? 0x80 : 0) | ((doubleChannel & 0x03) << 4));  // scan + double_channel, keep aghfp/squelch
+        SendBasic(CmdWriteSettings, buf);
+        SendBasic(CmdReadSettings, null);
         return true;
     }
 
