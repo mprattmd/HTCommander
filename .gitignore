@@ -309,3 +309,4 @@ __pycache__/
 # Packaging build artifacts
 packaging/AppDir/
 packaging/*.AppImage
+.claude/scheduled_tasks.lock

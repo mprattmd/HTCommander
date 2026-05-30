@@ -95,11 +95,11 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 ## Packet / Terminal
 | Feature | Status | Notes |
 |---|---|---|
-| Packet capture (live list) | 🟡 | Phase 1b added selection + a decode-detail panel; still no modem/ECC, no CSV export |
-| Packet viewer / CSV export / load capture / copy | ❌ | |
+| Packet capture (live list) | 🟡 | selection + decode-detail (1b) + CSV export/load (Phase 3); still no modem/ECC column |
+| Packet viewer / CSV export / load capture / copy | ✅ | Phase 3: decode detail (copyable raw info) + CSV export + load-capture |
 | Terminal connectionless (UI-frame) send | ✅ | |
-| Terminal connected-mode session (+ channel lock) | ❌ | Terminal tab never uses AX25Session |
-| Terminal connect dialog (profiles/protocol/channel) | ❌ | TerminalConnectDialog |
+| Terminal connected-mode session (+ channel lock) | ⏳ | Phase 3: Terminal drives Core AX25Session (connect/send/disconnect) + optional channel lock; needs a peer to verify on air |
+| Terminal connect dialog (profiles/protocol/channel) | ✅ | Phase 3: connect panel (protocol/station/channel) on the Terminal tab |
 | AGWPE TCP server | ❌ | |
 | YAPP file transfer | ❌ | |
 | Torrent file exchange | ❌ | entire tab/protocol not ported |
@@ -123,7 +123,7 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 ## BBS
 | Feature | Status | Notes |
 |---|---|---|
-| Host start/stop on current channel/region | ⏳ | wired; needs a station to connect in |
+| Host start/stop on current channel/region | ⏳ | wired; Phase 3 added the missing UniqueDataFrame routing (RX path), so connected-mode now reaches it; needs a station to connect in |
 | Traffic log | 🟡 | plain text (no color coding) |
 | Station stats grid | 🟡 | drops bytes-in/out + packets-out columns |
 | Multi-radio selection | ❌ | hardcoded device 0 |
