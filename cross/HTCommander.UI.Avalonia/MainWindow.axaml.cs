@@ -59,6 +59,7 @@ public partial class MainWindow : Window
         // or loss of pointer capture un-keys the radio.
         WirePtt(PttButton);
         WirePtt(PttButton2);   // PTT on the Voice tab too
+        VoiceRxToggleButton.Click += (_, _) => Vm?.ToggleVoiceRx();   // voice audio is on-demand (off by default)
 
         AddContactButton.Click += (_, _) => Vm?.AddOrUpdateContact();
         RemoveContactButton.Click += (_, _) => Vm?.RemoveSelectedContact();

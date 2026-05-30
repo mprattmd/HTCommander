@@ -900,6 +900,10 @@
                         <TextBlock Foreground="#E05050" FontWeight="Bold" Text="● TRANSMITTING"
                                    IsVisible="{Binding Transmitting}" VerticalAlignment="Center"/>
                     </StackPanel>
+                    <Button x:Name="VoiceRxToggleButton" Content="🔊 Start / Stop Voice RX (audio)"
+                            IsEnabled="{Binding Connected}" HorizontalAlignment="Left"/>
+                    <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="#E0A030"
+                               Text="⚠ Voice audio is OFF by default. Turning it on opens the radio's Bluetooth audio link, which stops packet (APRS / Winlink / BBS) from transmitting — leave it OFF while doing packet, and turn it on only for voice."/>
                     <Button x:Name="PttButton2" Content="🎤  PTT — hold to talk"
                             IsEnabled="{Binding CanTransmit}" Background="#5A1F1F" Foreground="White"
                             Height="56" FontSize="16" HorizontalAlignment="Stretch"/>

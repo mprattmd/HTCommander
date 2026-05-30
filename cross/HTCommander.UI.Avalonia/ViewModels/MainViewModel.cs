@@ -49,6 +49,7 @@ public sealed class MainViewModel : ViewModelBase
     private RadioBluetoothLinux? transport;
     private RadioController? controller;
     private RadioAudioChannelLinux? audioChannel;
+    private string? connectedMac;   // set on connect; used to open voice audio on demand
     private RadioVoiceReceiver? voiceReceiver;
     private IAudioPlayback? voicePlayback;
     private RadioVoiceTransmitter? voiceTransmitter;
@@ -663,7 +664,9 @@ public sealed class MainViewModel : ViewModelBase
             Connected = true;
             Status = $"Connected to {radio.Name}";
             AppendLog("Connected — querying device info, status and battery.");
-            StartVoiceRx(radio.Address);   // best-effort: hear the radio on the PC speaker
+            connectedMac = radio.Address;  // voice audio is opened on demand: holding the BT audio
+                                           // (AOC) link open re-routes the radio's TX audio and stops
+                                           // the hardware TNC's AFSK reaching the air (packet goes silent).
             // If a fixed position is configured, re-apply it once the connect settles.
             _ = Task.Run(async () => { await Task.Delay(1500); dispatcher.Post(PushFixedPositionIfSet); });
         });
@@ -692,6 +695,18 @@ public sealed class MainViewModel : ViewModelBase
     // Open the radio's voice-audio RFCOMM channel and decode it to the speaker.
     // Runs off the UI thread (SDP + a second RFCOMM connect take a moment) and is
     // best-effort — failure never affects radio command/control.
+    /// <summary>
+    /// Toggles the radio's voice-audio (BT AOC) channel on demand. It's OFF by default
+    /// because holding it open disrupts the hardware TNC's transmit audio — packet
+    /// (APRS/Winlink/BBS) won't reach the air while voice audio is active.
+    /// </summary>
+    public void ToggleVoiceRx()
+    {
+        if (VoiceRxActive) { StopVoiceRx(); AppendLog("Voice RX stopped (audio channel closed)."); }
+        else if (Connected && connectedMac != null) StartVoiceRx(connectedMac);
+        else AppendLog("Connect a radio before enabling Voice RX.");
+    }
+
     private void StartVoiceRx(string mac)
     {
         Task.Run(() =>
