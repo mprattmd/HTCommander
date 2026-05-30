@@ -50,9 +50,8 @@ public partial class MainWindow : Window
 
         // PTT is press-and-hold (fail-safe): transmit only while held; any release
         // or loss of pointer capture un-keys the radio.
-        PttButton.AddHandler(PointerPressedEvent, (_, _) => Vm?.StartTransmit(), RoutingStrategies.Tunnel);
-        PttButton.AddHandler(PointerReleasedEvent, (_, _) => Vm?.StopTransmit(), RoutingStrategies.Tunnel);
-        PttButton.PointerCaptureLost += (_, _) => Vm?.StopTransmit();
+        WirePtt(PttButton);
+        WirePtt(PttButton2);   // PTT on the Voice tab too
 
         InitMap();
 
@@ -61,6 +60,15 @@ public partial class MainWindow : Window
     }
 
     private MainViewModel? Vm => DataContext as MainViewModel;
+
+    // PTT is press-and-hold (fail-safe): transmit only while held; release or any
+    // loss of pointer capture un-keys the radio.
+    private void WirePtt(Button button)
+    {
+        button.AddHandler(PointerPressedEvent, (_, _) => Vm?.StartTransmit(), RoutingStrategies.Tunnel);
+        button.AddHandler(PointerReleasedEvent, (_, _) => Vm?.StopTransmit(), RoutingStrategies.Tunnel);
+        button.PointerCaptureLost += (_, _) => Vm?.StopTransmit();
+    }
 
     private void InitMap()
     {

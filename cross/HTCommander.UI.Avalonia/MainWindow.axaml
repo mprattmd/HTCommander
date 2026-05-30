@@ -95,7 +95,27 @@
                     </Grid>
                 </Grid>
             </TabItem>
-            <TabItem Header="Voice"><TextBlock Margin="12" Text="Voice — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Voice">
+                <StackPanel Margin="16" Spacing="14" MaxWidth="460" HorizontalAlignment="Left">
+                    <TextBlock Text="Voice" FontWeight="Bold" FontSize="16"/>
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <TextBlock Text="{Binding VoiceRxActive, StringFormat='Receive: {0}'}" VerticalAlignment="Center"/>
+                        <TextBlock Foreground="#E05050" FontWeight="Bold" Text="● TRANSMITTING"
+                                   IsVisible="{Binding Transmitting}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button x:Name="PttButton2" Content="🎤  PTT — hold to talk"
+                            IsEnabled="{Binding CanTransmit}" Background="#5A1F1F" Foreground="White"
+                            Height="56" FontSize="16" HorizontalAlignment="Stretch"/>
+                    <StackPanel Spacing="4" DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
+                        <TextBlock Text="{Binding MicGainPercent, StringFormat='Microphone gain (TX, max boost): {0}%'}"/>
+                        <Slider Minimum="100" Maximum="4000" Value="{Binding MicGainPercent}"/>
+                        <TextBlock Text="{Binding OutputVolumePercent, StringFormat='Speaker volume (RX): {0}%'}"/>
+                        <Slider Minimum="0" Maximum="150" Value="{Binding OutputVolumePercent}"/>
+                    </StackPanel>
+                    <TextBlock Foreground="#888" TextWrapping="Wrap"
+                               Text="Transmit uses automatic gain control (auto-leveling) — set Mic gain as the max boost. Holding PTT keys the radio on the air."/>
+                </StackPanel>
+            </TabItem>
             <TabItem Header="APRS">
                 <Grid RowDefinitions="Auto,*" Margin="8">
                     <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
