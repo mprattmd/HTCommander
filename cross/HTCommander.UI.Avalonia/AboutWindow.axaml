@@ -11,6 +11,7 @@
             <Image Source="/Assets/Radio2.png" Height="44" VerticalAlignment="Center"/>
             <StackPanel VerticalAlignment="Center">
                 <TextBlock Text="HTCommander — Linux Edition" FontWeight="Bold" FontSize="18"/>
+                <TextBlock Text="Linux port by KE4AXW" Foreground="{DynamicResource TextMutedBrush}"/>
                 <TextBlock x:Name="VersionText" Foreground="{DynamicResource TextMutedBrush}"/>
             </StackPanel>
         </StackPanel>
