@@ -667,8 +667,6 @@ public sealed class MainViewModel : ViewModelBase
             connectedMac = radio.Address;  // voice audio is opened on demand: holding the BT audio
                                            // (AOC) link open re-routes the radio's TX audio and stops
                                            // the hardware TNC's AFSK reaching the air (packet goes silent).
-            builderAutoLoaded = false;     // re-arm the one-time channel-table auto-load for this session
-            _ = Task.Run(async () => { await Task.Delay(3000); dispatcher.Post(MaybeAutoLoadBuilder); });
             // If a fixed position is configured, re-apply it once the connect settles.
             _ = Task.Run(async () => { await Task.Delay(1500); dispatcher.Post(PushFixedPositionIfSet); });
         });
@@ -1041,16 +1039,6 @@ public sealed class MainViewModel : ViewModelBase
             if (kv.Value.rx_freq != 0 || kv.Value.tx_freq != 0)
                 BuilderChannels.Add(new EditableChannel(kv.Value));
         BuilderStatus = $"Loaded {BuilderChannels.Count} channel(s) from the radio.";
-    }
-
-    // Populate the editable table from the radio once, shortly after connect, so channels
-    // are there to edit without the operator having to click "Load from radio" first.
-    private bool builderAutoLoaded;
-    private void MaybeAutoLoadBuilder()
-    {
-        if (builderAutoLoaded || sweepingBanks || radioChannels.Count == 0 || BuilderChannels.Count > 0) return;
-        builderAutoLoaded = true;
-        LoadChannelsFromRadio();
     }
 
     // ---- Click-a-tile single-channel editor -------------------------------

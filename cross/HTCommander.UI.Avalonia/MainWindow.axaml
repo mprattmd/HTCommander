@@ -466,8 +466,8 @@
                         </Border>
                     </Border>
 
-                    <!-- Edit channels as a table (auto-loaded from the radio on connect) -->
-                    <Expander Grid.Row="3" Header="Edit channels as a table" IsExpanded="True" Margin="0,8,0,0">
+                    <!-- Edit channels as a table (click "Load from radio" or Import to fill it) -->
+                    <Expander Grid.Row="3" Header="Edit channels as a table (advanced)" IsExpanded="False" Margin="0,8,0,0">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,6">
                                 <Button x:Name="ChAddRowButton" Content="Add row"/>
