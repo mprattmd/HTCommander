@@ -40,44 +40,52 @@ Benshi-protocol radios, connected over **Bluetooth**:
 
 ## What works today
 
-The Linux app today (verified against [docs/PARITY.md](docs/PARITY.md)):
+The Linux app today (tracked in [docs/PARITY.md](docs/PARITY.md)). Items marked
+**(needs RF)** / **(needs CMS)** / **(needs peer)** are implemented and offline-tested
+but await on-air / server / station verification:
 
 - **Bluetooth connect** (BlueZ, raw RFCOMM/SDP) — verified on UV-PRO.
 - **Radio status** — battery, channel, RSSI, region, GPS-lock telemetry.
 - **Live voice RX/TX** over Bluetooth audio (SBC) with **press-and-hold PTT**, mic
   gain/AGC and speaker volume. Transmit is gated on your callsign + Allow-Transmit.
-- **APRS receive** — decode, station list, and an **OpenStreetMap map** of received positions.
-- **Packet send** + a **Terminal** (connectionless / UI-frame).
+- **APRS** — receive + decode + station list; **send messages** with a global
+  **routes** manager and a destination picker; **beacon (position)** and **ident**
+  (PTT-release ID) settings written to the radio; a **per-packet decode detail** view;
+  a **"create APRS channel"** helper *(send/beacon/ident need RF)*.
+- **Map** (OpenStreetMap) — station markers, **per-callsign track polylines**, a
+  last-N-minutes **time filter**, large/small marker toggle, a **radio + serial GPS
+  marker**, and **center-to-GPS**.
+- **GPS** — radio position details (lat/lon/alt/speed/heading) + **request fresh
+  position**; **serial NMEA GPS source** config (port/baud) that also pushes position
+  to the radio *(a live fix needs GPS hardware on the air)*.
+- **Terminal** — connectionless UI-frame send **and connected-mode AX.25 sessions**
+  (connect panel: protocol / station / channel) *(a session needs a peer)*.
+- **Packet capture** — live list, decode detail, **CSV export** and **load capture**.
 - **Channel builder** — drag-and-drop slot programming, CSV import
   (CHIRP / RepeaterBook / native), CSV export, bank selector, and write-to-radio.
 - **Contacts** / address book with connection setup (channel / path / AX.25 dest / auth).
-- **Winlink mail** — local SQLite store, six folders, compose to Outbox; internet
-  CMS sync is wired and needs a reachable CMS to fully exercise.
-- **BBS host** — connected-mode AX.25 mail drop on the current channel; wired and
-  needs a station to connect over the air.
+- **Winlink mail** — local SQLite store, six folders with unread counts, compose with
+  **CC + attachments**, **reply / reply-all / forward**, **save as draft**, **move
+  between folders**, **backup / restore**, and a session/traffic log. Sync over the
+  **internet** *(needs a reachable CMS)* or **over the radio** to a Winlink station
+  *(needs an RMS gateway)*.
+- **BBS host** — connected-mode AX.25 mail drop on the current channel *(needs a
+  station to connect over the air)*.
 - **Station identity & settings** — callsign, Station ID, Allow-Transmit, Winlink
   password, plus audio devices / mic gain / volume.
 - **AppImage packaging** + GitHub releases.
 
-## In progress / coming next
+## Coming next
 
-Active roadmap (see [docs/ROADMAP.md](docs/ROADMAP.md) and the status table in
-[docs/PARITY.md](docs/PARITY.md)). Phase 0 (station identity & TX gating) is **done**;
-phases 1–4 are being actively worked:
+See [docs/ROADMAP.md](docs/ROADMAP.md). Phases 0–4 (identity, APRS, mail, terminal,
+GPS/map) are in the app; the next work is on-air verification of the **(needs RF/CMS/peer)**
+items above and the longer-haul features below.
 
-- **APRS messaging & beacon** — send APRS messages, ACK/REJ tracking, beacon/position
-  transmit + ident settings, per-packet detail view.
-- **Mail usability** — attachments, reply / reply-all / forward, save as draft,
-  move between folders, Winlink-over-radio sync.
-- **Terminal connected-mode** — AX.25 sessions + connect dialog, and full packet
-  capture decode + CSV export.
-- **GPS & map richness** — GPS source config + position details, per-callsign track
-  polylines, time filters, GPS markers.
-
-> **Not yet ported / planned later** (deferred): speech-to-text & text-to-speech,
-> SSTV, soft-modem / waterfall, torrent file exchange, AGWPE server, self-update,
-> and a macOS build. These exist in the original Windows app but are **not available**
-> in the Linux build today.
+> **Not yet ported / planned later** (deferred): voice transmit modes (Morse / DTMF /
+> text-to-speech) and speech-to-text, SSTV send/receive, soft-modem / waterfall, audio
+> clips & WAV recording, AGWPE server, YAPP & torrent file transfer, web server,
+> ADS-B / dump1090, self-update, detached tabs, and a macOS build. These exist in the
+> original Windows app but are **not available** in the Linux build today.
 
 ---
 
