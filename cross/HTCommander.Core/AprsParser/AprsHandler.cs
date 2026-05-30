@@ -389,10 +389,9 @@ namespace HTCommander
             {
                 foreach (TncDataFragment frame in packets)
                 {
-                    // Only process frames from the APRS channel
-                    if (frame.channel_name != "APRS") continue;
-
-                    // Decode the frame as AX.25
+                    // Decode the frame as AX.25 (every UI frame is a candidate, as WinForms
+                    // does — a hard channel_name=="APRS" gate dropped all received APRS since
+                    // the RX path's channel name rarely equals the literal string "APRS").
                     AX25Packet ax25Packet = AX25Packet.DecodeAX25Packet(frame);
                     if (ax25Packet == null) continue;
 
@@ -505,10 +504,8 @@ namespace HTCommander
             if (_disposed) return;
             if (!(data is TncDataFragment frame)) return;
 
-            // Only process frames from the APRS channel
-            if (frame.channel_name != "APRS") return;
-
-            // Decode the frame as AX.25
+            // Decode the frame as AX.25 (parse every UI frame, as WinForms does; the old
+            // channel_name=="APRS" gate dropped all received APRS frames).
             AX25Packet ax25Packet = AX25Packet.DecodeAX25Packet(frame);
             if (ax25Packet == null) return;
 

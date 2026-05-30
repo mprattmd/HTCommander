@@ -821,6 +821,15 @@ public sealed class RadioController : IDisposable
         // The AX.25 link layer needs every frame (incl. retransmissions), so this is
         // NOT deduplicated — dedup is applied only to the display dispatches below.
         frame.RadioDeviceId = deviceId;
+        // Incoming frames carry no channel id — backfill from the current channel, look up
+        // its name, and tag the session usage so connected-mode consumers (BBS) and
+        // channel-scoped handlers attribute the frame correctly. Mirrors WinForms.
+        if (frame.channel_id < 0 && lastStatus != null) frame.channel_id = lastStatus.curr_ch_id;
+        if (string.IsNullOrEmpty(frame.channel_name) && frame.channel_id >= 0 &&
+            channelArray != null && frame.channel_id < channelArray.Length && channelArray[frame.channel_id] != null)
+            frame.channel_name = channelArray[frame.channel_id].name_str;
+        if (lockState != null && lockState.IsLocked && frame.channel_id == lockState.ChannelId)
+            frame.usage = lockState.Usage;
         try { broker.Dispatch(deviceId, "UniqueDataFrame", frame, store: false); }
         catch (Exception) { /* never let routing break packet display */ }
 
