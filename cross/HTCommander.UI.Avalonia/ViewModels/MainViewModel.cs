@@ -99,6 +99,14 @@ public sealed class MainViewModel : ViewModelBase
             SeedBssEditor(b);                                        // refresh the editable beacon/ident fields
             if (string.IsNullOrEmpty(TerminalMyCall) && !string.IsNullOrEmpty(b.AprsCallsign))
                 TerminalMyCall = $"{b.AprsCallsign}-{b.AprsSsid}";   // prefill source callsign
+            // Enforce the chosen beacon method: if the radio's built-in beacon is on but
+            // we're not in Radio mode, turn it off (stops a stale radio beacon firing on
+            // the tuned channel before the operator picks a method).
+            if (Connected && !IsRadioBeacon && b.ShouldShareLocation)
+            {
+                AppendLog("Beacon method is not 'Radio' — disabling the radio's built-in beacon.");
+                WriteBssSettings();
+            }
         });
         broker.Subscribe(0, "Stations", (_, _, data) => { if (data is System.Collections.Generic.List<StationInfoClass> list) ApplyContacts(list); });
 
