@@ -108,6 +108,7 @@ public partial class MainWindow : Window
         ClipStopButton.Click += (_, _) => Vm?.StopClipPlayback();
         ClipRenameButton.Click += (_, _) => Vm?.RenameSelectedClip();
         ClipDeleteButton.Click += (_, _) => Vm?.DeleteSelectedClip();
+        VoiceModePlayButton.Click += (_, _) => Vm?.PlayVoiceMode();
 
         // Screenshot (button + F12)
         ScreenshotButton.Click += (_, _) => SaveScreenshot();

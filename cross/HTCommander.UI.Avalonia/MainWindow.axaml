@@ -157,6 +157,16 @@
                     </StackPanel>
                     <TextBlock Foreground="#888" TextWrapping="Wrap"
                                Text="Transmit uses automatic gain control (auto-leveling) — set Mic gain as the max boost. Holding PTT keys the radio on the air."/>
+
+                    <!-- Tone modes: Morse / DTMF (generate + local preview) -->
+                    <TextBlock Text="Tone modes" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <ComboBox Grid.Column="0" MinWidth="90" ItemsSource="{Binding VoiceModes}" SelectedItem="{Binding VoiceMode}"/>
+                        <TextBox Grid.Column="1" Text="{Binding VoiceModeText}" PlaceholderText="Text (Morse) or digits (DTMF)"/>
+                        <Button Grid.Column="2" x:Name="VoiceModePlayButton" Content="▶ Play"/>
+                    </Grid>
+                    <TextBlock Classes="Hint" TextWrapping="Wrap"
+                               Text="Generates Morse/DTMF audio and plays it locally for preview. On-air transmit of tone modes is coming in a follow-up."/>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Clips">

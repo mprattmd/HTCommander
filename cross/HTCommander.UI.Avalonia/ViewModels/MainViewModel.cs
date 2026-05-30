@@ -1916,6 +1916,63 @@ public sealed class MainViewModel : ViewModelBase
         try { p.Dispose(); } catch (Exception) { }
     }
 
+    // Play a 16-bit PCM buffer (32k/mono) through the configured output device.
+    private void PlayPcm16(byte[] pcm16)
+    {
+        StopClipPlayback();
+        Task.Run(() =>
+        {
+            try
+            {
+                var play = new PortAudioPlayback { Format = AudioFormat.RadioPcm, Volume = Settings.OutputVolume };
+                play.SetDevice(Settings.OutputDeviceId);
+                if (!play.Start()) { play.Dispose(); dispatcher.Post(() => AppendLog("Playback failed (no output device).")); return; }
+                clipPlayback = play;
+                play.AddSamples(pcm16, 0, pcm16.Length);
+            }
+            catch (Exception ex) { dispatcher.Post(() => AppendLog("Playback failed: " + ex.Message)); }
+        });
+    }
+
+    // 8-bit unsigned PCM (centre 128, what the Morse/DTMF engines emit) → 16-bit signed.
+    private static byte[] Pcm8ToPcm16(byte[] pcm8)
+    {
+        var pcm16 = new byte[pcm8.Length * 2];
+        for (int i = 0; i < pcm8.Length; i++)
+        {
+            short s = (short)((pcm8[i] - 128) * 256);
+            pcm16[i * 2] = (byte)(s & 0xFF);
+            pcm16[i * 2 + 1] = (byte)((s >> 8) & 0xFF);
+        }
+        return pcm16;
+    }
+
+    // ---- Voice transmit modes: Morse / DTMF (local generation + preview) ----
+    public string[] VoiceModes { get; } = { "Morse", "DTMF" };
+    private string voiceMode = "Morse";
+    public string VoiceMode { get => voiceMode; set => SetField(ref voiceMode, value); }
+
+    private string voiceModeText = "";
+    public string VoiceModeText { get => voiceModeText; set => SetField(ref voiceModeText, value); }
+
+    /// <summary>Generates Morse or DTMF audio from the text and plays it to the speaker.
+    /// (On-air transmit of these tone modes is a follow-up — it needs the SBC buffer path.)</summary>
+    public void PlayVoiceMode()
+    {
+        string text = (VoiceModeText ?? "").Trim();
+        if (text.Length == 0) { AppendLog("Enter text for " + VoiceMode + "."); return; }
+        try
+        {
+            byte[] pcm8 = string.Equals(VoiceMode, "DTMF", StringComparison.OrdinalIgnoreCase)
+                ? HTCommander.radio.DmtfEngine.GenerateDmtfPcm(text)
+                : HTCommander.radio.MorseCodeEngine.GenerateMorsePcm(text);
+            if (pcm8.Length == 0) { AppendLog($"{VoiceMode}: nothing to play (no encodable characters)."); return; }
+            PlayPcm16(Pcm8ToPcm16(pcm8));
+            AppendLog($"Playing {VoiceMode}: {text}");
+        }
+        catch (Exception ex) { AppendLog($"{VoiceMode} failed: " + ex.Message); }
+    }
+
     public void DeleteSelectedClip()
     {
         var clip = SelectedClip;

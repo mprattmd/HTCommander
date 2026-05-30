@@ -53,7 +53,7 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 |---|---|---|
 | Voice RX / TX (SBC) + press-and-hold PTT | ✅ | |
 | Mic gain / AGC, speaker volume, device select | ✅ | |
-| Voice transmit modes (Chat / Speak-TTS / Morse / DTMF) | ❌ | only live-mic PTT; Morse/DTMF engines in Core but unwired |
+| Voice transmit modes (Chat / Speak-TTS / Morse / DTMF) | 🟡 | Phase 5b: Morse + DTMF generate + local preview (Voice tab); on-air tone TX + TTS pending |
 | Speech-to-text (Whisper) | ❌ | Windows-only engine; needs portable STT |
 | Text-to-speech | ❌ | System.Speech (Windows-only) |
 | Audio clips (record/name/play/transmit) | 🟡 | Phase 5a: Clips tab records/names/plays/deletes WAV clips; transmit-clip pending |
