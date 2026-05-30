@@ -106,6 +106,9 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(DataBroker.AllDevices, "BbsControlMessage", (_, _, data) => dispatcher.Post(() => AddBbsControl(data)));
         broker.Subscribe(DataBroker.AllDevices, "BbsError", (_, _, data) => dispatcher.Post(() => AddBbsControl(data)));
         broker.Subscribe(1, "BbsMergedStats", (_, _, data) => dispatcher.Post(() => ApplyBbsStats(data)));
+        // BbsHandler reports start/stop failures on these — reflect them and revert state.
+        broker.Subscribe(1, "BbsCreateFailed", (_, _, data) => dispatcher.Post(() => { BbsActive = false; AppendBbs("BBS failed to start: " + (data as BbsErrorData)?.Error); }));
+        broker.Subscribe(1, "BbsRemoveFailed", (_, _, data) => dispatcher.Post(() => AppendBbs("BBS stop failed: " + (data as BbsErrorData)?.Error)));
 
         Refresh();
         LoadContacts();
@@ -566,17 +569,24 @@ public sealed class MainViewModel : ViewModelBase
     public void WriteChannelsToRadio()
     {
         if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
-        int written = 0;
+        int written = 0, skipped = 0;
         for (int i = 0; i < BuilderChannels.Count; i++)
         {
             var info = BuilderChannels[i].ToRadioChannelInfo(i);
             if (info.rx_freq == 0 && info.tx_freq == 0) continue;   // skip empty rows
+            // Guard the radio against mis-typed / mis-parsed rows: only write plausible
+            // frequencies (1 MHz–1300 MHz covers the HT's bands with margin).
+            if (!FreqInRange(info.rx_freq) || !FreqInRange(info.tx_freq)) { skipped++; continue; }
             controller.WriteChannel(info);
             written++;
         }
-        BuilderStatus = $"Wrote {written} channel(s) to the radio.";
-        AppendLog($"Channel builder: wrote {written} channel(s) to the radio.");
+        BuilderStatus = skipped > 0
+            ? $"Wrote {written} channel(s); skipped {skipped} with out-of-range frequency."
+            : $"Wrote {written} channel(s) to the radio.";
+        AppendLog($"Channel builder: wrote {written} channel(s) to the radio" + (skipped > 0 ? $", skipped {skipped} invalid." : "."));
     }
+
+    private static bool FreqInRange(int hz) => hz >= 1_000_000 && hz <= 1_300_000_000;
 
     public void NoteScreenshot(string path) => AppendLog($"Screenshot saved: {path}");
 

@@ -110,7 +110,15 @@ namespace HTCommander
             try { lines = File.ReadAllLines(filename); } catch (Exception) { return null; }
             if ((lines == null) || (lines.Length < 2)) return null;
 
-            Dictionary<string, int> headers = lines[0].Split(',').Select((h, i) => new { h, i }).ToDictionary(x => CoreUtils.RemoveQuotes(x.h.Trim()), x => x.i);
+            // Build the header->index map. Tolerate duplicate column names (first wins)
+            // so a malformed header row returns null cleanly instead of throwing.
+            Dictionary<string, int> headers = new Dictionary<string, int>();
+            string[] headerCells = lines[0].Split(',');
+            for (int hi = 0; hi < headerCells.Length; hi++)
+            {
+                string key = CoreUtils.RemoveQuotes(headerCells[hi].Trim());
+                if (!headers.ContainsKey(key)) headers[key] = hi;
+            }
             List<RadioChannelInfo> importChannels = new List<RadioChannelInfo>();
 
             // File format 1 (CHIRP format)

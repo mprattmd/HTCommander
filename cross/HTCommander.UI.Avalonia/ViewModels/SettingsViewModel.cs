@@ -120,7 +120,7 @@ public sealed class SettingsViewModel : ViewModelBase
             string outId = DataBroker.GetValue<string>(SettingsDevice, "OutputAudioDevice", "") ?? "";
             string inId = DataBroker.GetValue<string>(SettingsDevice, "InputAudioDevice", "") ?? "";
             float vol = DataBroker.GetValue<float>(SettingsDevice, "OutputVolume", 1.0f);
-            float micGain = DataBroker.GetValue<float>(SettingsDevice, "MicGain", 8.0f);
+            float micGain = DataBroker.GetValue<float>(SettingsDevice, "MicGain", 4.0f);   // 4x default (matches MicGainPercent)
 
             dispatcher.Post(() =>
             {
