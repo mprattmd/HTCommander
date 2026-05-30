@@ -519,7 +519,7 @@ public sealed class RadioController : IDisposable
             if (!string.IsNullOrEmpty(name))
             {
                 channelLocations[name] = new AprsChannelLocation(regionBeingRead, full.channel_id);
-                broker.Dispatch(deviceId, "ChannelLocations", channelLocations, store: false);
+                broker.Dispatch(deviceId, "ChannelLocations", channelLocations, store: true);  // store so GetValue can read it (like "Channels")
             }
             // Remember which bank the user's designated APRS channel lives in, so APRS TX
             // targets the right (region, channel) pair — channel ids repeat across banks.
