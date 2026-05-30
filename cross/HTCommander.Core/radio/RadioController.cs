@@ -352,6 +352,7 @@ public sealed class RadioController : IDisposable
         // after each burst would move it off-channel before the peer's reply arrives, so
         // the handshake would never complete. Only the one-shot APRS path switches+restores.
         bool isLocked = lockState != null && lockState.IsLocked;
+        logger?.Debug($"SendPacket: {data.Length}B, channel {channelId}, region {regionId}, locked={isLocked}, free={ChannelFree()}");
         lock (txLock)
         {
             bool needSwitch = !isLocked && rawSettings != null && channelId >= 0 &&
@@ -410,6 +411,7 @@ public sealed class RadioController : IDisposable
         if (txQueue[0].FragId != 0 || ChannelFree())
         {
             txInFlight = true;
+            logger?.Debug($"TX HT_SEND_DATA: frag {txQueue[0].FragId}, {txQueue[0].Frame.Length}B (KickTxLocked)");
             SendBasic(CmdSendData, txQueue[0].Frame);
         }
     }
@@ -420,6 +422,7 @@ public sealed class RadioController : IDisposable
         {
             if (txQueue.Count == 0) { txInFlight = false; return; }
             int err = v.Length > 4 ? v[4] : 0;
+            logger?.Debug($"TX HT_SEND_DATA response: err={err}, queue={txQueue.Count}, free={ChannelFree()}");
 
             if (err == StateIncorrect)
             {
@@ -469,6 +472,7 @@ public sealed class RadioController : IDisposable
                 if (channelFree && !txInFlight && txQueue.Count > 0)
                 {
                     txInFlight = true;
+                    logger?.Debug($"TX HT_SEND_DATA: frag {txQueue[0].FragId}, {txQueue[0].Frame.Length}B (status re-kick)");
                     SendBasic(CmdSendData, txQueue[0].Frame);
                 }
                 else if (txInFlight && status.is_in_rx)
