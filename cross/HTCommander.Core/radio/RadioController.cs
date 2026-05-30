@@ -40,6 +40,7 @@ public sealed class RadioController : IDisposable
     private const int CmdRegisterNotification = 6;
     private const int CmdEventNotification = 9;
     private const int CmdReadSettings = 10;
+    private const int CmdWriteSettings = 11;      // WRITE_SETTINGS (used to set the active channel)
     private const int CmdReadRfChannel = 13;
     private const int CmdWriteRfChannel = 14;     // WRITE_RF_CH
     private const int CmdSetRegion = 60;          // SET_REGION (selects the channel bank/zone)
@@ -65,7 +66,8 @@ public sealed class RadioController : IDisposable
     private readonly object txLock = new object();
     private readonly System.Collections.Generic.List<TxFragment> txQueue = new();
     private bool txInFlight;
-    private int restoreRegionAfterTx = -1;       // bank to return to after a region-switched APRS send
+    private int restoreRegionAfterTx = -1;       // bank to return to after a switched APRS send
+    private int restoreChannelAfterTx = -1;      // active channel to return to after a switched APRS send
     private RadioHtStatus? lastStatus;           // cached for channel-busy gating + default ch/region
     private int lastDeviceChannelCount;          // channels-per-region (from dev info), for RefreshChannels
     private RadioChannelInfo[] channelArray;      // indexed by channel_id; published as "Channels" for APRS/Winlink/BBS lookups
@@ -197,6 +199,7 @@ public sealed class RadioController : IDisposable
         connected = false;
         lastGpsLat = double.NaN;            // re-send an initial SET_POSITION after reconnect
         restoreRegionAfterTx = -1;
+        restoreChannelAfterTx = -1;
         StopPolling();
         transport.OnConnected -= OnConnected;
         transport.ReceivedData -= OnReceivedData;
@@ -329,20 +332,23 @@ public sealed class RadioController : IDisposable
         int currentRegion = lastStatus?.curr_region ?? 0;
         if (regionId < 0) regionId = currentRegion;
 
-        // The HT_SEND_DATA payload carries only the channel id, which the radio applies
-        // to its CURRENTLY-ACTIVE bank — channel ids repeat across banks. So if the
-        // target channel is in another bank, switch the radio there first (and restore
-        // afterwards). Without this, an APRS packet for a channel in bank 1 would key
-        // bank 0's channel at the same id (e.g. the Winlink channel).
-        bool switchedRegion = false;
+        // The radio transmits HT_SEND_DATA on its ACTIVE region+channel (the channel id
+        // in the payload alone doesn't select it). So to send on the APRS channel we set
+        // the active region AND active channel to it first, then restore afterwards.
+        // Without this, the burst keys whatever channel is currently active (e.g. Winlink).
+        int currentChannel = lastStatus?.curr_ch_id ?? ActiveChannelA;
+        bool switched = false;
         lock (txLock)
         {
-            if (regionId != currentRegion)
+            bool needSwitch = rawSettings != null && channelId >= 0 &&
+                              (regionId != currentRegion || channelId != currentChannel);
+            if (needSwitch)
             {
-                if (restoreRegionAfterTx < 0) restoreRegionAfterTx = currentRegion;
-                SetRegion(regionId);
-                switchedRegion = true;
-                logger?.Debug($"APRS TX: switched to bank {regionId} (will restore to {restoreRegionAfterTx}).");
+                if (restoreRegionAfterTx < 0) { restoreRegionAfterTx = currentRegion; restoreChannelAfterTx = currentChannel; }
+                if (regionId != currentRegion) SetRegion(regionId);
+                WriteActiveChannel(channelId);
+                switched = true;
+                logger?.Debug($"APRS TX: locked to bank {regionId} channel {channelId} (restore {restoreRegionAfterTx}/{restoreChannelAfterTx}).");
             }
 
             int fragid = 0;
@@ -356,25 +362,26 @@ public sealed class RadioController : IDisposable
                 txQueue.Add(new TxFragment(frame, isLast, fragid));
                 fragid++;
             }
-            if (!switchedRegion) KickTxLocked();
+            if (!switched) KickTxLocked();
         }
 
-        // Give the radio a moment to settle on the new bank before the first burst.
-        if (switchedRegion)
-            Task.Run(async () => { try { await Task.Delay(600); } catch (Exception) { } lock (txLock) { KickTxLocked(); } });
+        // Let the radio settle on the new channel before the first burst.
+        if (switched)
+            Task.Run(async () => { try { await Task.Delay(800); } catch (Exception) { } lock (txLock) { KickTxLocked(); } });
 
         return data.Length;
     }
 
-    // Restore the operator's bank once a region-switched send has fully drained.
+    // Restore the operator's region+channel once a switched send has fully drained.
     private void MaybeRestoreRegionLocked()
     {
         if (txQueue.Count == 0 && restoreRegionAfterTx >= 0)
         {
-            int r = restoreRegionAfterTx;
-            restoreRegionAfterTx = -1;
+            int r = restoreRegionAfterTx, c = restoreChannelAfterTx;
+            restoreRegionAfterTx = -1; restoreChannelAfterTx = -1;
             SetRegion(r);
-            logger?.Debug($"APRS TX: restored bank {r}.");
+            if (c >= 0) WriteActiveChannel(c);
+            logger?.Debug($"APRS TX: restored bank {r} channel {c}.");
         }
     }
 
@@ -535,6 +542,30 @@ public sealed class RadioController : IDisposable
         SendBasic(CmdSetRegion, new byte[] { (byte)regionId });
     }
 
+    /// <summary>Currently-configured active channel (VFO A), from the last READ_SETTINGS.</summary>
+    private int ActiveChannelA => rawSettings != null && rawSettings.Length > 14
+        ? ((rawSettings[5] & 0xF0) >> 4) + (rawSettings[14] & 0xF0) : -1;
+
+    /// <summary>
+    /// Sets the radio's active channel (VFO A) via WRITE_SETTINGS, changing ONLY the
+    /// channel_a bits and preserving every other setting byte-for-byte. The radio
+    /// transmits HT_SEND_DATA on its active channel, so this is how APRS/Winlink target
+    /// a specific channel. Returns false if settings haven't been read yet.
+    /// </summary>
+    public bool WriteActiveChannel(int channelId)
+    {
+        if (rawSettings == null || rawSettings.Length <= 14 || channelId < 0) return false;
+        int n = rawSettings.Length - 5;
+        byte[] buf = new byte[n];
+        Array.Copy(rawSettings, 5, buf, 0, n);          // settings payload (skip 5-byte header)
+        // channel_a: low nibble in buf[0] high nibble, high nibble in buf[9] high nibble.
+        buf[0] = (byte)((buf[0] & 0x0F) | ((channelId & 0x0F) << 4));
+        buf[9] = (byte)((buf[9] & 0x0F) | (channelId & 0xF0));
+        SendBasic(CmdWriteSettings, buf);
+        SendBasic(CmdReadSettings, null);               // re-read so our cached settings stay accurate
+        return true;
+    }
+
     /// <summary>Re-reads all channels for the current region (after a region switch).</summary>
     public void RefreshChannels()
     {
@@ -545,9 +576,12 @@ public sealed class RadioController : IDisposable
 
     private static string ModulationName(int mod) => mod switch { 0 => "FM", 1 => "AM", 2 => "DMR", _ => "?" };
 
+    private byte[] rawSettings;             // last READ_SETTINGS reply (for WRITE_SETTINGS round-trip)
+
     private void HandleSettings(byte[] v)
     {
         if (v.Length < 25) return;          // reads bit fields through msg[16]
+        rawSettings = (byte[])v.Clone();    // keep for active-channel writes (APRS/Winlink lock)
         try
         {
             int channelA = ((v[5] & 0xF0) >> 4) + (v[14] & 0xF0);
