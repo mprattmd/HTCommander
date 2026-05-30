@@ -56,8 +56,8 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Voice transmit modes (Chat / Speak-TTS / Morse / DTMF) | ❌ | only live-mic PTT; Morse/DTMF engines in Core but unwired |
 | Speech-to-text (Whisper) | ❌ | Windows-only engine; needs portable STT |
 | Text-to-speech | ❌ | System.Speech (Windows-only) |
-| Audio clips (record/name/play/transmit) | ❌ | |
-| WAV recording / playback | ❌ | WavFile in Core, unwired |
+| Audio clips (record/name/play/transmit) | 🟡 | Phase 5a: Clips tab records/names/plays/deletes WAV clips; transmit-clip pending |
+| WAV recording / playback | ✅ | Phase 5a: record mic → WAV, play WAV → speaker (Core WavFile + PortAudio) |
 | SSTV send | ❌ | entire src/SSTV not ported |
 | SSTV receive (auto-detect) | ❌ | |
 | Spectrogram / waterfall | ❌ | |

@@ -64,6 +64,19 @@ public sealed class AprsRoute : ViewModelBase
     }
 }
 
+/// <summary>A recorded audio clip (WAV on disk) for the Clips tab.</summary>
+public sealed class AudioClipInfo : ViewModelBase
+{
+    public string FileName { get; init; } = "";        // leaf name, e.g. clip-2026....wav
+    public string FullPath { get; init; } = "";
+    private string displayName = "";
+    public string DisplayName { get => displayName; set { if (SetField(ref displayName, value)) OnPropertyChanged(nameof(Label)); } }
+    public DateTime Recorded { get; init; }
+    public double Seconds { get; init; }
+    public string Duration => TimeSpan.FromSeconds(Seconds).ToString(@"m\:ss");
+    public string Label => $"{DisplayName}   ({Duration})";
+}
+
 /// <summary>One timestamped point in a station's track history (for map polylines).</summary>
 public readonly struct TrackPoint
 {

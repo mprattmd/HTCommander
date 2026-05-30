@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 using HTCommander;                       // RadioController, RadioHtStatus, RadioDeviceSummary, DataBrokerClient (Core)
 using HTCommander.Core.Abstractions;
 using HTCommander.Core.Abstractions.Audio;
+using HTCommander.Core.Audio;          // WavFileReader / WavFileWriter
 using HTCommander.Platform.Linux;
 using HTCommander.Platform.Linux.Audio;
 using HTCommander.UI.Avalonia.Platform;
@@ -122,6 +123,7 @@ public sealed class MainViewModel : ViewModelBase
         SelectedFolder = Folders.FirstOrDefault();   // Inbox; triggers the first RefreshMails
         LoadIdentity();
         LoadAprsRoutes();
+        LoadClips();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -1783,6 +1785,168 @@ public sealed class MainViewModel : ViewModelBase
         controller.WriteChannel(ch);
         if (slot < Slots.Count) { Slots[slot].Name = "APRS"; Slots[slot].RxMHz = mhz; }
         AppendLog($"Created APRS channel at {mhz.ToString("0.0000", CultureInfo.InvariantCulture)} MHz in slot {slot}.");
+    }
+
+    // ---- Audio clips (record / play / list) --------------------------------
+    public ObservableCollection<AudioClipInfo> Clips { get; } = new();
+
+    private AudioClipInfo? selectedClip;
+    public AudioClipInfo? SelectedClip
+    {
+        get => selectedClip;
+        set { if (SetField(ref selectedClip, value)) { OnPropertyChanged(nameof(HasSelectedClip)); ClipRenameText = value?.DisplayName ?? ""; } }
+    }
+    public bool HasSelectedClip => selectedClip != null;
+
+    private string clipRenameText = "";
+    public string ClipRenameText { get => clipRenameText; set => SetField(ref clipRenameText, value); }
+
+    private bool recordingClip;
+    public bool RecordingClip { get => recordingClip; private set { if (SetField(ref recordingClip, value)) OnPropertyChanged(nameof(RecordButtonText)); } }
+    public string RecordButtonText => recordingClip ? "■ Stop" : "● Record";
+
+    private IAudioCapture? clipMic;
+    private System.IO.MemoryStream? clipRecording;
+    private readonly object clipLock = new object();
+    private IAudioPlayback? clipPlayback;
+
+    private static string ClipsDir
+    {
+        get
+        {
+            string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            if (string.IsNullOrEmpty(baseDir))
+                baseDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+            return System.IO.Path.Combine(baseDir, "HTCommander", "AudioClips");
+        }
+    }
+
+    private void LoadClips()
+    {
+        Clips.Clear();
+        try
+        {
+            if (!System.IO.Directory.Exists(ClipsDir)) return;
+            foreach (var path in System.IO.Directory.GetFiles(ClipsDir, "*.wav").OrderBy(p => p))
+            {
+                double secs = 0;
+                try { using var r = new WavFileReader(path); secs = r.TotalBytes / (double)Math.Max(1, r.Format.SampleRate * r.Format.BlockAlign); }
+                catch (Exception) { }
+                Clips.Add(new AudioClipInfo
+                {
+                    FileName = System.IO.Path.GetFileName(path),
+                    FullPath = path,
+                    DisplayName = System.IO.Path.GetFileNameWithoutExtension(path),
+                    Recorded = System.IO.File.GetLastWriteTime(path),
+                    Seconds = secs,
+                });
+            }
+        }
+        catch (Exception ex) { AppendLog("Load clips failed: " + ex.Message); }
+    }
+
+    /// <summary>Toggles clip recording from the microphone (writes a WAV on stop).</summary>
+    public void ToggleRecordClip()
+    {
+        if (recordingClip) { StopRecordClip(); return; }
+        try
+        {
+            var mic = new PortAudioCapture { Format = AudioFormat.RadioPcm };
+            mic.SetDevice(Settings.InputDeviceId);
+            var buf = new System.IO.MemoryStream();
+            mic.DataAvailable += (b, n) => { lock (clipLock) { buf.Write(b, 0, n); } };
+            if (!mic.Start()) { mic.Dispose(); AppendLog("Clip record failed (no microphone)."); return; }
+            clipMic = mic; clipRecording = buf; RecordingClip = true;
+            AppendLog("Recording audio clip…");
+        }
+        catch (Exception ex) { AppendLog("Clip record failed: " + ex.Message); }
+    }
+
+    private void StopRecordClip()
+    {
+        var mic = clipMic; var buf = clipRecording;
+        clipMic = null; clipRecording = null; RecordingClip = false;
+        if (mic == null || buf == null) return;
+        byte[] pcm;
+        try { mic.Stop(); } catch (Exception) { }
+        try { mic.Dispose(); } catch (Exception) { }
+        lock (clipLock) { pcm = buf.ToArray(); }
+        if (pcm.Length == 0) { AppendLog("Clip was empty (nothing recorded)."); return; }
+        try
+        {
+            System.IO.Directory.CreateDirectory(ClipsDir);
+            string name = $"clip-{DateTime.Now:yyyyMMdd-HHmmss}";
+            string path = System.IO.Path.Combine(ClipsDir, name + ".wav");
+            using (var w = new WavFileWriter(path, AudioFormat.RadioPcm)) w.Write(pcm, 0, pcm.Length);
+            LoadClips();
+            SelectedClip = Clips.FirstOrDefault(c => c.FileName == name + ".wav");
+            AppendLog($"Saved clip {name} ({pcm.Length} bytes).");
+        }
+        catch (Exception ex) { AppendLog("Save clip failed: " + ex.Message); }
+    }
+
+    /// <summary>Plays the selected clip through the configured output device.</summary>
+    public void PlaySelectedClip()
+    {
+        var clip = SelectedClip;
+        if (clip == null) return;
+        StopClipPlayback();
+        Task.Run(() =>
+        {
+            try
+            {
+                using var r = new WavFileReader(clip.FullPath);
+                var data = new byte[r.TotalBytes];
+                int read = r.Read(data, 0, data.Length);
+                var play = new PortAudioPlayback { Format = r.Format, Volume = Settings.OutputVolume };
+                play.SetDevice(Settings.OutputDeviceId);
+                if (!play.Start()) { play.Dispose(); dispatcher.Post(() => AppendLog("Clip playback failed (no output device).")); return; }
+                clipPlayback = play;
+                play.AddSamples(data, 0, read);
+            }
+            catch (Exception ex) { dispatcher.Post(() => AppendLog("Clip playback failed: " + ex.Message)); }
+        });
+    }
+
+    public void StopClipPlayback()
+    {
+        var p = clipPlayback; clipPlayback = null;
+        if (p == null) return;
+        try { p.Stop(); } catch (Exception) { }
+        try { p.Dispose(); } catch (Exception) { }
+    }
+
+    public void DeleteSelectedClip()
+    {
+        var clip = SelectedClip;
+        if (clip == null) return;
+        try { System.IO.File.Delete(clip.FullPath); } catch (Exception ex) { AppendLog("Delete clip failed: " + ex.Message); return; }
+        Clips.Remove(clip);
+        SelectedClip = null;
+        AppendLog("Deleted clip.");
+    }
+
+    /// <summary>Renames the selected clip (renames the underlying WAV file).</summary>
+    public void RenameSelectedClip()
+    {
+        var clip = SelectedClip;
+        if (clip == null) return;
+        string newName = System.IO.Path.GetFileNameWithoutExtension((ClipRenameText ?? "").Trim());
+        if (newName.Length == 0 || newName.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) >= 0)
+        { AppendLog("Invalid clip name."); return; }
+        try
+        {
+            string dest = System.IO.Path.Combine(ClipsDir, newName + ".wav");
+            if (!string.Equals(dest, clip.FullPath, StringComparison.Ordinal))
+            {
+                if (System.IO.File.Exists(dest)) { AppendLog("A clip with that name already exists."); return; }
+                System.IO.File.Move(clip.FullPath, dest);
+            }
+            LoadClips();
+            SelectedClip = Clips.FirstOrDefault(c => c.FileName == newName + ".wav");
+            AppendLog($"Renamed clip to {newName}.");
+        }
+        catch (Exception ex) { AppendLog("Rename clip failed: " + ex.Message); }
     }
 
     private void AppendLog(string line)
