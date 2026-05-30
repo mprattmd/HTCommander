@@ -53,6 +53,7 @@ public partial class MainWindow : Window
         DisconnectButton.Click += (_, _) => Vm?.Disconnect();
         TestToneButton.Click += (_, _) => Vm?.Settings.TestOutput();
         RefreshDevicesButton.Click += (_, _) => Vm?.Settings.RefreshDevices();
+        RefreshSerialButton.Click += (_, _) => Vm?.Settings.RefreshSerialPorts();
 
         // PTT is press-and-hold (fail-safe): transmit only while held; any release
         // or loss of pointer capture un-keys the radio.
@@ -392,6 +393,7 @@ public partial class MainWindow : Window
             case nameof(MainViewModel.LargeMarkers):
             case nameof(MainViewModel.TrackMinutes):
             case nameof(MainViewModel.MyPosition):
+            case nameof(MainViewModel.SerialPosition):
                 RebuildStations();
                 break;
         }
@@ -455,6 +457,21 @@ public partial class MainWindow : Window
             features.Add(me);
         }
 
+        // Serial-GPS fix (distinct green marker).
+        if (Vm.SerialPosition is { IsFixed: true } sp)
+        {
+            var f = new PointFeature(Merc(sp.Longitude, sp.Latitude));
+            f.Styles.Add(new SymbolStyle { SymbolScale = markerScale * 1.2, Fill = new Brush(new Color(40, 170, 80, 255)) });
+            f.Styles.Add(new LabelStyle
+            {
+                Text = "GPS(ser)",
+                ForeColor = new Color(255, 255, 255, 255),
+                BackColor = new Brush(new Color(40, 170, 80, 220)),
+                Offset = new Offset(0, -18)
+            });
+            features.Add(f);
+        }
+
         stationLayer.Features = features;
         stationLayer.DataHasChanged();
         MapControl.RefreshGraphics();
@@ -467,12 +484,14 @@ public partial class MainWindow : Window
         }
     }
 
-    // Center the map on the radio's GPS position.
+    // Center the map on the radio's GPS position (or the serial-GPS fix if there's no radio fix).
     private void CenterOnGps()
     {
-        var mp = Vm?.MyPosition;
-        if (mp is not { Locked: true }) return;
-        try { MapControl.Map.Navigator.CenterOnAndZoomTo(Merc(mp.Longitude, mp.Latitude), 50); mapCentered = true; }
+        MPoint? p = null;
+        if (Vm?.MyPosition is { Locked: true } mp) p = Merc(mp.Longitude, mp.Latitude);
+        else if (Vm?.SerialPosition is { IsFixed: true } sp) p = Merc(sp.Longitude, sp.Latitude);
+        if (p == null) return;
+        try { MapControl.Map.Navigator.CenterOnAndZoomTo(p, 50); mapCentered = true; }
         catch (Exception) { }
     }
 }

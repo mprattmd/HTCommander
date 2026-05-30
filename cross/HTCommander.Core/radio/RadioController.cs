@@ -47,6 +47,7 @@ public sealed class RadioController : IDisposable
     private const int CmdWriteBssSettings = 34;   // WRITE_BSS_SETTINGS (beacon/ident)
     private const int CmdGetHtStatus = 20;
     private const int CmdGetPosition = 76;        // GET_POSITION
+    private const int CmdSetPosition = 32;        // SET_POSITION (push a serial-GPS fix to the radio)
     private const int CmdSendData = 31;          // HT_SEND_DATA
     private const int MaxMtu = 50;               // TNC fragment payload size
     private const int StateIncorrect = 6;        // RadioCommandState.INCORRECT_STATE (channel busy)
@@ -98,6 +99,8 @@ public sealed class RadioController : IDisposable
         broker.Subscribe(deviceId, "TransmitDataFrame", OnTransmitDataFrame);
         // Beacon/ident settings writes dispatched by the UI.
         broker.Subscribe(deviceId, "SetBssSettings", OnSetBssSettings);
+        // Serial-GPS fixes (device 1) are pushed to the radio as SET_POSITION.
+        broker.Subscribe(1, "GpsData", OnGpsData);
         transport.Connect();
     }
 
@@ -110,6 +113,50 @@ public sealed class RadioController : IDisposable
     private void OnSetBssSettings(int dev, string name, object data)
     {
         if (data is RadioBssSettings bss) WriteBssSettings(bss);
+    }
+
+    // Last serial-GPS fix pushed to the radio (distance-throttled, like the WinForms app).
+    private double lastGpsLat = double.NaN, lastGpsLon;
+
+    private void OnGpsData(int dev, string name, object data)
+    {
+        if (!Connected || data is not HTCommander.Gps.GpsData gps || !gps.IsFixed) return;
+        // Throttle: only push when the fix has moved more than ~10 m.
+        if (!double.IsNaN(lastGpsLat) && HaversineMetres(lastGpsLat, lastGpsLon, gps.Latitude, gps.Longitude) < 10.0) return;
+        lastGpsLat = gps.Latitude; lastGpsLon = gps.Longitude;
+        try { SendBasic(CmdSetPosition, EncodeSetPosition(gps)); } catch (Exception) { }
+    }
+
+    public bool Connected => started;
+
+    private static byte[] EncodeSetPosition(HTCommander.Gps.GpsData g)
+    {
+        int latRaw = (int)Math.Round(g.Latitude * 60.0 * 500.0);
+        int lonRaw = (int)Math.Round(g.Longitude * 60.0 * 500.0);
+        int alt = (int)Math.Round(g.Altitude);
+        int speed = (int)Math.Round(g.Speed);
+        int heading = (int)Math.Round(g.Heading);
+        int timeRaw = g.GpsTime > DateTime.MinValue ? (int)new DateTimeOffset(g.GpsTime.ToUniversalTime()).ToUnixTimeSeconds() : 0;
+        return new byte[]
+        {
+            (byte)((latRaw >> 16) & 0xFF), (byte)((latRaw >> 8) & 0xFF), (byte)(latRaw & 0xFF),
+            (byte)((lonRaw >> 16) & 0xFF), (byte)((lonRaw >> 8) & 0xFF), (byte)(lonRaw & 0xFF),
+            (byte)((alt >> 8) & 0xFF), (byte)(alt & 0xFF),
+            (byte)((speed >> 8) & 0xFF), (byte)(speed & 0xFF),
+            (byte)((heading >> 8) & 0xFF), (byte)(heading & 0xFF),
+            (byte)((timeRaw >> 24) & 0xFF), (byte)((timeRaw >> 16) & 0xFF), (byte)((timeRaw >> 8) & 0xFF), (byte)(timeRaw & 0xFF),
+            0, 0,
+        };
+    }
+
+    private static double HaversineMetres(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371000.0;
+        double dLat = (lat2 - lat1) * Math.PI / 180.0;
+        double dLon = (lon2 - lon1) * Math.PI / 180.0;
+        double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                   Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
     /// <summary>Disconnects and unsubscribes.</summary>

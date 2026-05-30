@@ -8,4 +8,9 @@
     <Nullable>annotations</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Cross-platform serial port access for the GPS NMEA reader (libc termios on Linux). -->
+    <PackageReference Include="System.IO.Ports" Version="9.0.0" />
+  </ItemGroup>
+
 </Project>
