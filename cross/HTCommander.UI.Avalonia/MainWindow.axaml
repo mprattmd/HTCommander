@@ -241,8 +241,19 @@
             </TabItem>
             <TabItem Header="Map">
                 <Grid RowDefinitions="Auto,*">
-                    <TextBlock Grid.Row="0" Margin="8,6" FontWeight="Bold"
-                               Text="{Binding Stations.Count, StringFormat='APRS map — stations ({0})'}"/>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="8,6">
+                        <TextBlock FontWeight="Bold" VerticalAlignment="Center"
+                                   Text="{Binding Stations.Count, StringFormat='APRS map — stations ({0})'}"/>
+                        <CheckBox Content="Tracks" IsChecked="{Binding ShowTracks}" VerticalAlignment="Center"/>
+                        <CheckBox Content="Large markers" IsChecked="{Binding LargeMarkers}" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="Last" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <ComboBox MinWidth="70" ItemsSource="{Binding TrackMinuteOptions}" SelectedItem="{Binding TrackMinutes}"
+                                      ToolTip.Tip="Show only points from the last N minutes (0 = all)"/>
+                            <TextBlock Text="min" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                        <Button x:Name="CenterGpsButton" Content="Center to GPS" IsEnabled="{Binding CanCenterGps}"/>
+                    </StackPanel>
                     <mapsui:MapControl Grid.Row="1" x:Name="MapControl"/>
                 </Grid>
             </TabItem>
@@ -280,6 +291,20 @@
                             <TextBlock Grid.Row="6" Text="TX time limit"/> <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding RadioSettings.TxTimeLimit}"/>
                         </Grid>
                         <TextBlock Text="(waiting for radio…)" Foreground="#888" IsVisible="{Binding !HasRadioSettings}"/>
+
+                        <!-- GPS position (from the radio's GET_POSITION) -->
+                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+                            <TextBlock Text="GPS position" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                            <Button x:Name="RequestPositionButton" Content="Request fresh" IsEnabled="{Binding CanRequestPosition}"/>
+                        </StackPanel>
+                        <Grid IsVisible="{Binding HasMyPosition}" ColumnDefinitions="160,*"
+                              RowDefinitions="Auto,Auto,Auto" RowSpacing="4" ColumnSpacing="12">
+                            <TextBlock Grid.Row="0" Text="Coordinates"/> <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding MyPosition.PositionText}"/>
+                            <TextBlock Grid.Row="1" Text="Details"/>     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding MyPosition.DetailText}"/>
+                            <TextBlock Grid.Row="2" Text="Fix time"/>    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MyPosition.TimeText}"/>
+                        </Grid>
+                        <TextBlock Text="(no GPS fix — request fresh, or enable GPS on the radio)" Foreground="#888"
+                                   IsVisible="{Binding !HasMyPosition}"/>
 
                         <!-- Beacon (position) settings — written to the radio's BSS settings -->
                         <TextBlock Text="Beacon (position)" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>

@@ -84,11 +84,11 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Feature | Status | Notes |
 |---|---|---|
 | Plot received station positions (OSM) | ✅ | Mapsui; auto-center once |
-| Per-callsign track polylines | ❌ | points only |
-| Time filter (last N min) / show-tracks toggle | ❌ | |
-| Large/small marker toggle | ❌ | |
+| Per-callsign track polylines | ✅ | Phase 4: timestamped track history → LineString per callsign (Mapsui.Nts) |
+| Time filter (last N min) / show-tracks toggle | ✅ | Phase 4: Tracks toggle + last-N-min filter on the Map toolbar |
+| Large/small marker toggle | ✅ | Phase 4: Large markers toggle |
 | Offline mode + tile cache (prefetch/clear) | ❌ | online OSM only |
-| Radio-GPS + serial-GPS markers, "center to GPS" | ❌ | |
+| Radio-GPS + serial-GPS markers, "center to GPS" | 🟡 | Phase 4: radio-GPS marker + Center-to-GPS; serial-GPS marker pending the serial backend (4b) |
 | Voice-channel markers; ADS-B airplane markers | ❌ | |
 | Persisted zoom/center; zoom buttons | 🟡 | built-in pan/zoom; not persisted |
 
@@ -154,11 +154,11 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 ## GPS
 | Feature | Status | Notes |
 |---|---|---|
-| GPS serial → position to radio | 🟡 | Core plumbing; not wired to UI/settings |
-| Radio position details (lat/lon/alt/speed/heading) | 🟡 | only "Locked/No lock" label |
-| Request fresh position | ❌ | |
-| Serial-GPS live details window | ❌ | |
-| GPS source config (port/baud) | ❌ | |
+| GPS serial → position to radio | 🟡 | Core plumbing; serial reader/config = Phase 4b (needs a Linux serial backend) |
+| Radio position details (lat/lon/alt/speed/heading) | ⏳ | Phase 4: GET_POSITION parsed → details shown in Config; needs a GPS fix on the radio to verify |
+| Request fresh position | ✅ | Phase 4: "Request fresh" button (GET_POSITION) |
+| Serial-GPS live details window | ❌ | Phase 4b (serial backend) |
+| GPS source config (port/baud) | ❌ | Phase 4b (serial backend) |
 
 ## Packaging / platforms
 | Feature | Status | Notes |

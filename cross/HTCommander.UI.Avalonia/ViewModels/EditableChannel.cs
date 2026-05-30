@@ -64,6 +64,15 @@ public sealed class AprsRoute : ViewModelBase
     }
 }
 
+/// <summary>One timestamped point in a station's track history (for map polylines).</summary>
+public readonly struct TrackPoint
+{
+    public TrackPoint(double lat, double lon, DateTime time) { Latitude = lat; Longitude = lon; Time = time; }
+    public double Latitude { get; }
+    public double Longitude { get; }
+    public DateTime Time { get; }
+}
+
 /// <summary>A mailbox folder row with live total/unread counts for the Mail folder list.</summary>
 public sealed class MailFolder : ViewModelBase
 {
