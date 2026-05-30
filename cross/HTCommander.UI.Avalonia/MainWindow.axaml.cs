@@ -102,6 +102,13 @@ public partial class MainWindow : Window
         AddRouteButton.Click += (_, _) => Vm?.AddOrUpdateRoute();
         RemoveRouteButton.Click += (_, _) => Vm?.RemoveSelectedRoute();
 
+        // Audio clips
+        ClipRecordButton.Click += (_, _) => Vm?.ToggleRecordClip();
+        ClipPlayButton.Click += (_, _) => Vm?.PlaySelectedClip();
+        ClipStopButton.Click += (_, _) => Vm?.StopClipPlayback();
+        ClipRenameButton.Click += (_, _) => Vm?.RenameSelectedClip();
+        ClipDeleteButton.Click += (_, _) => Vm?.DeleteSelectedClip();
+
         // Screenshot (button + F12)
         ScreenshotButton.Click += (_, _) => SaveScreenshot();
 
