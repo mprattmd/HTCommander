@@ -70,6 +70,7 @@ public sealed class SettingsViewModel : ViewModelBase
         {
             if (!SetField(ref selectedGpsPort, value) || loading || value == null) return;
             DataBroker.Dispatch(SettingsDevice, "GpsSerialPort", value, store: true);   // GpsSerialHandler reacts to this
+            FlashSaved();
         }
     }
 
@@ -80,7 +81,7 @@ public sealed class SettingsViewModel : ViewModelBase
         set
         {
             if (!SetField(ref selectedGpsBaud, value) || loading) return;
-            DataBroker.Dispatch(SettingsDevice, "GpsBaudRate", value, store: true);
+            DataBroker.Dispatch(SettingsDevice, "GpsBaudRate", value, store: true); FlashSaved();
         }
     }
 
@@ -113,7 +114,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public string AprsFiApiKey
     {
         get => aprsFiApiKey;
-        set { if (SetField(ref aprsFiApiKey, value) && !loading) DataBroker.Dispatch(SettingsDevice, "AprsFiApiKey", value, store: true); }
+        set { if (SetField(ref aprsFiApiKey, value) && !loading) { DataBroker.Dispatch(SettingsDevice, "AprsFiApiKey", value, store: true); FlashSaved(); } }
     }
 
     private AudioDevice? selectedOutput;
@@ -125,6 +126,7 @@ public sealed class SettingsViewModel : ViewModelBase
             if (!SetField(ref selectedOutput, value) || loading || value == null) return;
             DataBroker.Dispatch(SettingsDevice, "OutputAudioDevice", value.Id, store: true);
             DataBroker.Dispatch(SettingsDevice, "SetOutputAudioDevice", value.Id, store: false);
+            FlashSaved();
         }
     }
 
@@ -137,6 +139,7 @@ public sealed class SettingsViewModel : ViewModelBase
             if (!SetField(ref selectedInput, value) || loading || value == null) return;
             DataBroker.Dispatch(SettingsDevice, "InputAudioDevice", value.Id, store: true);
             DataBroker.Dispatch(SettingsDevice, "SetInputAudioDevice", value.Id, store: false);
+            FlashSaved();
         }
     }
 
@@ -147,7 +150,7 @@ public sealed class SettingsViewModel : ViewModelBase
         set
         {
             if (!SetField(ref outputVolumePercent, value) || loading) return;
-            DataBroker.Dispatch(SettingsDevice, "OutputVolume", value / 100.0f, store: true);
+            DataBroker.Dispatch(SettingsDevice, "OutputVolume", value / 100.0f, store: true); FlashSaved();
         }
     }
 
@@ -158,7 +161,7 @@ public sealed class SettingsViewModel : ViewModelBase
         set
         {
             if (!SetField(ref micGainPercent, value) || loading) return;
-            DataBroker.Dispatch(SettingsDevice, "MicGain", value / 100.0f, store: true);
+            DataBroker.Dispatch(SettingsDevice, "MicGain", value / 100.0f, store: true); FlashSaved();
         }
     }
 
@@ -174,6 +177,23 @@ public sealed class SettingsViewModel : ViewModelBase
 
     private string testStatus = "";
     public string TestStatus { get => testStatus; private set => SetField(ref testStatus, value); }
+
+    // Settings persist automatically on change; flash a brief "saved" confirmation so
+    // users aren't left wondering whether there's a Save button.
+    private int savedSeq;
+    private string savedStatus = "";
+    public string SavedStatus { get => savedStatus; private set => SetField(ref savedStatus, value); }
+    private void FlashSaved()
+    {
+        if (loading) return;
+        int seq = ++savedSeq;
+        SavedStatus = "✓ Saved";
+        Task.Run(async () =>
+        {
+            try { await Task.Delay(1800); } catch { }
+            dispatcher.Post(() => { if (seq == savedSeq) SavedStatus = ""; });
+        });
+    }
 
     /// <summary>Re-enumerates devices and restores the persisted selections.</summary>
     public void RefreshDevices()

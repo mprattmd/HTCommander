@@ -1026,6 +1026,10 @@
                 <ScrollViewer>
                     <StackPanel Margin="16" Spacing="12" DataContext="{Binding Settings}"
                                 x:DataType="vm:SettingsViewModel" MaxWidth="520" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Classes="Hint" Text="Settings are saved automatically — no Save button needed." VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding SavedStatus}" Foreground="#3DD68C" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <TextBlock Text="Audio" FontWeight="Bold" FontSize="16"/>
 
                         <StackPanel Spacing="4">
