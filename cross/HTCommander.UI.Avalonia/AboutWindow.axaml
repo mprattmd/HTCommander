@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="HTCommander.UI.Avalonia.AboutWindow"
+        Width="480" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface0Brush}"
+        Icon="/Assets/HTCommander.ico"
+        Title="About HTCommander">
+    <StackPanel Margin="24" Spacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="14">
+            <Image Source="/Assets/Radio2.png" Height="44" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="HTCommander — Linux Edition" FontWeight="Bold" FontSize="18"/>
+                <TextBlock x:Name="VersionText" Foreground="{DynamicResource TextMutedBrush}"/>
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock TextWrapping="Wrap"
+                   Text="A cross-platform (Avalonia / .NET 9) port of Ylian Saint-Hilaire's HTCommander, controlling Benshi-protocol HTs over Bluetooth. Licensed under Apache 2.0."/>
+
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
+                   Text="Credits — original application by Ylian Saint-Hilaire. Bluetooth command decoding by the BenLink project (Kyle Husmann, KC3SLD). APRS parsing by aprs-parser (Lee, K0QED). Map data © OpenStreetMap contributors."/>
+
+        <StackPanel Orientation="Horizontal" Spacing="16">
+            <TextBlock>
+                <Run Text="Source: "/>
+                <TextBlock Text="github.com/mprattmd/HTCommander" Foreground="{DynamicResource InfoBrush}"/>
+            </TextBlock>
+        </StackPanel>
+
+        <Button x:Name="CloseButton" Content="Close" HorizontalAlignment="Right" Padding="16,4"/>
+    </StackPanel>
+</Window>

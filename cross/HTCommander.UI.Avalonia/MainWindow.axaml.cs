@@ -110,6 +110,9 @@ public partial class MainWindow : Window
         ClipDeleteButton.Click += (_, _) => Vm?.DeleteSelectedClip();
         VoiceModePlayButton.Click += (_, _) => Vm?.PlayVoiceMode();
 
+        // About dialog
+        AboutButton.Click += (_, _) => new AboutWindow().ShowDialog(this);
+
         // Screenshot (button + F12)
         ScreenshotButton.Click += (_, _) => SaveScreenshot();
 

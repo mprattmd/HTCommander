@@ -210,15 +210,21 @@ public sealed class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
+            OnPropertyChanged(nameof(WindowTitle));
         }
     }
+
+    /// <summary>Window title — shows the operator callsign once set (dynamic title bar).</summary>
+    public string WindowTitle => HasValidCallsign
+        ? $"HTCommander — {MyCallsign}{(MyStationId > 0 ? $"-{MyStationId}" : "")}"
+        : "HTCommander";
 
     public Array StationIdOptions { get; } = new[] { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
     private int myStationId;
     public int MyStationId
     {
         get => myStationId;
-        set { if (SetField(ref myStationId, value) && !loadingIdentity) DataBroker.Dispatch(0, "StationId", value, store: true); }
+        set { if (SetField(ref myStationId, value)) { OnPropertyChanged(nameof(WindowTitle)); if (!loadingIdentity) DataBroker.Dispatch(0, "StationId", value, store: true); } }
     }
 
     private bool allowTransmit;

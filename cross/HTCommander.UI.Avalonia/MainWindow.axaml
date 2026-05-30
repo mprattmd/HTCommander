@@ -13,7 +13,7 @@
         Width="1100" Height="720"
         Icon="/Assets/HTCommander.ico"
         Background="{DynamicResource Surface0Brush}"
-        Title="HTCommander">
+        Title="{Binding WindowTitle}">
     <DockPanel LastChildFill="True">
 
         <!-- Connection bar -->
@@ -69,8 +69,11 @@
                     <TextBlock Foreground="{DynamicResource InfoBrush}" Text="🔊 Voice RX" IsVisible="{Binding VoiceRxActive}"/>
                     <TextBlock Foreground="{DynamicResource DangerActiveBrush}" FontWeight="Bold" Text="● TRANSMITTING" IsVisible="{Binding Transmitting}"/>
                 </StackPanel>
-                <Button Grid.Column="1" x:Name="ScreenshotButton" Content="📷 Screenshot" Padding="10,3"
-                        ToolTip.Tip="Save a PNG of the window to ~/htcommander-screenshot.png"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="AboutButton" Content="About" Padding="10,3"/>
+                    <Button x:Name="ScreenshotButton" Content="📷 Screenshot" Padding="10,3"
+                            ToolTip.Tip="Save a PNG of the window to ~/htcommander-screenshot.png"/>
+                </StackPanel>
             </Grid>
         </Border>
 

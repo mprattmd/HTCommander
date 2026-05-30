@@ -41,9 +41,9 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | AGWPE server (enable/port) | ❌ | not ported (incomplete upstream) |
 | GPS source config (serial port + baud) | ❌ | |
 | Dump1090 ADS-B source (URL/test) | ❌ | |
-| About dialog | ❌ | |
+| About dialog | ✅ | Phase 6: About window (version + credits + license) from the status bar |
 | Check-for-updates / self-update | ❌ | SelfUpdateForm |
-| Dynamic title bar (callsign/station) | ❌ | static title |
+| Dynamic title bar (callsign/station) | ✅ | Phase 6: title shows the operator callsign-SSID once set |
 | Detached tabs / detached radio window | ❌ | DetachedTabForm, RadioForm |
 | Multi-instance ("launch another") | ❌ | |
 | Screenshot button/F12 | ✅ (extra) | not in Windows |
