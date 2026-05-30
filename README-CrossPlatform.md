@@ -25,7 +25,8 @@ today (and macOS/Windows later).
 
 > 📡 **An amateur radio license is required to transmit.** Transmitting keys the
 > radio on the air under your callsign. In this app, transmit is always a
-> deliberate, press-and-hold action (see [Transmitting & safety](#transmitting--safety)).
+> deliberate, press-and-hold action, gated on a configured callsign and an
+> **Allow-Transmit** switch (see [Transmitting & safety](#transmitting--safety)).
 > No license? [Start here](https://www.arrl.org/getting-licensed).
 
 ---
@@ -38,12 +39,13 @@ today (and macOS/Windows later).
 | Radio status: battery, channel, RSSI, region, GPS | ✅ |
 | Live **voice** RX/TX over Bluetooth audio (SBC), press-and-hold PTT, AGC | ✅ |
 | **APRS** receive + decode, station list, **map** (OpenStreetMap) | ✅ |
-| Packet send/receive, **Terminal** (connected & unproto) | ✅ |
+| Packet **send** + **Terminal** (connectionless / UI-frame) | ✅ |
 | **Channel builder**: import CSV (CHIRP / RepeaterBook / native), edit, export, drag-and-drop, write to radio | ✅ |
-| **Contacts** / address book | ✅ |
-| Packet capture / decode | ✅ |
+| **Contacts** / address book with connection setup | ✅ |
+| Packet capture (live list) | 🟡 one-line summary only; full decode in progress |
 | **Winlink mail**: local mailboxes, compose, store (SQLite); internet CMS sync | ✅ / ⏳ needs a reachable CMS to fully exercise |
-| **BBS** / mail drop (connected-mode AX.25) | ✅ / ⏳ needs a station to connect over the air |
+| **BBS** host / mail drop (connected-mode AX.25) | ⏳ wired; needs a station to connect over the air |
+| **Station identity**: callsign, Station ID, Allow-Transmit, Winlink password | ✅ |
 | Settings (audio devices, mic gain, volume) | ✅ |
 
 Polished dark UI with the radio image/status panel, themed tabs, and an editable
@@ -119,15 +121,42 @@ re-pair — a stale bond is the usual cause.
   - Edit cells inline (name, RX/TX MHz, mode, power, tone, scan).
   - **Export CSV…**, **Load from radio**, **Add/Remove row**.
   - **⬆ Write to radio** writes every row to the radio's memory channels.
-- **Contacts** — your APRS/terminal address book.
-- **Terminal** — packet conversations with other stations or a BBS.
-- **Packets** — live decoded AX.25/APRS frames.
+- **Contacts** — your APRS/terminal address book, with connection setup (channel /
+  path / AX.25 destination / auth).
+- **Terminal** — send connectionless (UI-frame) packets to other stations.
+  (Connected-mode AX.25 sessions are in progress — see [Roadmap](#whats-next).)
+- **Packets** — a live list of received AX.25/APRS frames (one-line summaries;
+  per-packet decode detail is in progress).
 - **Mail** — Winlink mailboxes (Inbox/Outbox/Draft/Sent/Archive/Trash). Compose to
   the Outbox, then **Sync (internet)** to exchange with a Winlink CMS. Mail is
   stored locally in `~/.config/HTCommander/mail.db`.
 - **BBS** — host a connected-mode BBS / Winlink mail drop on the current channel;
   watch live traffic and the stations-heard table.
-- **Settings** — audio input/output devices, mic gain, output volume.
+- **Settings** — station identity (**callsign**, **Station ID**, **Allow-Transmit**,
+  **Winlink password**) plus audio input/output devices, mic gain, and output volume.
+
+---
+
+## What's next
+
+This port is actively closing the gap with the original Windows app. See
+[docs/ROADMAP.md](docs/ROADMAP.md) for the plan and [docs/PARITY.md](docs/PARITY.md)
+for a feature-by-feature status table. Phase 0 (station identity & TX gating) is
+**done**; phases 1–4 are in progress:
+
+- **APRS messaging & beacon** — send APRS messages, ACK/REJ tracking, beacon /
+  position transmit + ident settings, per-packet detail view.
+- **Mail usability** — attachments, reply / reply-all / forward, save as draft,
+  move between folders, Winlink-over-radio sync.
+- **Terminal connected-mode** — AX.25 sessions + connect dialog, plus full packet
+  capture decode and CSV export.
+- **GPS & map richness** — GPS source config + position details, per-callsign track
+  polylines, time filters, and GPS markers.
+
+**Not yet ported / planned later** (deferred): speech-to-text & text-to-speech,
+SSTV, soft-modem / waterfall, torrent file exchange, AGWPE server, self-update, and
+a macOS build. These are present in the original Windows app but are **not available**
+in the Linux build today.
 
 ---
 
@@ -135,6 +164,8 @@ re-pair — a stale bond is the usual cause.
 
 Transmitting is **operator-initiated and fail-safe**:
 
+- **Transmit is gated** on a configured **callsign** and an **Allow-Transmit**
+  switch in **Settings** — with either unset, the app will not key the radio.
 - **PTT is press-and-hold** — the radio transmits only while you hold the button,
   and un-keys the moment you release or the pointer leaves the button.
 - The app never transmits on its own.
