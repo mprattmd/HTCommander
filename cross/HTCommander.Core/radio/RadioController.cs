@@ -769,8 +769,9 @@ public sealed class RadioController : IDisposable
     {
         TncDataFragment fragment;
         try { fragment = new TncDataFragment(v); }
-        catch (Exception) { return; }
+        catch (Exception) { logger?.Debug($"RX data frame: undecodable ({v.Length}B raw)"); return; }
         fragment.encoding = TncDataFragment.FragmentEncodingType.HardwareAfsk1200;
+        logger?.Debug($"RX data frame: frag {fragment.fragment_id}, {v.Length}B, final={fragment.final_fragment}");
         AccumulateFragment(fragment);
     }
 
