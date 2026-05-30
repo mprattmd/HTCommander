@@ -41,6 +41,7 @@ public sealed class RadioController : IDisposable
     private const int CmdReadSettings = 10;
     private const int CmdReadRfChannel = 13;
     private const int CmdWriteRfChannel = 14;     // WRITE_RF_CH
+    private const int CmdSetRegion = 60;          // SET_REGION (selects the channel bank/zone)
     private const int CmdReadBssSettings = 33;
     private const int CmdGetHtStatus = 20;
     private const int CmdSendData = 31;          // HT_SEND_DATA
@@ -60,6 +61,7 @@ public sealed class RadioController : IDisposable
     private readonly System.Collections.Generic.List<TxFragment> txQueue = new();
     private bool txInFlight;
     private RadioHtStatus? lastStatus;           // cached for channel-busy gating + default ch/region
+    private int lastDeviceChannelCount;          // channels-per-region (from dev info), for RefreshChannels
 
     private sealed class TxFragment
     {
@@ -270,12 +272,15 @@ public sealed class RadioController : IDisposable
     {
         if (v.Length < 15) return;
         int channelCount = v[13];
+        lastDeviceChannelCount = channelCount;
+        int regionCount = ((v[11] & 0x03) << 4) + ((v[12] & 0xF0) >> 4);   // banks/zones
         var info = new RadioDeviceSummary(
             VendorId: v[5],
             ProductId: (v[6] << 8) | v[7],
             HardwareVersion: v[8],
             SoftwareVersion: (v[9] << 8) | v[10],
-            ChannelCount: channelCount);
+            ChannelCount: channelCount,
+            RegionCount: regionCount);
         broker.Dispatch(deviceId, "DeviceInfo", info, store: false);
 
         // Read each channel now that we know how many there are.
@@ -319,6 +324,24 @@ public sealed class RadioController : IDisposable
         if (channel == null) return;
         SendBasic(CmdWriteRfChannel, channel.ToByteArray());
         SendBasic(CmdReadRfChannel, new byte[] { (byte)channel.channel_id });
+    }
+
+    /// <summary>
+    /// Selects the active region (channel bank/zone). WRITE_RF_CH / READ_RF_CH then
+    /// operate on that bank's channels. Mirrors the WinForms SET_REGION behavior.
+    /// </summary>
+    public void SetRegion(int regionId)
+    {
+        if (regionId < 0) return;
+        SendBasic(CmdSetRegion, new byte[] { (byte)regionId });
+    }
+
+    /// <summary>Re-reads all channels for the current region (after a region switch).</summary>
+    public void RefreshChannels()
+    {
+        int count = lastDeviceChannelCount > 0 ? lastDeviceChannelCount : 32;
+        for (int ch = 0; ch < count && ch < 256; ch++)
+            SendBasic(CmdReadRfChannel, new byte[] { (byte)ch });
     }
 
     private static string ModulationName(int mod) => mod switch { 0 => "FM", 1 => "AM", 2 => "DMR", _ => "?" };
@@ -452,7 +475,8 @@ public sealed class RadioController : IDisposable
 
 /// <summary>Device identity/capabilities decoded from a GET_DEV_INFO reply.</summary>
 public sealed record RadioDeviceSummary(
-    int VendorId, int ProductId, int HardwareVersion, int SoftwareVersion, int ChannelCount);
+    int VendorId, int ProductId, int HardwareVersion, int SoftwareVersion, int ChannelCount,
+    int RegionCount = 1);
 
 /// <summary>A single memory channel decoded from a READ_RF_CH reply.</summary>
 public sealed record RadioChannelSummary(

@@ -493,8 +493,18 @@ public sealed class MainViewModel : ViewModelBase
         GpsText = s.is_gps_locked ? "Locked" : "No lock";
     }
 
-    private void ApplyDeviceInfo(RadioDeviceSummary d) =>
-        DeviceInfoText = $"Vendor {d.VendorId} · Product {d.ProductId} · HW v{d.HardwareVersion} · FW v{d.SoftwareVersion} · {d.ChannelCount} ch";
+    private void ApplyDeviceInfo(RadioDeviceSummary d)
+    {
+        DeviceInfoText = $"Vendor {d.VendorId} · Product {d.ProductId} · HW v{d.HardwareVersion} · FW v{d.SoftwareVersion} · {d.ChannelCount} ch · {d.RegionCount} bank(s)";
+        RegionCount = Math.Max(1, d.RegionCount);
+        loadingBanks = true;
+        Banks.Clear();
+        for (int i = 0; i < RegionCount; i++) Banks.Add(i);
+        if (selectedBank >= RegionCount) selectedBank = 0;
+        else selectedBank = Math.Max(0, Region);   // default to the radio's current bank
+        loadingBanks = false;
+        OnPropertyChanged(nameof(SelectedBank));
+    }
 
     private void ApplyChannel(RadioChannelSummary c)
     {
@@ -513,6 +523,31 @@ public sealed class MainViewModel : ViewModelBase
     public string BuilderStatus { get => builderStatus; private set => SetField(ref builderStatus, value); }
 
     public bool CanWriteChannels => Connected && controller != null;
+
+    // Channel banks (radio "regions"/zones). Imported channels are written into the
+    // selected bank; switching banks re-reads that bank's channels from the radio.
+    public ObservableCollection<int> Banks { get; } = new();
+    private int regionCount = 1;
+    public int RegionCount { get => regionCount; private set { if (SetField(ref regionCount, value)) OnPropertyChanged(nameof(HasBanks)); } }
+    public bool HasBanks => regionCount > 1;
+
+    private bool loadingBanks;
+    private int selectedBank;
+    public int SelectedBank
+    {
+        get => selectedBank;
+        set
+        {
+            if (!SetField(ref selectedBank, value) || loadingBanks) return;
+            if (controller != null && Connected && value >= 0)
+            {
+                controller.SetRegion(value);          // switch the radio to this bank
+                radioChannels.Clear();
+                controller.RefreshChannels();         // re-read this bank's channels
+                BuilderStatus = $"Switched to bank {value}; reading its channels…";
+            }
+        }
+    }
 
     /// <summary>Copy the channels last read from the radio into the editable builder.</summary>
     public void LoadChannelsFromRadio()
@@ -569,6 +604,7 @@ public sealed class MainViewModel : ViewModelBase
     public void WriteChannelsToRadio()
     {
         if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
+        if (HasBanks) controller.SetRegion(SelectedBank);   // ensure writes land in the chosen bank
         int written = 0, skipped = 0;
         for (int i = 0; i < BuilderChannels.Count; i++)
         {
@@ -580,10 +616,11 @@ public sealed class MainViewModel : ViewModelBase
             controller.WriteChannel(info);
             written++;
         }
+        string where = HasBanks ? $" to bank {SelectedBank}" : "";
         BuilderStatus = skipped > 0
-            ? $"Wrote {written} channel(s); skipped {skipped} with out-of-range frequency."
-            : $"Wrote {written} channel(s) to the radio.";
-        AppendLog($"Channel builder: wrote {written} channel(s) to the radio" + (skipped > 0 ? $", skipped {skipped} invalid." : "."));
+            ? $"Wrote {written} channel(s){where}; skipped {skipped} with out-of-range frequency."
+            : $"Wrote {written} channel(s){where}.";
+        AppendLog($"Channel builder: wrote {written} channel(s){where}" + (skipped > 0 ? $", skipped {skipped} invalid." : "."));
     }
 
     private static bool FreqInRange(int hz) => hz >= 1_000_000 && hz <= 1_300_000_000;
