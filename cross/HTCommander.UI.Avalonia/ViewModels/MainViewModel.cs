@@ -125,6 +125,7 @@ public sealed class MainViewModel : ViewModelBase
         LoadAprsRoutes();
         LoadClips();
         LoadSoftModemMode();
+        LoadFixedPosition();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -153,6 +154,7 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanTransmit));
                 OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
+            OnPropertyChanged(nameof(CanBeacon));
                 OnPropertyChanged(nameof(CanWriteChannels));
                 OnPropertyChanged(nameof(CanWriteBss));
                 OnPropertyChanged(nameof(CanCreateAprsChannel));
@@ -162,6 +164,9 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanSendSession));
                 OnPropertyChanged(nameof(CanRequestPosition));
                 OnPropertyChanged(nameof(CanCenterGps));
+                OnPropertyChanged(nameof(CanLoadAllBanks));
+                OnPropertyChanged(nameof(CanBeacon));
+                UpdateAutoBeaconTimer();   // start/stop the app auto-beacon with the connection
             }
         }
     }
@@ -211,6 +216,7 @@ public sealed class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
+            OnPropertyChanged(nameof(CanBeacon));
             OnPropertyChanged(nameof(WindowTitle));
         }
     }
@@ -242,6 +248,7 @@ public sealed class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
+            OnPropertyChanged(nameof(CanBeacon));
         }
     }
 
@@ -520,6 +527,14 @@ public sealed class MainViewModel : ViewModelBase
     public string EditChannel { get => editChannel; set => SetField(ref editChannel, value); }
     private string editAprsRoute = "";
     public string EditAprsRoute { get => editAprsRoute; set => SetField(ref editAprsRoute, value); }
+
+    // Picking one of the saved APRS routes (Config tab) fills the contact's path.
+    private AprsRoute? selectedContactRoute;
+    public AprsRoute? SelectedContactRoute
+    {
+        get => selectedContactRoute;
+        set { if (SetField(ref selectedContactRoute, value) && value != null) EditAprsRoute = value.Path; }
+    }
     private string editAx25Destination = "";
     public string EditAx25Destination { get => editAx25Destination; set => SetField(ref editAx25Destination, value); }
     private bool editWaitForConnection;
@@ -634,6 +649,8 @@ public sealed class MainViewModel : ViewModelBase
             Status = $"Connected to {radio.Name}";
             AppendLog("Connected — querying device info, status and battery.");
             StartVoiceRx(radio.Address);   // best-effort: hear the radio on the PC speaker
+            // If a fixed position is configured, re-apply it once the connect settles.
+            _ = Task.Run(async () => { await Task.Delay(1500); dispatcher.Post(PushFixedPositionIfSet); });
         });
 
         transport.ReceivedData += (_, _, value) => dispatcher.Post(() =>
@@ -775,6 +792,7 @@ public sealed class MainViewModel : ViewModelBase
     private void OnDisconnected(string reason)
     {
         StopVoiceRx();
+        try { autoBeaconTimer?.Stop(); autoBeaconTimer?.Dispose(); autoBeaconTimer = null; } catch (Exception) { }
         CleanupSession();
         SessionState = "Disconnected";
         try { controller?.Dispose(); } catch (Exception) { }
@@ -860,7 +878,7 @@ public sealed class MainViewModel : ViewModelBase
     // selected bank; switching banks re-reads that bank's channels from the radio.
     public ObservableCollection<int> Banks { get; } = new();
     private int regionCount = 1;
-    public int RegionCount { get => regionCount; private set { if (SetField(ref regionCount, value)) OnPropertyChanged(nameof(HasBanks)); } }
+    public int RegionCount { get => regionCount; private set { if (SetField(ref regionCount, value)) { OnPropertyChanged(nameof(HasBanks)); OnPropertyChanged(nameof(CanLoadAllBanks)); } } }
     public bool HasBanks => regionCount > 1;
 
     private bool loadingBanks;
@@ -880,6 +898,47 @@ public sealed class MainViewModel : ViewModelBase
                 BuilderStatus = $"Switched to bank {value}; reading its channels…";
             }
         }
+    }
+
+    private bool sweepingBanks;
+    /// <summary>True while the radio has more than one bank (enables "Load all banks").</summary>
+    public bool CanLoadAllBanks => HasBanks && Connected && !sweepingBanks;
+
+    /// <summary>
+    /// Reads every bank's channels so the channel pickers (Contacts, etc.) list all
+    /// banks — the radio only exposes one bank at a time, so this sweeps each bank,
+    /// accumulating channel names, then returns the radio to the bank it started on.
+    /// </summary>
+    public void LoadAllBanks()
+    {
+        if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
+        if (RegionCount <= 1) { LoadChannelsFromRadio(); return; }
+        if (sweepingBanks) return;
+        sweepingBanks = true;
+        OnPropertyChanged(nameof(CanLoadAllBanks));
+        int start = SelectedBank;
+        int banks = RegionCount;
+        Task.Run(async () =>
+        {
+            try
+            {
+                for (int b = 0; b < banks; b++)
+                {
+                    controller.SetRegion(b);
+                    controller.RefreshChannels();
+                    int shown = b;
+                    dispatcher.Post(() => BuilderStatus = $"Reading bank {shown} of {banks - 1}…");
+                    await Task.Delay(1200);            // let this bank's channel replies arrive
+                }
+                // Restore the bank the operator was on and re-read it cleanly.
+                dispatcher.Post(() => { radioChannels.Clear(); foreach (var s in Slots) { s.Name = ""; s.RxMHz = 0; } });
+                controller.SetRegion(start);
+                controller.RefreshChannels();
+                dispatcher.Post(() => BuilderStatus = $"Loaded all {banks} banks — the channel picker now lists every bank.");
+            }
+            catch (Exception ex) { dispatcher.Post(() => BuilderStatus = "Load all banks failed: " + ex.Message); }
+            finally { dispatcher.Post(() => { sweepingBanks = false; OnPropertyChanged(nameof(CanLoadAllBanks)); }); }
+        });
     }
 
     // ---- Channel slot grid (radio memory tiles, drag-to-program) ----
@@ -1482,6 +1541,49 @@ public sealed class MainViewModel : ViewModelBase
         AppendLog("Requested fresh GPS position.");
     }
 
+    // Fixed/manual position (for a stationary station with no GPS). Persisted and
+    // re-pushed on connect so the radio keeps beaconing it across restarts.
+    private string manualLatitude = "", manualLongitude = "";
+    public string ManualLatitude { get => manualLatitude; set => SetField(ref manualLatitude, value); }
+    public string ManualLongitude { get => manualLongitude; set => SetField(ref manualLongitude, value); }
+
+    private bool TryParseManualPosition(out double lat, out double lon)
+    {
+        lat = lon = 0;
+        return double.TryParse(ManualLatitude, NumberStyles.Float, CultureInfo.InvariantCulture, out lat)
+            && double.TryParse(ManualLongitude, NumberStyles.Float, CultureInfo.InvariantCulture, out lon)
+            && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    }
+
+    /// <summary>Pushes the entered lat/lon to the radio as a fixed position (no GPS needed).</summary>
+    public void SetManualPosition()
+    {
+        if (controller == null || !Connected) { AppendLog("Connect a radio first."); return; }
+        if (!TryParseManualPosition(out double lat, out double lon))
+        { AppendLog("Enter a valid latitude (-90..90) and longitude (-180..180), decimal degrees."); return; }
+        controller.SetManualPosition(lat, lon);
+        DataBroker.Dispatch(0, "FixedLat", ManualLatitude, store: true);
+        DataBroker.Dispatch(0, "FixedLon", ManualLongitude, store: true);
+        AppendLog($"Set fixed position {lat.ToString("0.0000", CultureInfo.InvariantCulture)}, {lon.ToString("0.0000", CultureInfo.InvariantCulture)} on the radio.");
+    }
+
+    private void LoadFixedPosition()
+    {
+        ManualLatitude = DataBroker.GetValue<string>(0, "FixedLat", "") ?? "";
+        ManualLongitude = DataBroker.GetValue<string>(0, "FixedLon", "") ?? "";
+    }
+
+    // Re-push a stored fixed position shortly after connect (radio has no GPS).
+    private void PushFixedPositionIfSet()
+    {
+        if (controller == null || !Connected) return;
+        if (TryParseManualPosition(out double lat, out double lon))
+        {
+            controller.SetManualPosition(lat, lon);
+            AppendLog($"Re-applied fixed position {lat.ToString("0.0000", CultureInfo.InvariantCulture)}, {lon.ToString("0.0000", CultureInfo.InvariantCulture)}.");
+        }
+    }
+
     // Per-callsign track history (timestamped), for map polylines.
     public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<TrackPoint>> Tracks { get; } = new();
     private const int MaxTrackPoints = 300;
@@ -1707,7 +1809,57 @@ public sealed class MainViewModel : ViewModelBase
         b.PttReleaseSendIdInfo = IdentOnPttRelease;
         b.PttReleaseIdInfo = Clamp(IdentText, 12);
         DataBroker.Dispatch(0, "SetBssSettings", b, store: false);
-        AppendLog("Beacon/ident settings written to the radio.");
+        AppendLog("Beacon/ident settings written to the radio (radio beacons on its tuned channel).");
+    }
+
+    // ---- App-driven beacon (sends a position report on the APRS channel) ----
+    public bool CanBeacon => CanSendData;   // connected + callsign + Allow-Transmit
+
+    private bool TryGetBeaconPosition(out double lat, out double lon)
+    {
+        if (TryParseManualPosition(out lat, out lon)) return true;       // fixed position wins
+        if (MyPosition is { Locked: true } p) { lat = p.Latitude; lon = p.Longitude; return true; }
+        lat = lon = 0; return false;
+    }
+
+    /// <summary>Sends one APRS position report on the APRS channel via the TNC (app-driven beacon).</summary>
+    public void BeaconNow()
+    {
+        if (!Connected) { AppendLog("Connect a radio first."); return; }
+        if (!TxAuthorized) { AppendLog("Set callsign + Allow-Transmit to beacon."); return; }
+        if (!TryGetBeaconPosition(out double lat, out double lon))
+        { AppendLog("No position to beacon — set a fixed position or get a GPS fix first."); return; }
+        DataBroker.Dispatch(1, "SendAprsBeacon", new AprsSendBeaconData
+        {
+            Latitude = lat, Longitude = lon,
+            Symbol = string.IsNullOrEmpty(BeaconSymbol) ? "/-" : BeaconSymbol,
+            Comment = BeaconMessageText ?? "",
+            RadioDeviceId = BbsRadioDeviceId,
+            Route = SelectedSendRoute?.ToRouteArray(),
+        }, store: false);
+        AppendLog($"Beaconed {lat.ToString("0.0000", CultureInfo.InvariantCulture)}, {lon.ToString("0.0000", CultureInfo.InvariantCulture)} on the APRS channel.");
+    }
+
+    private System.Timers.Timer? autoBeaconTimer;
+    private bool autoBeacon;
+    public bool AutoBeacon
+    {
+        get => autoBeacon;
+        set { if (SetField(ref autoBeacon, value)) UpdateAutoBeaconTimer(); }
+    }
+
+    private void UpdateAutoBeaconTimer()
+    {
+        try { autoBeaconTimer?.Stop(); autoBeaconTimer?.Dispose(); } catch (Exception) { }
+        autoBeaconTimer = null;
+        if (autoBeacon && Connected)
+        {
+            int secs = Math.Max(10, BeaconInterval);
+            autoBeaconTimer = new System.Timers.Timer(secs * 1000.0) { AutoReset = true };
+            autoBeaconTimer.Elapsed += (_, _) => dispatcher.Post(BeaconNow);
+            autoBeaconTimer.Start();
+            AppendLog($"Auto-beacon on: every {secs}s on the APRS channel.");
+        }
     }
 
     // ---- Global APRS routes (named digipeater paths) -----------------------

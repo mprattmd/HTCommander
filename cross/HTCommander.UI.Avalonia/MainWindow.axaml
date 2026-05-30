@@ -398,8 +398,25 @@
                             <TextBlock Grid.Row="1" Text="Details"/>     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding MyPosition.DetailText}"/>
                             <TextBlock Grid.Row="2" Text="Fix time"/>    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MyPosition.TimeText}"/>
                         </Grid>
-                        <TextBlock Text="(no GPS fix — request fresh, or enable GPS on the radio)" Foreground="#888"
+                        <TextBlock Text="(no GPS fix — request fresh, enable GPS on the radio, or set a fixed position below)" Foreground="#888"
                                    IsVisible="{Binding !HasMyPosition}"/>
+
+                        <!-- Fixed/manual position (stationary station, no GPS needed) -->
+                        <Border Classes="Card">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Fixed position (no GPS)" FontWeight="SemiBold"/>
+                                <Grid ColumnDefinitions="90,*,90,*" ColumnSpacing="8">
+                                    <TextBlock Grid.Column="0" Text="Latitude" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBox Grid.Column="1" Text="{Binding ManualLatitude}" PlaceholderText="e.g. 35.7796"/>
+                                    <TextBlock Grid.Column="2" Text="Longitude" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBox Grid.Column="3" Text="{Binding ManualLongitude}" PlaceholderText="e.g. -78.6382"/>
+                                </Grid>
+                                <Button x:Name="SetFixedPositionButton" Content="Set fixed position on radio"
+                                        IsEnabled="{Binding CanRequestPosition}" HorizontalAlignment="Left"/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="Decimal degrees (south/west negative). Pushes the position to the radio (SET_POSITION) so a station with no GPS can beacon. Saved and re-applied on connect."/>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Beacon (position) settings — written to the radio's BSS settings -->
                         <TextBlock Text="Beacon (position)" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>
@@ -437,11 +454,32 @@
                             </StackPanel>
                         </Border>
 
-                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasBss}">
-                            <Button x:Name="WriteBssButton" Classes="Accent" Content="Write to radio" IsEnabled="{Binding CanWriteBss}"/>
-                            <TextBlock Classes="Hint" VerticalAlignment="Center"
-                                       Text="Writes beacon &amp; ident settings to the radio (WRITE_BSS_SETTINGS)."/>
-                        </StackPanel>
+                        <!-- Two ways to beacon — clearly distinguished -->
+                        <TextBlock Text="How to beacon (two options)" FontWeight="Bold" FontSize="16" Margin="0,8,0,0" IsVisible="{Binding HasBss}"/>
+
+                        <Border Classes="Card" IsVisible="{Binding HasBss}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="① Radio's built-in beacon" FontWeight="SemiBold"/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="Stores the Beacon + Ident settings above on the radio (incl. Share interval &amp; Share my location). The RADIO then beacons on its own — but on whatever channel it's tuned to, so you must tune the radio to your APRS channel. (This is what the Windows app does.)"/>
+                                <Button x:Name="WriteBssButton" Classes="Accent" Content="⬆ Write beacon/ident to radio"
+                                        IsEnabled="{Binding CanWriteBss}" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="Card" IsVisible="{Binding HasBss}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="② App beacon on the APRS channel" FontWeight="SemiBold"/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="The APP builds a position report and sends it on the channel named &quot;APRS&quot; through the radio's TNC — regardless of what channel the radio is tuned to. Uses your fixed/GPS position plus the APRS symbol &amp; beacon message above. Requires callsign + Allow-transmit and an APRS channel (Load all banks if it's not bank 0)."/>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button x:Name="BeaconNowButton" Classes="Accent" Content="Beacon now" IsEnabled="{Binding CanBeacon}"/>
+                                    <CheckBox Content="Auto-beacon" IsChecked="{Binding AutoBeacon}" IsEnabled="{Binding CanBeacon}" VerticalAlignment="Center"/>
+                                    <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"
+                                               Text="{Binding BeaconInterval, StringFormat='every {0} s (Share interval above)'}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Global APRS routes (named digipeater paths) -->
                         <TextBlock Text="APRS routes" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
@@ -537,7 +575,17 @@
                                       SelectedItem="{Binding EditChannel}"
                                       ToolTip.Tip="Radio memory channel/frequency to use to reach this station"/>
                             <TextBlock Text="APRS route / path"/>
-                            <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="e.g. WIDE1-1,WIDE2-1"/>
+                            <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding AprsRoutes}"
+                                      SelectedItem="{Binding SelectedContactRoute}"
+                                      PlaceholderText="Use a saved route…"
+                                      ToolTip.Tip="Pick a saved APRS route (Config tab) to fill the path below, or type a custom path">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:AprsRoute">
+                                        <TextBlock Text="{Binding Display}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="or type: WIDE1-1,WIDE2-1"/>
                             <TextBlock Text="AX.25 destination (for Terminal/BBS)"/>
                             <TextBox Text="{Binding EditAx25Destination}" PlaceholderText="destination callsign-SSID"/>
                             <CheckBox Content="Wait for incoming connection" IsChecked="{Binding EditWaitForConnection}"/>
@@ -739,6 +787,9 @@
                         <ComboBox x:Name="ChBankCombo" MinWidth="70" IsVisible="{Binding HasBanks}"
                                   ItemsSource="{Binding Banks}" SelectedItem="{Binding SelectedBank}"
                                   ToolTip.Tip="Channel bank (region/zone) to read and write"/>
+                        <Button x:Name="ChLoadAllBanksButton" Content="Load all banks"
+                                IsVisible="{Binding HasBanks}" IsEnabled="{Binding CanLoadAllBanks}"
+                                ToolTip.Tip="Read every bank so all channels appear in the channel pickers (briefly cycles the radio through each bank, then returns)"/>
                         <Button x:Name="ChWriteButton" Classes="Accent" Content="⬆ Write to radio"
                                 IsEnabled="{Binding CanWriteChannels}"
                                 ToolTip.Tip="Writes every row to the selected bank's memory (reconfigures the radio)"/>
