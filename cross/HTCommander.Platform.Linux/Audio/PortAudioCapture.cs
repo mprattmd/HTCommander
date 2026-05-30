@@ -70,8 +70,11 @@ public sealed class PortAudioCapture : IAudioCapture
         callback = OnCallback;
         try
         {
+            // Request a fixed buffer (2 SBC frames = 8 ms) so capture delivers regular
+            // chunks. With FramesPerBufferUnspecified, PipeWire fragments the stream
+            // into tiny/irregular buffers, which makes transmit audio stutter/garble.
             stream = new PaStream((StreamParameters?)inParams, null, Format.SampleRate,
-                PortAudio.FramesPerBufferUnspecified, StreamFlags.ClipOff, callback, IntPtr.Zero);
+                256u, StreamFlags.ClipOff, callback, IntPtr.Zero);
             stream.Start();
             IsCapturing = true;
             return true;

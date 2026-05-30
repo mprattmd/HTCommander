@@ -15,7 +15,9 @@ limitations under the License.
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
 using HTCommander.Core.Abstractions.Audio;
 
 namespace HTCommander;
@@ -54,6 +56,8 @@ public sealed class RadioVoiceTransmitter
     private readonly object gate = new object();
     private byte[] remainder = Array.Empty<byte>();
     private volatile bool transmitting;
+    private BlockingCollection<byte[]>? sendQueue;   // decouples the socket write from the mic callback
+    private Thread? senderThread;
 
     public bool IsTransmitting => transmitting;
 
@@ -76,15 +80,32 @@ public sealed class RadioVoiceTransmitter
             transmitting = true;
             remainder = Array.Empty<byte>();
         }
+        sendQueue = new BlockingCollection<byte[]>();
+        senderThread = new Thread(SenderLoop) { IsBackground = true, Name = "RadioVoiceTx" };
+        senderThread.Start();
+
         mic.Format = AudioFormat.RadioPcm;
         mic.DataAvailable += OnMic;
         if (!mic.Start())
         {
             mic.DataAvailable -= OnMic;
             lock (gate) { transmitting = false; }
+            try { sendQueue.CompleteAdding(); } catch (Exception) { }
+            try { senderThread.Join(1000); } catch (Exception) { }
+            sendQueue.Dispose(); sendQueue = null; senderThread = null;
             return false;
         }
         return true;
+    }
+
+    // Drains queued frames to the radio off the capture thread, so a slow socket
+    // write never stalls mic capture (which would garble transmit).
+    private void SenderLoop()
+    {
+        var q = sendQueue;
+        if (q == null) return;
+        try { foreach (var pkt in q.GetConsumingEnumerable()) { try { send(pkt); } catch (Exception) { } } }
+        catch (Exception) { }
     }
 
     /// <summary>Stops transmitting and sends the end frame to un-key the radio.</summary>
@@ -95,7 +116,12 @@ public sealed class RadioVoiceTransmitter
         if (!wasTx) return;
         try { mic.DataAvailable -= OnMic; } catch (Exception) { }
         try { mic.Stop(); } catch (Exception) { }
+        // Let the sender drain any queued audio, THEN un-key (end frame last).
+        try { sendQueue?.CompleteAdding(); } catch (Exception) { }
+        try { senderThread?.Join(2000); } catch (Exception) { }
         try { send(EndFrame); } catch (Exception) { }
+        try { sendQueue?.Dispose(); } catch (Exception) { }
+        sendQueue = null; senderThread = null;
     }
 
     private void OnMic(byte[] pcm, int count)
@@ -146,7 +172,7 @@ public sealed class RadioVoiceTransmitter
 
         if (sbcAll.Length > 0 && transmitting)
         {
-            try { send(Escape(0x00, sbcAll.ToArray())); } catch (Exception) { }
+            try { sendQueue?.Add(Escape(0x00, sbcAll.ToArray())); } catch (Exception) { }   // hand off to sender thread
         }
     }
 
