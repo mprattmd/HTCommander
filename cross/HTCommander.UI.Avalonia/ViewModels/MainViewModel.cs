@@ -130,6 +130,7 @@ public sealed class MainViewModel : ViewModelBase
         LoadFixedPosition();
         autoLoadAllBanks = DataBroker.GetValue<bool>(0, "AutoLoadAllBanks", true);
         LoadAprsFiSettings();
+        LoadAprsChannelName();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -1779,6 +1780,29 @@ public sealed class MainViewModel : ViewModelBase
     public string BeaconSymbol { get => beaconSymbol; set => SetField(ref beaconSymbol, value); }
     private string beaconMessageText = "";
     public string BeaconMessageText { get => beaconMessageText; set => SetField(ref beaconMessageText, value); }
+
+    // The memory channel the app uses for ALL APRS TX (messages + app beacons).
+    private bool loadingAprsChannel;
+    private string aprsChannelName = "APRS";
+    public string AprsChannelName
+    {
+        get => aprsChannelName;
+        set
+        {
+            if (!SetField(ref aprsChannelName, value) || value == null) return;
+            if (loadingAprsChannel) return;
+            DataBroker.Dispatch(0, "AprsChannelName", value, store: true);
+            // Re-read channels so RadioController records the chosen channel's bank+id.
+            if (Connected && controller != null) { if (HasBanks) LoadAllBanks(); else controller.RefreshChannels(); }
+        }
+    }
+    private void LoadAprsChannelName()
+    {
+        loadingAprsChannel = true;
+        aprsChannelName = DataBroker.GetValue<string>(0, "AprsChannelName", "APRS") ?? "APRS";
+        OnPropertyChanged(nameof(AprsChannelName));
+        loadingAprsChannel = false;
+    }
     private int beaconInterval;
     public int BeaconInterval { get => beaconInterval; set => SetField(ref beaconInterval, value); }
     private bool beaconShareLocation;

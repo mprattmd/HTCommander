@@ -510,9 +510,11 @@ public sealed class RadioController : IDisposable
                 channelArray[full.channel_id] = full;
                 broker.Dispatch(deviceId, "Channels", channelArray, store: true);
             }
-            // Remember which bank the APRS channel lives in, so APRS TX targets the
-            // right (region, channel) pair — channel ids repeat across banks.
-            if (string.Equals(name, "APRS", StringComparison.OrdinalIgnoreCase))
+            // Remember which bank the user's designated APRS channel lives in, so APRS TX
+            // targets the right (region, channel) pair — channel ids repeat across banks.
+            // The APRS channel is chosen in the UI ("AprsChannelName"); default "APRS".
+            string aprsName = broker.GetValue<string>(0, "AprsChannelName", "APRS");
+            if (!string.IsNullOrWhiteSpace(aprsName) && string.Equals(name, aprsName.Trim(), StringComparison.OrdinalIgnoreCase))
                 broker.Dispatch(deviceId, "AprsChannel",
                     new AprsChannelLocation(regionBeingRead, full.channel_id), store: true);
         }
