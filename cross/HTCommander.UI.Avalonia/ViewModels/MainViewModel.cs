@@ -116,7 +116,11 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(1, "WinlinkStateMessage", (_, _, data) => { if (data is string s) dispatcher.Post(() => { WinlinkStatus = s; AppendWinlinkLog(s); }); });
         broker.Subscribe(1, "AprsFrame", (_, _, data) => dispatcher.Post(() => OnAprsFrame(data)));
         var store = DataBroker.GetDataHandler<IMailStore>("MailStore");
-        if (store != null) store.MailsChanged += (_, _) => dispatcher.Post(RefreshMails);
+        if (store != null)
+        {
+            store.MailsChanged += (_, _) => dispatcher.Post(RefreshMails);
+            dispatcher.Post(RefreshMails);   // populate folder counts + list from the persisted store at startup
+        }
 
         // BBS: live traffic + control messages + station stats (device-agnostic).
         broker.Subscribe(DataBroker.AllDevices, "BbsTraffic", (_, _, data) => dispatcher.Post(() => AddBbsTraffic(data, false)));
