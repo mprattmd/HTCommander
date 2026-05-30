@@ -1,5 +1,10 @@
 # Handi-Talky Commander
 
+> 🐧 **Running Linux?** This fork includes a native cross-platform (Avalonia/.NET 9)
+> build that runs on Linux today — voice, APRS + map, packet, a drag-and-drop channel
+> builder, Winlink mail, and a BBS. **See [README-CrossPlatform.md](README-CrossPlatform.md)
+> for install and usage.** The notes below describe the original Windows app.
+
 This is a Amateur Radio (HAM Radio) tool for the UV-Pro, UV-50Pro, GA-5WB, VR-N75, VR-N76, VR-N7500, VR-N7600 radios that works on Windows x64 with Bluetooth support. It allows for easy control over the radio with range of feature including channel programming, speech-to-text, text-to-speech, WinLink, APRS, terminal, torrent file transfer, BBS and more.
 
 ![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/th-commander-4.png?raw=true)
