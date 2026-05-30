@@ -127,7 +127,8 @@ public sealed class RadioController : IDisposable
         try { SendBasic(CmdSetPosition, EncodeSetPosition(gps)); } catch (Exception) { }
     }
 
-    public bool Connected => started;
+    private volatile bool connected;     // true between the transport's OnConnected and Stop()
+    public bool Connected => connected;
 
     private static byte[] EncodeSetPosition(HTCommander.Gps.GpsData g)
     {
@@ -167,6 +168,8 @@ public sealed class RadioController : IDisposable
             if (!started) return;
             started = false;
         }
+        connected = false;
+        lastGpsLat = double.NaN;            // re-send an initial SET_POSITION after reconnect
         StopPolling();
         transport.OnConnected -= OnConnected;
         transport.ReceivedData -= OnReceivedData;
@@ -177,6 +180,7 @@ public sealed class RadioController : IDisposable
 
     private void OnConnected()
     {
+        connected = true;
         broker.Dispatch(deviceId, "State", "Connected", store: false);
         // Real-time pushes: HT status changes and received packet data.
         SendBasic(CmdRegisterNotification, new byte[] { NotifyHtStatusChanged });
@@ -250,7 +254,7 @@ public sealed class RadioController : IDisposable
 
     private void HandlePosition(byte[] v)
     {
-        if (v.Length < 4) return;
+        if (v.Length < 5) return;                       // need the command-status byte at v[4]
         int status = v[4];                              // RadioCommandState; 0 = SUCCESS
         if (status != 0 || v.Length < 11)
         {
@@ -561,28 +565,35 @@ public sealed class RadioController : IDisposable
 
     private void PublishPacket(TncDataFragment frame)
     {
-        // Re-publish the raw incoming frame as a deduplicated "UniqueDataFrame" so
-        // connected-mode sessions (AX25Session) and the BBS — which subscribe to it —
-        // receive traffic. Nothing else emits this event on the cross-platform path.
+        // Stamp the receiving radio so connected-mode sessions/BBS (which match on
+        // RadioDeviceId) accept it; then re-publish the raw frame as "UniqueDataFrame".
+        // The AX.25 link layer needs every frame (incl. retransmissions), so this is
+        // NOT deduplicated — dedup is applied only to the display dispatches below.
+        frame.RadioDeviceId = deviceId;
+        try { broker.Dispatch(deviceId, "UniqueDataFrame", frame, store: false); }
+        catch (Exception) { /* never let routing break packet display */ }
+
+        // De-duplicate only the UI/display path (a frame heard twice within a few
+        // seconds shouldn't double-list or re-plot).
+        bool freshForDisplay = true;
         try
         {
             string key = frame.ToHex();
             if (!string.IsNullOrEmpty(key))
             {
-                bool fresh;
                 var now = DateTime.UtcNow;
                 lock (recentFrames)
                 {
                     var cutoff = now.AddSeconds(-DedupWindowSeconds);
                     foreach (var k in recentFrames.Where(kv => kv.Value < cutoff).Select(kv => kv.Key).ToList())
                         recentFrames.Remove(k);
-                    fresh = !recentFrames.ContainsKey(key);
-                    if (fresh) recentFrames[key] = now;
+                    freshForDisplay = !recentFrames.ContainsKey(key);
+                    if (freshForDisplay) recentFrames[key] = now;
                 }
-                if (fresh) broker.Dispatch(deviceId, "UniqueDataFrame", frame, store: false);
             }
         }
-        catch (Exception) { /* never let routing break packet display */ }
+        catch (Exception) { }
+        if (!freshForDisplay) return;   // skip display for a duplicate; the session/BBS already got the raw frame
 
         AX25Packet? ax;
         try { ax = AX25Packet.DecodeAX25Packet(frame); }
