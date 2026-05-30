@@ -183,6 +183,8 @@ public partial class MainWindow : Window
         ChEditSaveButton.Click += (_, _) => Vm?.SaveEditingChannel();
         ChEditCancelButton.Click += (_, _) => Vm?.CancelEditingChannel();
         SlotCards.AddHandler(PointerPressedEvent, OnSlotPressed, RoutingStrategies.Bubble);
+        // Fill the table from the radio's current channels the first time it's opened.
+        ChannelTableExpander.Expanded += (_, _) => { if (Vm != null && Vm.BuilderChannels.Count == 0) Vm.LoadChannelsFromRadio(); };
 
         // Drag a .csv file onto the builder to import it (matches the Windows builder).
         ChannelBuilderRoot.AddHandler(DragDrop.DragOverEvent, OnChannelDragOver);

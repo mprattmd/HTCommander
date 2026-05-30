@@ -230,13 +230,12 @@ namespace HTCommander
             ax25Packet.sent = false;
             ax25Packet.authState = authApplied ? AX25Packet.AuthState.Success : AX25Packet.AuthState.None;
 
-            // Find the APRS channel ID (and its bank) for this radio
+            // Find the APRS channel ID (and its bank) for this radio. If none is configured,
+            // fall back to the current channel (channelId/regionId = -1) like WinForms does,
+            // rather than refusing to send — APRS then goes out on whatever you're tuned to.
             int aprsChannelId = GetAprsChannel(messageData.RadioDeviceId, out int aprsRegionId);
             if (aprsChannelId < 0)
-            {
-                _broker.LogError("Cannot send APRS message: No APRS channel found on radio " + messageData.RadioDeviceId);
-                return;
-            }
+                _broker.LogInfo("No APRS channel configured — sending the APRS message on the current channel.");
 
             // Set the channel name on the packet
             ax25Packet.channel_id = aprsChannelId;
@@ -311,7 +310,8 @@ namespace HTCommander
             };
 
             int aprsChannelId = GetAprsChannel(beacon.RadioDeviceId, out int aprsRegionId);
-            if (aprsChannelId < 0) { _broker.LogError("Cannot beacon: No APRS channel found on radio " + beacon.RadioDeviceId); return; }
+            if (aprsChannelId < 0)
+                _broker.LogInfo("No APRS channel configured — beaconing on the current channel.");
             ax25Packet.channel_id = aprsChannelId;
             ax25Packet.channel_name = "APRS";
 

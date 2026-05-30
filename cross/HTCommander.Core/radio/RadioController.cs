@@ -336,6 +336,13 @@ public sealed class RadioController : IDisposable
     public int SendPacket(AX25Packet packet, int channelId = -1, int regionId = -1)
     {
         if (packet == null) return 0;
+        // Regulatory gate: never key the transmitter unless the operator has enabled
+        // transmit (callsign + Allow-Transmit). Matches the WinForms guard.
+        if (!broker.GetValue<bool>(0, "AllowTransmit", false))
+        {
+            logger?.Debug("SendPacket blocked: transmit not allowed (enable Allow-Transmit).");
+            return 0;
+        }
         byte[] data;
         try { data = packet.ToByteArray(); } catch (Exception) { return 0; }
         if (data == null || data.Length == 0) return 0;
