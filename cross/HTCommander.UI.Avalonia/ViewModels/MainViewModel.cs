@@ -119,7 +119,10 @@ public sealed class MainViewModel : ViewModelBase
         if (store != null)
         {
             store.MailsChanged += (_, _) => dispatcher.Post(RefreshMails);
-            dispatcher.Post(RefreshMails);   // populate folder counts + list from the persisted store at startup
+            // Select the last-viewed folder at startup (default Inbox) so the Mail tab opens
+            // showing real content with correct folder counts — not a blank list.
+            string lastFolder = DataBroker.GetValue<string>(0, "MailSelectedFolder", "Inbox") ?? "Inbox";
+            dispatcher.Post(() => SelectedFolder = Folders.FirstOrDefault(f => f.Name == lastFolder) ?? Folders.FirstOrDefault());
         }
 
         // BBS: live traffic + control messages + station stats (device-agnostic).
@@ -1162,7 +1165,7 @@ public sealed class MainViewModel : ViewModelBase
     public MailFolder? SelectedFolder
     {
         get => selectedFolder;
-        set { if (SetField(ref selectedFolder, value) && value != null) { selectedMailbox = value.Name; RefreshMails(); } }
+        set { if (SetField(ref selectedFolder, value) && value != null) { selectedMailbox = value.Name; DataBroker.Dispatch(0, "MailSelectedFolder", value.Name, store: true); RefreshMails(); } }
     }
 
     private string selectedMailbox = "Inbox";
