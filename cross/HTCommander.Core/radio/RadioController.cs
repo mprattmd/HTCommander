@@ -65,6 +65,7 @@ public sealed class RadioController : IDisposable
     private readonly object txLock = new object();
     private readonly System.Collections.Generic.List<TxFragment> txQueue = new();
     private bool txInFlight;
+    private int restoreRegionAfterTx = -1;       // bank to return to after a region-switched APRS send
     private RadioHtStatus? lastStatus;           // cached for channel-busy gating + default ch/region
     private int lastDeviceChannelCount;          // channels-per-region (from dev info), for RefreshChannels
     private RadioChannelInfo[] channelArray;      // indexed by channel_id; published as "Channels" for APRS/Winlink/BBS lookups
@@ -195,6 +196,7 @@ public sealed class RadioController : IDisposable
         }
         connected = false;
         lastGpsLat = double.NaN;            // re-send an initial SET_POSITION after reconnect
+        restoreRegionAfterTx = -1;
         StopPolling();
         transport.OnConnected -= OnConnected;
         transport.ReceivedData -= OnReceivedData;
@@ -324,10 +326,25 @@ public sealed class RadioController : IDisposable
         if (data == null || data.Length == 0) return 0;
 
         if (channelId < 0) channelId = lastStatus?.curr_ch_id ?? 0;
-        if (regionId < 0) regionId = lastStatus?.curr_region ?? 0;
+        int currentRegion = lastStatus?.curr_region ?? 0;
+        if (regionId < 0) regionId = currentRegion;
 
+        // The HT_SEND_DATA payload carries only the channel id, which the radio applies
+        // to its CURRENTLY-ACTIVE bank — channel ids repeat across banks. So if the
+        // target channel is in another bank, switch the radio there first (and restore
+        // afterwards). Without this, an APRS packet for a channel in bank 1 would key
+        // bank 0's channel at the same id (e.g. the Winlink channel).
+        bool switchedRegion = false;
         lock (txLock)
         {
+            if (regionId != currentRegion)
+            {
+                if (restoreRegionAfterTx < 0) restoreRegionAfterTx = currentRegion;
+                SetRegion(regionId);
+                switchedRegion = true;
+                logger?.Debug($"APRS TX: switched to bank {regionId} (will restore to {restoreRegionAfterTx}).");
+            }
+
             int fragid = 0;
             for (int i = 0; i < data.Length; i += MaxMtu)
             {
@@ -339,9 +356,26 @@ public sealed class RadioController : IDisposable
                 txQueue.Add(new TxFragment(frame, isLast, fragid));
                 fragid++;
             }
-            KickTxLocked();
+            if (!switchedRegion) KickTxLocked();
         }
+
+        // Give the radio a moment to settle on the new bank before the first burst.
+        if (switchedRegion)
+            Task.Run(async () => { try { await Task.Delay(600); } catch (Exception) { } lock (txLock) { KickTxLocked(); } });
+
         return data.Length;
+    }
+
+    // Restore the operator's bank once a region-switched send has fully drained.
+    private void MaybeRestoreRegionLocked()
+    {
+        if (txQueue.Count == 0 && restoreRegionAfterTx >= 0)
+        {
+            int r = restoreRegionAfterTx;
+            restoreRegionAfterTx = -1;
+            SetRegion(r);
+            logger?.Debug($"APRS TX: restored bank {r}.");
+        }
     }
 
     private bool ChannelFree() => lastStatus == null || (!lastStatus.is_in_tx && lastStatus.rssi == 0);
@@ -386,7 +420,7 @@ public sealed class RadioController : IDisposable
                 txInFlight = true;
                 SendBasic(CmdSendData, txQueue[0].Frame);
             }
-            else txInFlight = false;
+            else { txInFlight = false; MaybeRestoreRegionLocked(); }
         }
     }
 
