@@ -92,6 +92,34 @@ namespace HTCommander
             catch (Exception) { return null; }
         }
 
+        // --- CSV import helpers (ported verbatim from src/radio/Utils.cs) used by ImportUtils.
+
+        public static string RemoveQuotes(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length < 2) return value;
+            if (value.StartsWith("\"") && value.EndsWith("\"")) { value = value.Substring(1, value.Length - 2); }
+            if (value.StartsWith("'") && value.EndsWith("'")) { value = value.Substring(1, value.Length - 2); }
+            return value;
+        }
+
+        public static double? TryParseDouble(string value)
+        {
+            if (double.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double result)) { return result; }
+            return null;
+        }
+
+        public static int? TryParseInt(string value)
+        {
+            if (int.TryParse(value, out int result)) { return result; }
+            return null;
+        }
+
+        public static string GetValue(string[] parts, System.Collections.Generic.Dictionary<string, int> headers, string key, string defaultValue = "")
+        {
+            if (headers.TryGetValue(key, out int index) && index < parts.Length) { return parts[index]; }
+            return defaultValue;
+        }
+
         // --- Big-endian byte helpers (ported verbatim from src/radio/Utils.cs)
         // so on-wire frame parsing/serialization matches the WinForms build byte-for-byte.
 

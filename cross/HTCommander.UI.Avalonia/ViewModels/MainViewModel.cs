@@ -53,6 +53,10 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<RadioDeviceInfo> Radios { get; } = new();
     public ObservableCollection<string> Log { get; } = new();
     public ObservableCollection<RadioChannelSummary> Channels { get; } = new();
+    // Channel builder: editable rows imported from CSV / read from the radio.
+    public ObservableCollection<EditableChannel> BuilderChannels { get; } = new();
+    // Full channel records as last read from the radio (slot -> channel), for "Load from radio".
+    private readonly System.Collections.Generic.SortedDictionary<int, RadioChannelInfo> radioChannels = new();
     public ObservableCollection<ReceivedPacketSummary> Packets { get; } = new();
     public ObservableCollection<AprsStationSummary> Stations { get; } = new();
 
@@ -78,6 +82,7 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "BatteryAsPercentage", (_, _, data) => { if (data is int p) BatteryPercent = p; });
         broker.Subscribe(0, "DeviceInfo", (_, _, data) => { if (data is RadioDeviceSummary d) ApplyDeviceInfo(d); });
         broker.Subscribe(0, "Channel", (_, _, data) => { if (data is RadioChannelSummary c) ApplyChannel(c); });
+        broker.Subscribe(0, "ChannelInfo", (_, _, data) => { if (data is RadioChannelInfo c) radioChannels[c.channel_id] = c; });
         broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
         broker.Subscribe(0, "AprsStation", (_, _, data) => { if (data is AprsStationSummary st) AddStation(st); });
         broker.Subscribe(0, "Settings", (_, _, data) => { if (data is RadioSettingsSummary s) RadioSettings = s; });
@@ -119,6 +124,7 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanDisconnect));
                 OnPropertyChanged(nameof(CanTransmit));
                 OnPropertyChanged(nameof(CanSendData));
+                OnPropertyChanged(nameof(CanWriteChannels));
             }
         }
     }
@@ -483,6 +489,80 @@ public sealed class MainViewModel : ViewModelBase
             if (Channels[i].ChannelId > c.ChannelId) { Channels.Insert(i, c); return; }
         }
         Channels.Add(c);
+    }
+
+    // ---- Channel builder ---------------------------------------------------
+
+    private string builderStatus = "";
+    public string BuilderStatus { get => builderStatus; private set => SetField(ref builderStatus, value); }
+
+    public bool CanWriteChannels => Connected && controller != null;
+
+    /// <summary>Copy the channels last read from the radio into the editable builder.</summary>
+    public void LoadChannelsFromRadio()
+    {
+        if (radioChannels.Count == 0) { BuilderStatus = "No channels read from the radio yet (connect first)."; return; }
+        BuilderChannels.Clear();
+        foreach (var kv in radioChannels)
+            if (kv.Value.rx_freq != 0 || kv.Value.tx_freq != 0)
+                BuilderChannels.Add(new EditableChannel(kv.Value));
+        BuilderStatus = $"Loaded {BuilderChannels.Count} channel(s) from the radio.";
+    }
+
+    /// <summary>Import channels from a CSV file (CHIRP / native / RepeaterBook formats).</summary>
+    public void ImportChannelsFromCsv(string path)
+    {
+        RadioChannelInfo[]? parsed = null;
+        try { parsed = ImportUtils.ParseChannelsFromFile(path); }
+        catch (Exception ex) { BuilderStatus = "Import failed: " + ex.Message; return; }
+        if (parsed == null || parsed.Length == 0) { BuilderStatus = "No channels found (unrecognized CSV format)."; return; }
+
+        int startSlot = BuilderChannels.Count;
+        foreach (var c in parsed)
+        {
+            var ec = new EditableChannel(c) { ChannelId = startSlot++ };
+            BuilderChannels.Add(ec);
+        }
+        BuilderStatus = $"Imported {parsed.Length} channel(s) from {System.IO.Path.GetFileName(path)}.";
+    }
+
+    /// <summary>Export the builder rows to a CSV file (native or CHIRP format).</summary>
+    public void ExportChannelsToCsv(string path, bool chirp)
+    {
+        var arr = new RadioChannelInfo[BuilderChannels.Count];
+        for (int i = 0; i < BuilderChannels.Count; i++) arr[i] = BuilderChannels[i].ToRadioChannelInfo(i);
+        string csv = chirp ? ImportUtils.ExportToChirpFormat(arr) : ImportUtils.ExportToNativeFormat(arr);
+        try { System.IO.File.WriteAllText(path, csv); BuilderStatus = $"Exported {arr.Length} channel(s) to {System.IO.Path.GetFileName(path)}."; }
+        catch (Exception ex) { BuilderStatus = "Export failed: " + ex.Message; }
+    }
+
+    public void AddBuilderChannel()
+    {
+        BuilderChannels.Add(new EditableChannel { ChannelId = BuilderChannels.Count, Name = "NEW", Mode = "FM", Power = "H" });
+    }
+
+    public void RemoveBuilderChannel(EditableChannel? ch)
+    {
+        if (ch != null) BuilderChannels.Remove(ch);
+    }
+
+    /// <summary>
+    /// Write all builder rows to the radio's memory (WRITE_RF_CH), one per slot in row
+    /// order. This reconfigures the radio; it is an explicit operator action.
+    /// </summary>
+    public void WriteChannelsToRadio()
+    {
+        if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
+        int written = 0;
+        for (int i = 0; i < BuilderChannels.Count; i++)
+        {
+            var info = BuilderChannels[i].ToRadioChannelInfo(i);
+            if (info.rx_freq == 0 && info.tx_freq == 0) continue;   // skip empty rows
+            controller.WriteChannel(info);
+            written++;
+        }
+        BuilderStatus = $"Wrote {written} channel(s) to the radio.";
+        AppendLog($"Channel builder: wrote {written} channel(s) to the radio.");
     }
 
     private void AddPacket(ReceivedPacketSummary p)

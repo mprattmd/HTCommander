@@ -40,6 +40,7 @@ public sealed class RadioController : IDisposable
     private const int CmdEventNotification = 9;
     private const int CmdReadSettings = 10;
     private const int CmdReadRfChannel = 13;
+    private const int CmdWriteRfChannel = 14;     // WRITE_RF_CH
     private const int CmdReadBssSettings = 33;
     private const int CmdGetHtStatus = 20;
     private const int CmdSendData = 31;          // HT_SEND_DATA
@@ -300,6 +301,24 @@ public sealed class RadioController : IDisposable
             TxHz: txRaw & 0x3FFFFFFF,
             Modulation: ModulationName((rxRaw >> 30) & 0x3));
         broker.Dispatch(deviceId, "Channel", ch, store: false);
+
+        // Also publish the full editable channel record (the READ_RF_CH reply layout
+        // matches RadioChannelInfo's byte ctor exactly) so the channel builder can
+        // load existing channels for editing / re-writing.
+        try { broker.Dispatch(deviceId, "ChannelInfo", new RadioChannelInfo(v), store: false); }
+        catch { /* malformed channel row — skip */ }
+    }
+
+    /// <summary>
+    /// Writes a memory channel to the radio (WRITE_RF_CH) and re-reads it so the UI
+    /// reflects what the radio actually stored. This reconfigures the radio's memory;
+    /// it is an operator-initiated action, never automatic.
+    /// </summary>
+    public void WriteChannel(RadioChannelInfo channel)
+    {
+        if (channel == null) return;
+        SendBasic(CmdWriteRfChannel, channel.ToByteArray());
+        SendBasic(CmdReadRfChannel, new byte[] { (byte)channel.channel_id });
     }
 
     private static string ModulationName(int mod) => mod switch { 0 => "FM", 1 => "AM", 2 => "DMR", _ => "?" };

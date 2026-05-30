@@ -1,0 +1,6 @@
+Location,Name,Frequency,Duplex,Offset,Tone,rToneFreq,cToneFreq,DtcsCode,DtcsPolarity,Mode,TStep,Skip,Power
+0,Calling,146.520000,,0.000000,,88.5,88.5,023,NN,FM,5.00,,5.0W
+1,W4ABC Rpt,147.225000,+,0.600000,Tone,103.5,103.5,023,NN,FM,5.00,,5.0W
+2,K4XYZ Rpt,442.100000,+,5.000000,TSQL,107.2,107.2,023,NN,FM,5.00,,5.0W
+3,Simplex 2m,146.550000,,0.000000,,88.5,88.5,023,NN,NFM,5.00,,1.0W
+4,Weather,162.550000,,0.000000,,88.5,88.5,023,NN,FM,5.00,,1.0W
