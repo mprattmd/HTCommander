@@ -15,6 +15,8 @@ limitations under the License.
 */
 
 using System;
+using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Security.Cryptography;
 
@@ -72,6 +74,49 @@ namespace HTCommander
         public static byte[] ComputeHmacSha256Hash(byte[] authkey, byte[] data)
         {
             using (HMACSHA256 hmac = new HMACSHA256(authkey)) { return hmac.ComputeHash(data); }
+        }
+
+        // --- Compression (Brotli/Deflate) — used by BBS + Winlink mail.
+        // Ported verbatim from the WinForms Utils so on-air framing matches byte-for-byte.
+
+        public static byte[] CompressBrotli(byte[] data)
+        {
+            using var output = new MemoryStream();
+            using (var brotli = new BrotliStream(output, CompressionMode.Compress, leaveOpen: true))
+                brotli.Write(data, 0, data.Length);
+            return output.ToArray();
+        }
+
+        public static byte[] DecompressBrotli(byte[] compressedData) =>
+            DecompressBrotli(compressedData, 0, compressedData.Length);
+
+        public static byte[] DecompressBrotli(byte[] compressedData, int index, int length)
+        {
+            using var input = new MemoryStream(compressedData, index, length);
+            using var brotli = new BrotliStream(input, CompressionMode.Decompress);
+            using var output = new MemoryStream();
+            brotli.CopyTo(output);
+            return output.ToArray();
+        }
+
+        public static byte[] CompressDeflate(byte[] data)
+        {
+            using var output = new MemoryStream();
+            using (var dstream = new DeflateStream(output, CompressionLevel.Optimal, leaveOpen: true))
+                dstream.Write(data, 0, data.Length);
+            return output.ToArray();
+        }
+
+        public static byte[] DecompressDeflate(byte[] compressedData) =>
+            DecompressDeflate(compressedData, 0, compressedData.Length);
+
+        public static byte[] DecompressDeflate(byte[] compressedData, int index, int length)
+        {
+            using var input = new MemoryStream(compressedData, index, length);
+            using var output = new MemoryStream();
+            using var dstream = new DeflateStream(input, CompressionMode.Decompress);
+            dstream.CopyTo(output);
+            return output.ToArray();
         }
     }
 }
