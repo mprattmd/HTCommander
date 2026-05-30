@@ -56,6 +56,9 @@ public sealed class RadioVoiceTransmitter
     private readonly object gate = new object();
     private byte[] remainder = Array.Empty<byte>();
     private volatile bool transmitting;
+    private float agcGain = 1.0f;          // smoothed AGC gain (state across frames)
+    private const float AgcTargetPeak = 22000f;   // ~67% of full scale
+    private const int AgcGateThreshold = 200;     // below this raw peak = treat as silence (no boost)
     private BlockingCollection<byte[]>? sendQueue;   // decouples the socket write from the mic callback
     private Thread? senderThread;
 
@@ -79,6 +82,7 @@ public sealed class RadioVoiceTransmitter
             if (transmitting) return true;
             transmitting = true;
             remainder = Array.Empty<byte>();
+            agcGain = 1.0f;
         }
         sendQueue = new BlockingCollection<byte[]>();
         senderThread = new Thread(SenderLoop) { IsBackground = true, Name = "RadioVoiceTx" };
@@ -138,24 +142,40 @@ public sealed class RadioVoiceTransmitter
         }
 
         int off = 0;
-        float gain = Gain;
+        float maxGain = Gain;            // slider acts as the AGC ceiling (max boost)
         using var sbcAll = new MemoryStream();
         int samplesPerFrame = frame.Blocks * frame.Subbands;
         while (buf.Length - off >= pcmFrameBytes)
         {
             short[] samples = new short[samplesPerFrame];
+            int peak = 0;
             for (int i = 0; i < samplesPerFrame; i++)
             {
                 short s = (short)(buf[off + i * 2] | (buf[off + i * 2 + 1] << 8));
-                if (gain != 1.0f)
+                samples[i] = s;
+                int a = s < 0 ? -s : s;
+                if (a > peak) peak = a;
+            }
+
+            // AGC: aim for a target peak without clipping. Quiet audio is boosted up
+            // to the user's max gain; loud audio is held back so it never saturates
+            // (brute linear gain on a weak mic clips and garbles). Fast attack to
+            // duck transients, slow release to avoid pumping; silence isn't boosted.
+            float desired = peak < AgcGateThreshold ? 1.0f
+                : Math.Clamp(AgcTargetPeak / peak, 1.0f, maxGain);
+            agcGain += (desired < agcGain ? 0.6f : 0.08f) * (desired - agcGain);
+
+            if (agcGain > 1.0001f)
+            {
+                for (int i = 0; i < samplesPerFrame; i++)
                 {
-                    int v = (int)(s * gain);
+                    int v = (int)(samples[i] * agcGain);
                     if (v > short.MaxValue) v = short.MaxValue;
                     else if (v < short.MinValue) v = short.MinValue;
-                    s = (short)v;
+                    samples[i] = (short)v;
                 }
-                samples[i] = s;
             }
+
             byte[] sbc = encoder.Encode(samples, null, frame);
             if (sbc == null || sbc.Length == 0) break;
             sbcAll.Write(sbc, 0, sbc.Length);
