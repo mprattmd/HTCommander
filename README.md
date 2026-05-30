@@ -92,6 +92,110 @@ but await on-air / server / station verification:
   password, plus audio devices / mic gain / volume.
 - **AppImage packaging** + GitHub releases.
 
+## Install
+
+### Option A — AppImage (recommended, no install)
+
+A single self-contained file — it bundles the .NET runtime and native libraries
+(PortAudio, SQLite, Skia). Nothing to install.
+
+```bash
+# Download the latest from the Releases page, then:
+chmod +x HTCommander-x86_64.AppImage
+./HTCommander-x86_64.AppImage
+```
+
+To integrate it into your app menu, drop it in `~/Applications` (or use a tool like
+Gear Lever / AppImageLauncher).
+
+### Option B — self-contained folder
+
+```bash
+dotnet publish cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj \
+  -c Release -r linux-x64 --self-contained true -o out/
+./out/HTCommander.UI.Avalonia
+```
+
+### Prerequisites
+
+- **Bluetooth** with BlueZ (standard on modern Linux). Pair the radio in your desktop's
+  Bluetooth settings **first**, then launch HTCommander.
+- **Audio**: PipeWire, PulseAudio, or ALSA (PipeWire on Fedora 40+ works well).
+- Nothing else for the AppImage; the self-contained folder also needs no system .NET.
+
+## Getting started
+
+1. **Pair** the radio once in your OS Bluetooth settings (power it on, make it
+   discoverable, pair). You only do this once.
+2. Launch HTCommander, pick your radio in the **Radio** dropdown (top bar), and click
+   **Connect**. The radio panel shows battery + live status; the log shows BlueZ/GAIA traffic.
+3. Open the **Station** tab and set your **callsign**, **Station ID**, and (to transmit)
+   flip **Allow-Transmit** on. For Winlink, set your **Winlink password** here too.
+4. If you'll do APRS/Winlink/BBS, hit **Channels → Load all banks** so every memory
+   channel is known, and pick your **APRS channel** in the APRS setup.
+
+> If connecting fails with a key/bonding error, remove the pairing in your OS and
+> re-pair — a stale bond is the usual cause. If it can't find the radio's data channel,
+> toggle the radio's Bluetooth off/on.
+
+## Using the app — tab by tab
+
+- **Radio** — live status (battery, channel, RSSI, region, GPS) + raw transport log.
+- **Station** — identity (callsign / Station ID / Winlink password), **Allow-Transmit**,
+  the **APRS channel** picker, and the **beacon method** selector (Off / Radio built-in /
+  App-TNC) with on-screen guidance on what each needs.
+- **Channels** — **click a memory tile to edit that channel** (name, RX/TX, CTCSS, mode,
+  power, scan → write it). Also: drag-and-drop programming, **Import/Export CSV**
+  (CHIRP / RepeaterBook / native), **Load all banks**, and **⬆ Write to radio**.
+- **Contacts** — APRS/Winlink/terminal address book; this is where a contact's **channel**
+  and AX.25/connection settings live (incl. the Winlink RMS station to sync with).
+- **APRS** — send/receive messages with a routes manager + destination picker; a fixed
+  or GPS position; and the beacon controls.
+- **Map** — OpenStreetMap with station markers, per-callsign tracks, time filter, radio +
+  serial GPS markers, and **aprs.fi** internet lookups (paste a free key in Settings).
+- **Mail** — Winlink mailboxes; compose → Outbox → **Sync (internet)** or **Sync (radio)**
+  to an RMS gateway. Stored at `~/.config/HTCommander/mail.db`.
+- **Terminal / Packets / BBS** — connectionless + connected-mode AX.25, a live frame
+  list with decode detail, and a connected-mode BBS host.
+- **Voice / Modem / Clips** — PTT voice, the FFT waterfall + soft-modem, and WAV/clip tools.
+- **Settings** — audio devices, mic gain, output volume, GPS serial source, and the
+  **aprs.fi API key**.
+
+> ⚠️ **Packet (Winlink / BBS / App-TNC beacon) needs the radio's "Digital mode" OFF.**
+> Digital mode is only for the radio's built-in beacon and disables the TNC.
+
+## Transmitting & safety
+
+Transmitting is **operator-initiated and fail-safe**:
+
+- **Transmit is gated** on a configured **callsign** + the **Allow-Transmit** switch
+  (Station tab). With either unset, the app will not key the radio — and `SendPacket`
+  enforces this too.
+- **PTT is press-and-hold** — the radio keys only while you hold, and un-keys the moment
+  you release or the pointer leaves the button. The app never transmits on its own.
+- You are responsible for a frequency, power, and mode permitted by your license. When
+  testing, a dummy load and low power are good practice.
+- **Writing channels** reconfigures the radio's memory — a deliberate, connection-gated action.
+
+## Build from source
+
+Requires the **.NET 9 SDK**.
+
+```bash
+# Build everything (Core + Linux platform + Avalonia UI)
+dotnet build HTCommander.CrossPlatform.sln
+
+# Run the app
+dotnet run --project cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj
+
+# Build a single-file AppImage (needs appimagetool + FUSE on PATH; without them you
+# still get a runnable packaging/AppDir/AppRun)
+./packaging/build-appimage.sh
+```
+
+The full install/usage/architecture guide is in
+[README-CrossPlatform.md](README-CrossPlatform.md).
+
 ## Coming next
 
 See [docs/ROADMAP.md](docs/ROADMAP.md). Phases 0–4 (identity, APRS, mail, terminal,
