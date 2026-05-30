@@ -1,0 +1,81 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Shared visual language for HTCommander. Brushes live in App.axaml resources;
+         this file holds reusable control styling and Classes so every tab looks
+         consistent without repeating hex colors in markup. -->
+
+    <!-- Section heading: bold label above a panel/list -->
+    <Style Selector="TextBlock.Section">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <!-- Muted helper / hint text -->
+    <Style Selector="TextBlock.Hint">
+        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <!-- Card: a framed surface used for panels and list containers -->
+    <Style Selector="Border.Card">
+        <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <!-- A card that wraps a list: no padding so the list reaches the edges -->
+    <Style Selector="Border.ListCard">
+        <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+
+    <!-- Accent (primary) button -->
+    <Style Selector="Button.Accent">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.Accent:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+    </Style>
+
+    <!-- Danger / on-air PTT button -->
+    <Style Selector="Button.Ptt">
+        <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.Ptt:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
+    </Style>
+    <Style Selector="Button.Ptt:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DangerActiveBrush}"/>
+    </Style>
+
+    <!-- Slightly roomier buttons everywhere -->
+    <Style Selector="Button">
+        <Setter Property="Padding" Value="14,7"/>
+        <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+
+    <!-- Tabs: roomier headers -->
+    <Style Selector="TabItem">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Padding" Value="14,8"/>
+        <Setter Property="MinHeight" Value="40"/>
+    </Style>
+
+    <!-- ListBox inside a ListCard: transparent so the card surface shows -->
+    <Style Selector="Border.ListCard > ListBox">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+</Styles>

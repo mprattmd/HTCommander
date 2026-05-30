@@ -7,89 +7,126 @@
         xmlns:audio="using:HTCommander.Core.Abstractions.Audio"
         xmlns:core="using:HTCommander"
         xmlns:mapsui="clr-namespace:Mapsui.UI.Avalonia;assembly=Mapsui.UI.Avalonia"
-        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="720"
         x:Class="HTCommander.UI.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
-        Width="900" Height="600"
+        Width="1100" Height="720"
+        Icon="/Assets/HTCommander.ico"
+        Background="{DynamicResource Surface0Brush}"
         Title="HTCommander">
     <DockPanel LastChildFill="True">
 
         <!-- Connection bar -->
-        <Border DockPanel.Dock="Top" Padding="8" Background="#2D2D30">
-            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBlock Text="Radio:" VerticalAlignment="Center" Foreground="White"/>
-                <ComboBox x:Name="RadioCombo" MinWidth="240"
-                          ItemsSource="{Binding Radios}"
-                          SelectedItem="{Binding SelectedRadio}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="pl:RadioDeviceInfo">
-                            <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Address}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button x:Name="RefreshButton" Content="Refresh"/>
-                <Button x:Name="ConnectButton" Content="Connect"
-                        IsEnabled="{Binding CanConnect}"/>
-                <Button x:Name="DisconnectButton" Content="Disconnect"
-                        IsEnabled="{Binding CanDisconnect}"/>
-                <Button x:Name="PttButton" Content="🎤 PTT (hold)"
-                        IsEnabled="{Binding CanTransmit}" Background="#5A1F1F" Foreground="White"
+        <Border DockPanel.Dock="Top" Padding="12,8" Background="{DynamicResource Surface1Brush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- Branding -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Image Source="/Assets/Radio2.png" Height="30" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="HTCommander" FontWeight="Bold" FontSize="16"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="cross-platform" FontSize="10"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Connection controls -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" HorizontalAlignment="Left" Margin="24,0,0,0">
+                    <TextBlock Text="Radio" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <ComboBox x:Name="RadioCombo" MinWidth="240"
+                              ItemsSource="{Binding Radios}"
+                              SelectedItem="{Binding SelectedRadio}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="pl:RadioDeviceInfo">
+                                <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Address}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button x:Name="RefreshButton" Content="Refresh"/>
+                    <Button x:Name="ConnectButton" Classes="Accent" Content="Connect"
+                            IsEnabled="{Binding CanConnect}"/>
+                    <Button x:Name="DisconnectButton" Content="Disconnect"
+                            IsEnabled="{Binding CanDisconnect}"/>
+                </StackPanel>
+
+                <!-- PTT -->
+                <Button Grid.Column="2" x:Name="PttButton" Classes="Ptt" Content="🎤  PTT (hold)"
+                        IsEnabled="{Binding CanTransmit}" VerticalAlignment="Center"
                         ToolTip.Tip="Hold to transmit (keys the radio on the air)"/>
-                <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
-                           Foreground="#9CDCFE" Margin="16,0,0,0"/>
-            </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Status bar -->
-        <Border DockPanel.Dock="Bottom" Padding="8,4" Background="#007ACC">
-            <StackPanel Orientation="Horizontal" Spacing="16">
-                <TextBlock Foreground="White" Text="{Binding Status, StringFormat='State: {0}'}"/>
-                <TextBlock Foreground="White" Text="{Binding FrameCount, StringFormat='Frames: {0}'}"/>
-                <TextBlock Foreground="White" Text="{Binding BluetoothAvailable, StringFormat='Bluetooth: {0}'}"/>
-                <TextBlock Foreground="White" Text="Voice RX" IsVisible="{Binding VoiceRxActive}"/>
-                <TextBlock Foreground="#FFB0B0" FontWeight="Bold" Text="● TRANSMITTING" IsVisible="{Binding Transmitting}"/>
+        <Border DockPanel.Dock="Bottom" Padding="12,5" Background="{DynamicResource Surface1Brush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="18">
+                <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding Status, StringFormat='State: {0}'}"/>
+                <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding FrameCount, StringFormat='Frames: {0}'}"/>
+                <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding BluetoothAvailable, StringFormat='Bluetooth: {0}'}"/>
+                <TextBlock Foreground="{DynamicResource InfoBrush}" Text="🔊 Voice RX" IsVisible="{Binding VoiceRxActive}"/>
+                <TextBlock Foreground="{DynamicResource DangerActiveBrush}" FontWeight="Bold" Text="● TRANSMITTING" IsVisible="{Binding Transmitting}"/>
             </StackPanel>
         </Border>
 
         <!-- Main tabbed area -->
         <TabControl>
             <TabItem Header="Radio">
-                <Grid ColumnDefinitions="260,*" Margin="8" ColumnSpacing="10">
+                <Grid ColumnDefinitions="300,*" Margin="12" ColumnSpacing="12">
 
-                    <!-- Live telemetry (parsed GET_HT_STATUS) -->
-                    <Border Grid.Column="0" BorderBrush="#3F3F46" BorderThickness="1" Padding="10"
-                            IsVisible="{Binding HasStatus}" VerticalAlignment="Top">
-                        <Grid ColumnDefinitions="Auto,*"
-                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
-                              RowSpacing="6" ColumnSpacing="12">
-                            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Radio status" FontWeight="Bold" Margin="0,0,0,4"/>
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Power"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PowerText}"/>
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="State"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TxRxState}"/>
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Squelch"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SquelchText}"/>
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Channel"/>
-                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ChannelId}"/>
-                            <TextBlock Grid.Row="5" Grid.Column="0" Text="RSSI"/>
-                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Rssi}"/>
-                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Region"/>
-                            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Region}"/>
-                            <TextBlock Grid.Row="7" Grid.Column="0" Text="GPS"/>
-                            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding GpsText}"/>
-                            <TextBlock Grid.Row="8" Grid.Column="0" Text="Battery"/>
-                            <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding BatteryPercent, StringFormat='{}{0}%'}"/>
-                            <TextBlock Grid.Row="9" Grid.ColumnSpan="2" Text="Device" FontWeight="Bold" Margin="0,8,0,0"/>
-                            <TextBlock Grid.Row="10" Grid.ColumnSpan="2" Text="{Binding DeviceInfoText}" TextWrapping="Wrap"/>
-                        </Grid>
-                    </Border>
+                    <!-- Radio device panel (image + battery + live status) -->
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="12">
+
+                        <!-- Device card: radio image, state, battery -->
+                        <Border Grid.Row="0" Classes="Card">
+                            <StackPanel Spacing="10">
+                                <Image Source="/Assets/Radio.png" Height="180" Stretch="Uniform"
+                                       HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding Status}" HorizontalAlignment="Center"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource InfoBrush}"/>
+                                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasStatus}">
+                                    <ProgressBar Grid.Column="0" Minimum="0" Maximum="100"
+                                                 Value="{Binding BatteryPercent}" Height="10"
+                                                 VerticalAlignment="Center" Foreground="{DynamicResource GoodBrush}"/>
+                                    <TextBlock Grid.Column="1" Margin="8,0,0,0"
+                                               Text="{Binding BatteryPercent, StringFormat='{}{0}%'}"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Live status grid -->
+                        <Border Grid.Row="1" Classes="Card" IsVisible="{Binding HasStatus}" VerticalAlignment="Top">
+                            <Grid ColumnDefinitions="Auto,*"
+                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                  RowSpacing="7" ColumnSpacing="12">
+                                <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Radio status" Classes="Section"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Power" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PowerText}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="State" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TxRxState}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Squelch" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SquelchText}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Channel" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ChannelId}"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="RSSI" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Rssi}"/>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Region" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Region}"/>
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="GPS" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding GpsText}"/>
+                                <TextBlock Grid.Row="9" Grid.ColumnSpan="2" Text="Device" Classes="Section" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="10" Grid.ColumnSpan="2" Text="{Binding DeviceInfoText}" TextWrapping="Wrap"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
 
                     <!-- Live transport log -->
                     <Grid Grid.Column="1" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Margin="0,0,0,6"
-                                   Text="Live transport log (BlueZ RFCOMM / GAIA frames)"
-                                   FontWeight="Bold"/>
-                        <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                        <TextBlock Grid.Row="0" Classes="Section"
+                                   Text="Live transport log (BlueZ RFCOMM / GAIA frames)"/>
+                        <Border Grid.Row="1" Classes="ListCard">
                             <ListBox ItemsSource="{Binding Log}" FontFamily="monospace"/>
                         </Border>
                     </Grid>
@@ -120,7 +157,7 @@
                 <Grid RowDefinitions="Auto,*" Margin="8">
                     <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
                                Text="{Binding Stations.Count, StringFormat='APRS stations heard ({0})'}"/>
-                    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                    <Border Grid.Row="1" Classes="ListCard">
                         <ListBox ItemsSource="{Binding Stations}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="core:AprsStationSummary">
@@ -179,7 +216,7 @@
             </TabItem>
             <TabItem Header="Terminal">
                 <Grid RowDefinitions="*,Auto" Margin="8" RowSpacing="8">
-                    <Border Grid.Row="0" BorderBrush="#3F3F46" BorderThickness="1">
+                    <Border Grid.Row="0" Classes="ListCard">
                         <ListBox ItemsSource="{Binding TerminalLog}" FontFamily="monospace"/>
                     </Border>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
@@ -196,7 +233,7 @@
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
                         <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
                                    Text="{Binding Contacts.Count, StringFormat='Contacts ({0})'}"/>
-                        <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                        <Border Grid.Row="1" Classes="ListCard">
                             <ListBox ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedContact}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="core:StationInfoClass">
@@ -236,7 +273,7 @@
                 <Grid RowDefinitions="Auto,*" Margin="8">
                     <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
                                Text="{Binding Channels.Count, StringFormat='Memory channels ({0})'}"/>
-                    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                    <Border Grid.Row="1" Classes="ListCard">
                         <ListBox ItemsSource="{Binding Channels}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="core:RadioChannelSummary">
@@ -256,7 +293,7 @@
                 <Grid RowDefinitions="Auto,*" Margin="8">
                     <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
                                Text="{Binding Packets.Count, StringFormat='Received packets ({0})'}"/>
-                    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1">
+                    <Border Grid.Row="1" Classes="ListCard">
                         <ListBox ItemsSource="{Binding Packets}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="core:ReceivedPacketSummary">

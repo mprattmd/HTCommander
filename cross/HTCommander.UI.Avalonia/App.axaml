@@ -1,10 +1,31 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="HTCommander.UI.Avalonia.App"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Dark">
+
+    <Application.Resources>
+        <!-- Centralized palette. Surfaces go dark->light by tier; accent is a
+             ham-radio blue. Referenced via DynamicResource in AppStyles + markup. -->
+        <Color x:Key="SystemAccentColor">#2F80ED</Color>
+        <Color x:Key="SystemAccentColorDark1">#2A75D6</Color>
+
+        <SolidColorBrush x:Key="Surface0Brush" Color="#1B1B1F"/>
+        <SolidColorBrush x:Key="Surface1Brush" Color="#232327"/>
+        <SolidColorBrush x:Key="Surface2Brush" Color="#2A2A30"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#3A3A42"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F2F2F4"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#9A9AA6"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#2F80ED"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#3A8BF5"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#C0392B"/>
+        <SolidColorBrush x:Key="DangerHoverBrush" Color="#D14333"/>
+        <SolidColorBrush x:Key="DangerActiveBrush" Color="#E74C3C"/>
+        <SolidColorBrush x:Key="GoodBrush" Color="#27AE60"/>
+        <SolidColorBrush x:Key="InfoBrush" Color="#9CDCFE"/>
+    </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://HTCommander.UI.Avalonia/Themes/AppStyles.axaml"/>
     </Application.Styles>
 </Application>
