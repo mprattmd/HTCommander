@@ -399,7 +399,10 @@ public sealed class RadioController : IDisposable
         }
     }
 
-    private bool ChannelFree() => lastStatus == null || (!lastStatus.is_in_tx && lastStatus.rssi == 0);
+    // Channel is clear to transmit when the radio is neither transmitting nor receiving.
+    // (Matches WinForms IsTncFree. An earlier port used rssi==0, which never went true on
+    // a channel with any noise, so the first fragment was gated off forever — no TX.)
+    private bool ChannelFree() => lastStatus == null || (!lastStatus.is_in_tx && !lastStatus.is_in_rx);
 
     private void KickTxLocked()
     {
@@ -455,6 +458,24 @@ public sealed class RadioController : IDisposable
             var status = new RadioHtStatus(v);
             lastStatus = status;
             broker.Dispatch(deviceId, "HtStatus", status, store: false);
+
+            // Mirror WinForms ProcessTncQueue: every status update is our signal that the
+            // channel may have cleared, so resume any held TX. Without this, a single busy
+            // moment (e.g. right after a lock's channel switch) stalls the queue forever —
+            // nothing else re-kicks it, so no packets ever go out.
+            lock (txLock)
+            {
+                bool channelFree = !status.is_in_tx && !status.is_in_rx;
+                if (channelFree && !txInFlight && txQueue.Count > 0)
+                {
+                    txInFlight = true;
+                    SendBasic(CmdSendData, txQueue[0].Frame);
+                }
+                else if (txInFlight && status.is_in_rx)
+                {
+                    txInFlight = false;   // radio went to RX: clear a stuck in-flight flag so the queue resumes
+                }
+            }
         }
         catch (Exception) { /* malformed frame */ }
     }
