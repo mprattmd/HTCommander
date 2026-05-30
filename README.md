@@ -7,16 +7,23 @@
 >
 > <p align="center"><img src="docs/images/screenshot.png" alt="HTCommander on Linux" width="820"></p>
 >
-> **👉 Install & usage: [README-CrossPlatform.md](README-CrossPlatform.md)**
+> ### ⬇ Download for Linux (x86-64)
+> **[HTCommander-x86_64.AppImage](https://github.com/mprattmd/HTCommander/releases/latest/download/HTCommander-x86_64.AppImage)** — single self-contained file, no install:
+> ```bash
+> chmod +x HTCommander-x86_64.AppImage
+> ./HTCommander-x86_64.AppImage
+> ```
+> 📖 **Install & usage guide: [README-CrossPlatform.md](README-CrossPlatform.md)** · all [releases](https://github.com/mprattmd/HTCommander/releases)
 >
 > *A port of [Ylian Saint-Hilaire's HTCommander](https://github.com/Ylianst/HTCommander) — all credit for the original application is his. The notes below describe the original Windows app.*
 
 This is a Amateur Radio (HAM Radio) tool for the UV-Pro, UV-50Pro, GA-5WB, VR-N75, VR-N76, VR-N7500, VR-N7600 radios that works on Windows x64 with Bluetooth support. It allows for easy control over the radio with range of feature including channel programming, speech-to-text, text-to-speech, WinLink, APRS, terminal, torrent file transfer, BBS and more.
 
-![image](https://github.com/Ylianst/HTCommander/blob/main/docs/images/th-commander-4.png?raw=true)
+![HTCommander on Linux](docs/images/screenshot.png)
 An Amateur radio license is required to transmit using this software. You can get [information on a license here](https://www.arrl.org/getting-licensed).
 
-****Download: [Windows x64 MSI Installer](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.62.msi)****
+****Download (Linux): [HTCommander-x86_64.AppImage](https://github.com/mprattmd/HTCommander/releases/latest/download/HTCommander-x86_64.AppImage)****
+*Original Windows version (by Ylian Saint-Hilaire): [Windows x64 MSI Installer](https://github.com/Ylianst/HTCommander/raw/refs/heads/main/releases/HTCommander-0.62.msi)*
 
 ### Radio Support
 
