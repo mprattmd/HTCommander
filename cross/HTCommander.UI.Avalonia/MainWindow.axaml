@@ -389,8 +389,6 @@
                                 ToolTip.Tip="Import CHIRP, RepeaterBook, or native CSV"/>
                         <Button x:Name="ChExportButton" Content="Export CSV…"/>
                         <Button x:Name="ChLoadRadioButton" Content="Load from radio"/>
-                        <Button x:Name="ChAddRowButton" Content="Add row"/>
-                        <Button x:Name="ChRemoveRowButton" Content="Remove"/>
                         <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="4,2" IsVisible="{Binding HasBanks}"/>
                         <TextBlock Text="Bank" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" IsVisible="{Binding HasBanks}"/>
                         <ComboBox x:Name="ChBankCombo" MinWidth="70" IsVisible="{Binding HasBanks}"
