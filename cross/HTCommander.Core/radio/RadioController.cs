@@ -211,6 +211,7 @@ public sealed class RadioController : IDisposable
         restoreRegionAfterTx = -1;
         restoreChannelAfterTx = -1;
         notificationsRegistered = false;
+        lock (txLock) { txQueue.Clear(); txInFlight = false; }   // drop any stale fragments
         StopPolling();
         transport.OnConnected -= OnConnected;
         transport.ReceivedData -= OnReceivedData;
@@ -677,6 +678,7 @@ public sealed class RadioController : IDisposable
         int targetRegion = lockData.RegionId >= 0 ? lockData.RegionId : savedLockRegionId;
         int targetChannel = lockData.ChannelId >= 0 ? lockData.ChannelId : savedLockChannelId;
 
+        lock (txLock) { txQueue.Clear(); txInFlight = false; }   // start the locked session with a clean TX queue
         lockState = new RadioLockState { IsLocked = true, Usage = lockData.Usage, RegionId = targetRegion, ChannelId = targetChannel };
         broker.Dispatch(deviceId, "LockState", lockState, store: true);
         logger?.Debug($"Radio locked for '{lockData.Usage}': region {targetRegion}, channel {targetChannel} (was region {savedLockRegionId}, channel {savedLockChannelId}).");
@@ -692,6 +694,7 @@ public sealed class RadioController : IDisposable
         if (lockState.Usage != unlockData.Usage) return;     // only the holder may unlock
         if (rawSettings == null || rawSettings.Length <= 14) return;
 
+        lock (txLock) { txQueue.Clear(); txInFlight = false; }   // drop any unsent fragments from the session
         int curRegion = lastStatus?.curr_region ?? savedLockRegionId;
         if (savedLockRegionId != curRegion && savedLockRegionId >= 0) SetRegion(savedLockRegionId);
         WriteLockSettings(savedLockChannelId, savedLockScan, savedLockDualWatch);   // restore prior state
@@ -735,8 +738,11 @@ public sealed class RadioController : IDisposable
 
     private void HandleSettings(byte[] v)
     {
-        if (v.Length < 25) return;          // reads bit fields through msg[16]
-        rawSettings = (byte[])v.Clone();    // keep for active-channel writes (APRS/Winlink lock)
+        // Capture rawSettings whenever the frame is long enough for the active-channel /
+        // lock writes (they touch index 14), even if it's too short for the full summary
+        // parse — otherwise a short frame would silently leave the channel lock disabled.
+        if (v.Length > 14) rawSettings = (byte[])v.Clone();
+        if (v.Length < 25) return;          // need bit fields through msg[16] for the summary below
         try
         {
             int channelA = ((v[5] & 0xF0) >> 4) + (v[14] & 0xF0);

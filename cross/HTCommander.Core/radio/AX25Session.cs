@@ -563,7 +563,10 @@ namespace HTCommander
           lock (_sync)
           {
             Trace("Timer - Connect");
-            if (_timers.ConnectAttempts >= (Retries - 1))
+            // Let ConnectEx be the single place that gives up (at >= Retries), so the
+            // configured Retries equals the actual number of SABM transmissions. The old
+            // (Retries - 1) here cut it one short.
+            if (_timers.ConnectAttempts >= Retries)
             {
                 ClearTimer(TimerNames.Connect);
                 SetConnectionState(ConnectionState.DISCONNECTED);
