@@ -72,6 +72,11 @@ public sealed class RadioController : IDisposable
     private int lastDeviceChannelCount;          // channels-per-region (from dev info), for RefreshChannels
     private RadioChannelInfo[] channelArray;      // indexed by channel_id; published as "Channels" for APRS/Winlink/BBS lookups
     private int regionBeingRead;                  // the bank whose channels are currently being read (for APRS-channel region)
+    // name -> (region, channel_id) across ALL banks. "Channels" is overwritten per bank
+    // (channel ids repeat across banks), so name lookups there only see the last-loaded
+    // bank. This map survives the whole sweep so Winlink/BBS can resolve a channel that
+    // lives in a different bank than the one currently loaded. Published as "ChannelLocations".
+    private readonly Dictionary<string, AprsChannelLocation> channelLocations = new(StringComparer.OrdinalIgnoreCase);
 
     private sealed class TxFragment
     {
@@ -509,6 +514,12 @@ public sealed class RadioController : IDisposable
             {
                 channelArray[full.channel_id] = full;
                 broker.Dispatch(deviceId, "Channels", channelArray, store: true);
+            }
+            // Record this channel's bank+id by name across all banks (see field comment).
+            if (!string.IsNullOrEmpty(name))
+            {
+                channelLocations[name] = new AprsChannelLocation(regionBeingRead, full.channel_id);
+                broker.Dispatch(deviceId, "ChannelLocations", channelLocations, store: false);
             }
             // Remember which bank the user's designated APRS channel lives in, so APRS TX
             // targets the right (region, channel) pair — channel ids repeat across banks.

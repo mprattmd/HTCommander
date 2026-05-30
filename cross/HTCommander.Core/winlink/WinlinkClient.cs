@@ -124,19 +124,32 @@ namespace HTCommander
             RadioHtStatus htStatus = broker.GetValue<RadioHtStatus>(radioId, "HtStatus", null);
             int regionId = htStatus?.curr_region ?? 0;
             
-            // Look up the channel ID from the channel name
+            // Look up the channel by name. Prefer the all-banks location map (channel ids
+            // repeat across banks; the live "Channels" array only holds the last-loaded
+            // bank, so a Winlink channel in a different bank wouldn't be found there). The
+            // map also gives us the correct region to lock to.
             int channelId = -1;
             if (!string.IsNullOrEmpty(station.Channel))
             {
-                RadioChannelInfo[] channels = broker.GetValue<RadioChannelInfo[]>(radioId, "Channels", null);
-                if (channels != null)
+                var locs = broker.GetValue<Dictionary<string, AprsChannelLocation>>(radioId, "ChannelLocations", null);
+                if (locs != null && locs.TryGetValue(station.Channel, out AprsChannelLocation loc))
                 {
-                    for (int i = 0; i < channels.Length; i++)
+                    channelId = loc.ChannelId;
+                    regionId = loc.RegionId;          // lock to the bank the channel actually lives in
+                }
+                else
+                {
+                    // Fallback: search the currently-loaded bank's array.
+                    RadioChannelInfo[] channels = broker.GetValue<RadioChannelInfo[]>(radioId, "Channels", null);
+                    if (channels != null)
                     {
-                        if (channels[i] != null && channels[i].name_str == station.Channel)
+                        for (int i = 0; i < channels.Length; i++)
                         {
-                            channelId = i;
-                            break;
+                            if (channels[i] != null && channels[i].name_str == station.Channel)
+                            {
+                                channelId = i;
+                                break;
+                            }
                         }
                     }
                 }
@@ -146,7 +159,7 @@ namespace HTCommander
             if (channelId < 0)
             {
                 broker.LogError("[WinlinkClient] Channel '" + station.Channel + "' not found on radio " + radioId);
-                StateMessage("Channel '" + station.Channel + "' not found on radio.");
+                StateMessage("Channel '" + station.Channel + "' not found on the radio. Make sure a memory channel is named exactly '" + station.Channel + "', and that all banks are loaded (Channels tab → Load all banks) so channels in other banks are found.");
                 return;
             }
             
