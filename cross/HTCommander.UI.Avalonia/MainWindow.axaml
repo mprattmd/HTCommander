@@ -292,7 +292,7 @@
                                 <TextBlock Classes="Hint" TextWrapping="Wrap"
                                            Text="The RADIO beacons on its own using the settings above. Click Write to apply (also writes Ident) — this points the radio's beacon at your APRS channel (above), so you don't have to be tuned to it."/>
                                 <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="#E0A030"
-                                           Text="⚠ Requires Digital mode ON in the radio's own menu — the app can't toggle that. Also needs a memory channel named to match your APRS channel above."/>
+                                           Text="⚠ Requires Digital mode ON in the radio's own menu (the app can't toggle it), and a memory channel named to match your APRS channel above. NOTE: Digital mode ON disables the radio's TNC — so Winlink, BBS, and the App beacon below will NOT work while it's on. Use this OR the App/TNC methods, not both."/>
                                 <Button x:Name="WriteBssButton" Classes="Accent" Content="⬆ Write beacon/ident to radio"
                                         IsEnabled="{Binding CanWriteBss}" HorizontalAlignment="Left"/>
                             </StackPanel>
@@ -302,7 +302,9 @@
                         <Border Classes="Card" IsVisible="{Binding IsAppBeacon}">
                             <StackPanel Spacing="6">
                                 <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                           Text="The APP sends a position report on your APRS channel (above) via the radio's hardware TNC, regardless of the tuned channel (it briefly locks to the APRS channel, then restores). Requires the radio's TNC / packet-data mode ENABLED, callsign + Allow-transmit, and a position (fixed or GPS). The radio's own beacon is turned off in this mode."/>
+                                           Text="The APP sends a position report on your APRS channel (above) via the radio's hardware TNC, regardless of the tuned channel (it briefly locks to the APRS channel, then restores). Needs callsign + Allow-transmit and a position (fixed or GPS)."/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="#E0A030"
+                                           Text="⚠ Requires Digital mode OFF in the radio's menu. Digital mode is only for the radio's built-in beacon and it DISABLES the TNC — with it on, the radio keys but transmits nothing. The same applies to Winlink and BBS: Digital mode must be OFF for any app/TNC packet to go out."/>
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button x:Name="BeaconNowButton" Classes="Accent" Content="Beacon now" IsEnabled="{Binding CanBeacon}"/>
                                     <CheckBox Content="Auto-beacon" IsChecked="{Binding AutoBeacon}" IsEnabled="{Binding CanBeacon}" VerticalAlignment="Center"/>
