@@ -6,6 +6,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 using System;
 using System.Globalization;
+using System.Linq;
 using HTCommander;
 
 namespace HTCommander.UI.Avalonia.ViewModels;
@@ -19,6 +20,48 @@ public sealed class AprsMessageRow
     public string Text { get; init; } = "";
     public bool Outgoing { get; init; }
     public string Header => $"{Time:HH:mm}  {(Outgoing ? "▶ to " + To : "◀ " + From)}";
+}
+
+/// <summary>
+/// A global APRS route (named digipeater path), mirroring the Windows routes manager.
+/// Persisted form is <c>Name,Dest,Path1,Path2,…</c>; routes are joined with <c>|</c> in
+/// the <c>AprsRoutes</c> DataBroker key. The same comma-array is the <c>Route</c> the
+/// APRS handler consumes: <c>[RouteName, Dest, Path1, …]</c>.
+/// </summary>
+public sealed class AprsRoute : ViewModelBase
+{
+    private string name = "";
+    public string Name { get => name; set { if (SetField(ref name, value)) OnPropertyChanged(nameof(Display)); } }
+    private string destination = "APN000-0";
+    public string Destination { get => destination; set { if (SetField(ref destination, value)) OnPropertyChanged(nameof(Display)); } }
+    private string path = "";   // comma-separated digipeaters, e.g. WIDE1-1,WIDE2-2
+    public string Path { get => path; set { if (SetField(ref path, value)) OnPropertyChanged(nameof(Display)); } }
+
+    public string Display => string.IsNullOrEmpty(Path)
+        ? $"{Name}  →  {Destination}"
+        : $"{Name}  →  {Destination} via {Path}";
+
+    /// <summary>Persisted/route-array form: Name,Dest,Path1,Path2,…</summary>
+    public string ToStorage()
+    {
+        var parts = new System.Collections.Generic.List<string> { Name, string.IsNullOrWhiteSpace(Destination) ? "APN000-0" : Destination.Trim() };
+        if (!string.IsNullOrWhiteSpace(Path))
+            foreach (var p in Path.Split(',')) { var t = p.Trim(); if (t.Length > 0) parts.Add(t); }
+        return string.Join(",", parts);
+    }
+
+    public string[] ToRouteArray() => ToStorage().Split(',');
+
+    public static AprsRoute FromStorage(string s)
+    {
+        var p = s.Split(',');
+        return new AprsRoute
+        {
+            Name = p.Length > 0 ? p[0] : "",
+            Destination = p.Length > 1 ? p[1] : "APN000-0",
+            Path = p.Length > 2 ? string.Join(",", p.Skip(2)) : "",
+        };
+    }
 }
 
 /// <summary>One memory-slot tile in the channel grid (mirrors the Windows channel cards).</summary>

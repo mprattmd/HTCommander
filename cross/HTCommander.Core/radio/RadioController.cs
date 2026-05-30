@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HTCommander.Core.Abstractions;
@@ -43,6 +44,7 @@ public sealed class RadioController : IDisposable
     private const int CmdWriteRfChannel = 14;     // WRITE_RF_CH
     private const int CmdSetRegion = 60;          // SET_REGION (selects the channel bank/zone)
     private const int CmdReadBssSettings = 33;
+    private const int CmdWriteBssSettings = 34;   // WRITE_BSS_SETTINGS (beacon/ident)
     private const int CmdGetHtStatus = 20;
     private const int CmdSendData = 31;          // HT_SEND_DATA
     private const int MaxMtu = 50;               // TNC fragment payload size
@@ -92,6 +94,8 @@ public sealed class RadioController : IDisposable
         transport.ReceivedData += OnReceivedData;
         // Transmit AX.25 frames dispatched by higher layers (APRS handler, etc.).
         broker.Subscribe(deviceId, "TransmitDataFrame", OnTransmitDataFrame);
+        // Beacon/ident settings writes dispatched by the UI.
+        broker.Subscribe(deviceId, "SetBssSettings", OnSetBssSettings);
         transport.Connect();
     }
 
@@ -99,6 +103,11 @@ public sealed class RadioController : IDisposable
     {
         if (data is TransmitDataFrameData txData && txData.Packet != null)
             SendPacket(txData.Packet, txData.ChannelId, txData.RegionId);
+    }
+
+    private void OnSetBssSettings(int dev, string name, object data)
+    {
+        if (data is RadioBssSettings bss) WriteBssSettings(bss);
     }
 
     /// <summary>Disconnects and unsubscribes.</summary>
@@ -146,6 +155,7 @@ public sealed class RadioController : IDisposable
             case CmdReadRfChannel: HandleChannel(v); break;
             case CmdReadSettings: HandleSettings(v); break;
             case CmdReadBssSettings: HandleBssSettings(v); break;
+            case CmdWriteBssSettings: if (v.Length > 4 && v[4] != 0) logger?.Debug($"WRITE_BSS_SETTINGS error: {v[4]}"); break;
             case CmdSendData: HandleSendDataResponse(v); break;
             case CmdEventNotification:
                 if (v.Length > 4)
@@ -397,6 +407,18 @@ public sealed class RadioController : IDisposable
         catch (Exception) { }              // ctor throws on a short frame
     }
 
+    /// <summary>
+    /// Writes beacon/ident (BSS) settings to the radio (WRITE_BSS_SETTINGS) and re-reads
+    /// them so the UI reflects what was stored. These settings drive PTT-release beacon
+    /// position and ident transmissions, so this is an operator-initiated action.
+    /// </summary>
+    public void WriteBssSettings(RadioBssSettings bss)
+    {
+        if (bss == null) return;
+        SendBasic(CmdWriteBssSettings, bss.ToByteArray());
+        SendBasic(CmdReadBssSettings, null);
+    }
+
     // Big-endian 32-bit (network order), matching the radio protocol.
     private static int GetInt(byte[] b, int o) =>
         (b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3];
@@ -446,12 +468,33 @@ public sealed class RadioController : IDisposable
         string src = ax.addresses[1].CallSignWithId;
         string info = ax.dataStr ?? string.Empty;
 
+        // Digipeater path = any addresses past dest(0)/src(1).
+        string path = ax.addresses.Count > 2
+            ? string.Join(",", ax.addresses.Skip(2).Select(a => a.CallSignWithId))
+            : string.Empty;
+
         aprsparser.AprsPacket? aprs = null;
         try { aprs = aprsparser.AprsPacket.Parse(ax); } catch (Exception) { }
         bool isAprs = aprs != null && !string.IsNullOrEmpty(info);
 
+        double? lat = null, lon = null;
+        if (aprs?.Position?.CoordinateSet != null && aprs.Position.IsValid())
+        {
+            lat = aprs.Position.CoordinateSet.Latitude.Value;
+            lon = aprs.Position.CoordinateSet.Longitude.Value;
+        }
+
         broker.Dispatch(deviceId, "PacketReceived",
-            new ReceivedPacketSummary(src, dest, info, isAprs), store: false);
+            new ReceivedPacketSummary(src, dest, info, isAprs,
+                TimeLocal: DateTime.Now,
+                Path: path,
+                AprsType: isAprs ? aprs!.DataType.ToString() : "",
+                Symbol: isAprs ? $"{aprs!.SymbolTableIdentifier}{aprs.SymbolCode}" : "",
+                Latitude: lat, Longitude: lon,
+                Comment: aprs?.Comment ?? "",
+                MessageText: aprs?.MessageData?.MsgText ?? "",
+                MessageAddressee: aprs?.MessageData?.Addressee ?? ""),
+            store: false);
 
         // When the APRS packet carries a valid position, publish a station fix too.
         if (aprs?.Position?.CoordinateSet != null && aprs.Position.IsValid())
@@ -507,8 +550,22 @@ public sealed record RadioChannelSummary(
     public double TxMHz => TxHz / 1_000_000.0;
 }
 
-/// <summary>A received AX.25/APRS packet, decoded from a DATA_RXD notification.</summary>
-public sealed record ReceivedPacketSummary(string Source, string Destination, string Info, bool IsAprs);
+/// <summary>
+/// A received AX.25/APRS packet, decoded from a DATA_RXD notification. The trailing
+/// fields are populated for the per-packet detail view; they stay at their defaults
+/// for non-APRS frames or fields the packet doesn't carry.
+/// </summary>
+public sealed record ReceivedPacketSummary(
+    string Source, string Destination, string Info, bool IsAprs,
+    DateTime TimeLocal = default, string Path = "",
+    string AprsType = "", string Symbol = "",
+    double? Latitude = null, double? Longitude = null,
+    string Comment = "", string MessageText = "", string MessageAddressee = "")
+{
+    public bool HasPosition => Latitude.HasValue && Longitude.HasValue;
+    public string TimeText => TimeLocal == default ? "" : TimeLocal.ToString("HH:mm:ss");
+    public string PositionText => HasPosition ? $"{Latitude:0.0000}, {Longitude:0.0000}" : "";
+}
 
 /// <summary>An APRS station position fix decoded from a received packet.</summary>
 public sealed record AprsStationSummary(

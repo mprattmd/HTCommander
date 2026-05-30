@@ -73,8 +73,12 @@ public partial class MainWindow : Window
         BbsToggleButton.Click += (_, _) => Vm?.ToggleBbs();
         BbsClearStatsButton.Click += (_, _) => Vm?.ClearBbsStats();
 
-        // APRS message send
+        // APRS message send + routes + beacon/ident + create-channel
         AprsSendButton.Click += (_, _) => Vm?.SendAprsMessage();
+        CreateAprsChannelButton.Click += (_, _) => Vm?.CreateAprsChannel();
+        WriteBssButton.Click += (_, _) => Vm?.WriteBssSettings();
+        AddRouteButton.Click += (_, _) => Vm?.AddOrUpdateRoute();
+        RemoveRouteButton.Click += (_, _) => Vm?.RemoveSelectedRoute();
 
         // Screenshot (button + F12)
         ScreenshotButton.Click += (_, _) => SaveScreenshot();
