@@ -131,6 +131,7 @@ public sealed class MainViewModel : ViewModelBase
         autoLoadAllBanks = DataBroker.GetValue<bool>(0, "AutoLoadAllBanks", true);
         LoadAprsFiSettings();
         LoadAprsChannelName();
+        LoadBeaconMode();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -1800,6 +1801,10 @@ public sealed class MainViewModel : ViewModelBase
     {
         loadingAprsChannel = true;
         aprsChannelName = DataBroker.GetValue<string>(0, "AprsChannelName", "APRS") ?? "APRS";
+        // Seed the channel list with the saved name so the picker shows it before connecting
+        // (the live channel list fills in once a radio connects).
+        if (!string.IsNullOrWhiteSpace(aprsChannelName) && !ChannelNames.Contains(aprsChannelName))
+            ChannelNames.Add(aprsChannelName);
         OnPropertyChanged(nameof(AprsChannelName));
         loadingAprsChannel = false;
     }
@@ -1807,6 +1812,39 @@ public sealed class MainViewModel : ViewModelBase
     public int BeaconInterval { get => beaconInterval; set => SetField(ref beaconInterval, value); }
     private bool beaconShareLocation;
     public bool BeaconShareLocation { get => beaconShareLocation; set => SetField(ref beaconShareLocation, value); }
+
+    // Single beacon method (mutually exclusive): "Off" | "Radio" | "App".
+    public string[] BeaconModes { get; } = { "Off", "Radio (built-in)", "App (TNC)" };
+    private bool loadingBeaconMode;
+    private string beaconMode = "Off";
+    public string BeaconMode
+    {
+        get => beaconMode;
+        set
+        {
+            if (!SetField(ref beaconMode, value) || value == null) return;
+            OnPropertyChanged(nameof(IsRadioBeacon));
+            OnPropertyChanged(nameof(IsAppBeacon));
+            if (loadingBeaconMode) return;
+            DataBroker.Dispatch(0, "BeaconMode", value, store: true);
+            // Apply to the radio's own beacon: ON only in Radio mode (prevents double-TX).
+            if (Connected && HasBss) WriteBssSettings();
+            UpdateAutoBeaconTimer();
+        }
+    }
+    public bool IsRadioBeacon => beaconMode != null && beaconMode.StartsWith("Radio");
+    public bool IsAppBeacon => beaconMode != null && beaconMode.StartsWith("App");
+    private void LoadBeaconMode()
+    {
+        loadingBeaconMode = true;
+        string m = DataBroker.GetValue<string>(0, "BeaconMode", "Off") ?? "Off";
+        beaconMode = Array.IndexOf(BeaconModes, m) >= 0 ? m : "Off";
+        OnPropertyChanged(nameof(BeaconMode));
+        OnPropertyChanged(nameof(IsRadioBeacon));
+        OnPropertyChanged(nameof(IsAppBeacon));
+        loadingBeaconMode = false;
+    }
+
     private bool beaconOnPttRelease;
     public bool BeaconOnPttRelease { get => beaconOnPttRelease; set => SetField(ref beaconOnPttRelease, value); }
     private bool identOnPttRelease;
@@ -1850,7 +1888,7 @@ public sealed class MainViewModel : ViewModelBase
         b.AprsSymbol = Clamp(string.IsNullOrEmpty(BeaconSymbol) ? "/-" : BeaconSymbol, 2);
         b.BeaconMessage = Clamp(BeaconMessageText, 18);
         b.LocationShareInterval = Math.Max(0, BeaconInterval);
-        b.ShouldShareLocation = BeaconShareLocation;
+        b.ShouldShareLocation = IsRadioBeacon;   // radio beacons only in Radio mode (avoids double-TX with App mode)
         b.PttReleaseSendLocation = BeaconOnPttRelease;
         b.PttReleaseSendIdInfo = IdentOnPttRelease;
         b.PttReleaseIdInfo = Clamp(IdentText, 12);
@@ -1898,7 +1936,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         try { autoBeaconTimer?.Stop(); autoBeaconTimer?.Dispose(); } catch (Exception) { }
         autoBeaconTimer = null;
-        if (autoBeacon && Connected)
+        if (autoBeacon && Connected && IsAppBeacon)   // app auto-beacon only in App mode
         {
             int secs = Math.Max(10, BeaconInterval);
             autoBeaconTimer = new System.Timers.Timer(secs * 1000.0) { AutoReset = true };
