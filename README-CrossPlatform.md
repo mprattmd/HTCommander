@@ -1,15 +1,29 @@
-# Handi-Talky Commander — Cross-Platform Edition (Linux)
+<h1 align="center">📻 Handi-Talky Commander — Linux Edition</h1>
+
+<p align="center">
+  <b>Control your Benshi / UV-Pro handheld radio from Linux.</b><br>
+  Live voice · APRS + map · packet · drag-and-drop channel builder · Winlink mail · BBS
+</p>
+
+<p align="center">
+  <img src="docs/images/screenshot.png" alt="Handi-Talky Commander running on Linux" width="900">
+</p>
+
+<p align="center">
+  <img alt=".NET 9" src="https://img.shields.io/badge/.NET-9.0-512BD4">
+  <img alt="Avalonia" src="https://img.shields.io/badge/UI-Avalonia%2012-7B61FF">
+  <img alt="Linux" src="https://img.shields.io/badge/Linux-x64-FCC624?logo=linux&logoColor=black">
+  <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue">
+</p>
 
 A native **Linux** build of Handi-Talky Commander for controlling Benshi-based
-amateur handheld radios (BTech UV-Pro and friends) over Bluetooth — APRS, packet,
-live voice, channel programming, Winlink mail, and a connected-mode BBS — without
-needing Windows.
+amateur handheld radios (BTech UV-Pro and friends) over Bluetooth — without needing
+Windows. It's a port of the original Windows/WinForms
+[HTCommander](https://github.com/Ylianst/HTCommander) to a portable
+**.NET 9 + [Avalonia](https://avaloniaui.net/)** UI, so one shared core runs on Linux
+today (and macOS/Windows later).
 
-This is a port of the original Windows/WinForms [HTCommander](https://github.com/Ylianst/HTCommander)
-to a portable **.NET 9 + [Avalonia](https://avaloniaui.net/)** UI, so the same app
-can run on Linux today (and macOS/Windows later) from one shared core.
-
-> 📻 **An amateur radio license is required to transmit.** Transmitting keys the
+> 📡 **An amateur radio license is required to transmit.** Transmitting keys the
 > radio on the air under your callsign. In this app, transmit is always a
 > deliberate, press-and-hold action (see [Transmitting & safety](#transmitting--safety)).
 > No license? [Start here](https://www.arrl.org/getting-licensed).

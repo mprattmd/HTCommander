@@ -163,7 +163,9 @@ namespace HTCommander
                         packet.Message = Encoding.UTF8.GetString(value);
                         break;
                     case (byte)FieldType.Location:
-                        packet.Location = HTCommander.GpsLocation.DecodeGpsBytes(value);
+                        // A short/malformed Location field must not abort the whole packet parse.
+                        try { packet.Location = HTCommander.GpsLocation.DecodeGpsBytes(value); }
+                        catch { packet.Location = null; }
                         break;
                     case (byte)FieldType.LocationRequest:
                         packet.LocationRequest = Encoding.UTF8.GetString(value);

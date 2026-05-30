@@ -5,6 +5,7 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 using System;
+using System.Globalization;
 using HTCommander;
 
 namespace HTCommander.UI.Avalonia.ViewModels;
@@ -36,6 +37,30 @@ public sealed class EditableChannel : ViewModelBase
     public double RxToneHz { get => rxToneHz; set => SetField(ref rxToneHz, value); }
     public double TxToneHz { get => txToneHz; set => SetField(ref txToneHz, value); }
     public bool Scan { get => scan; set => SetField(ref scan, value); }
+
+    // The DataGrid edits these string views so parsing/formatting is always
+    // InvariantCulture (a '.' decimal point), independent of the OS locale — otherwise
+    // a comma-decimal locale could mis-parse a typed frequency.
+    public string RxMHzText
+    {
+        get => rxMHz.ToString("0.0000", CultureInfo.InvariantCulture);
+        set { if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) RxMHz = d; }
+    }
+    public string TxMHzText
+    {
+        get => txMHz.ToString("0.0000", CultureInfo.InvariantCulture);
+        set { if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) TxMHz = d; }
+    }
+    public string RxToneText
+    {
+        get => rxToneHz.ToString("0.0", CultureInfo.InvariantCulture);
+        set { if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) RxToneHz = d; }
+    }
+    public string TxToneText
+    {
+        get => txToneHz.ToString("0.0", CultureInfo.InvariantCulture);
+        set { if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) TxToneHz = d; }
+    }
 
     public EditableChannel() { }
 

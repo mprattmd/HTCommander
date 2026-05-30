@@ -37,6 +37,7 @@ namespace HTCommander
 
         public RadioChannelInfo(byte[] msg)
         {
+            if (msg == null || msg.Length < 30) throw new ArgumentException("Channel record too short", nameof(msg));
             raw = msg;
             channel_id = msg[5];
             tx_mod = (RadioModulationType)(msg[6] >> 6);
@@ -91,10 +92,12 @@ namespace HTCommander
         {
             byte[] r = new byte[25];
             r[0] = (byte)channel_id;
-            CoreUtils.SetInt(r, 1, (int)tx_freq);
-            r[1] += (byte)(((int)tx_mod & 0x03) << 6);
-            CoreUtils.SetInt(r, 5, (int)rx_freq);
-            r[5] += (byte)(((int)rx_mod & 0x03) << 6);
+            // Frequencies occupy the low 30 bits; the top 2 bits carry modulation.
+            // Mask to 30 bits and OR in the mod bits (the read side masks with 0x3FFFFFFF).
+            CoreUtils.SetInt(r, 1, (int)tx_freq & 0x3FFFFFFF);
+            r[1] |= (byte)(((int)tx_mod & 0x03) << 6);
+            CoreUtils.SetInt(r, 5, (int)rx_freq & 0x3FFFFFFF);
+            r[5] |= (byte)(((int)rx_mod & 0x03) << 6);
             CoreUtils.SetShort(r, 9, (int)tx_sub_audio);
             CoreUtils.SetShort(r, 11, (int)rx_sub_audio);
 

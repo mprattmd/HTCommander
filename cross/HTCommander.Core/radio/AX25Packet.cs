@@ -124,7 +124,7 @@ namespace HTCommander
             {
                 pollFinal = (((control & (int)Defs.PF) >> 4) != 0);
                 type = (FrameType)(control & (int)FrameType.U_FRAME_MASK);
-                if (type == FrameType.U_FRAME_UI) { pid = data[i++]; }
+                if (type == FrameType.U_FRAME_UI) { if (data.Length < (i + 1)) return null; pid = data[i++]; }
                 else if (type == FrameType.U_FRAME_XID /*&& frame.length > 0*/)
                 {
                     // Parse XID parameter fields and break out to properties
@@ -139,6 +139,7 @@ namespace HTCommander
                 type = (FrameType)(control & (int)FrameType.S_FRAME_MASK);
                 if (modulo128)
                 {
+                    if (data.Length < (i + 1)) return null;
                     control |= (data[i++] << 8);
                     nr = (byte)((control & (int)Defs.NR_MODULO128) >> 8);
                     pollFinal = ((control & (int)Defs.PF) >> 7) != 0;
@@ -154,6 +155,7 @@ namespace HTCommander
                 type = FrameType.I_FRAME;
                 if (modulo128)
                 {
+                    if (data.Length < (i + 1)) return null;
                     control |= (data[i++] << 8);
                     nr = (byte)((control & (int)Defs.NR_MODULO128) >> 8);
                     ns = (byte)((control & (int)Defs.NS_MODULO128) >> 1);
@@ -165,6 +167,7 @@ namespace HTCommander
                     ns = (byte)((control & (int)Defs.NS) >> 1);
                     pollFinal = ((control & (int)Defs.PF) >> 4) != 0;
                 }
+                if (data.Length < (i + 1)) return null;
                 pid = data[i++];
             }
             else

@@ -131,15 +131,20 @@ public sealed class SqliteMailStore : IMailStore
     {
         lock (_gate)
         {
-            using (var cmd = _connection.CreateCommand())
+            using (var tx = _connection.BeginTransaction())
             {
-                cmd.CommandText = @"INSERT OR REPLACE INTO mails
-                    (mid, datetime, from_addr, to_addr, cc, subject, mbo, body, tag, location, flags, mailbox)
-                    VALUES (@mid,@dt,@from,@to,@cc,@subj,@mbo,@body,@tag,@loc,@flags,@mailbox)";
-                BindMail(cmd, mail);
-                cmd.ExecuteNonQuery();
+                using (var cmd = _connection.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = @"INSERT OR REPLACE INTO mails
+                        (mid, datetime, from_addr, to_addr, cc, subject, mbo, body, tag, location, flags, mailbox)
+                        VALUES (@mid,@dt,@from,@to,@cc,@subj,@mbo,@body,@tag,@loc,@flags,@mailbox)";
+                    BindMail(cmd, mail);
+                    cmd.ExecuteNonQuery();
+                }
+                SaveAttachments(mail, tx);
+                tx.Commit();
             }
-            SaveAttachments(mail);
             MailsChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -148,17 +153,22 @@ public sealed class SqliteMailStore : IMailStore
     {
         lock (_gate)
         {
-            using (var cmd = _connection.CreateCommand())
+            using (var tx = _connection.BeginTransaction())
             {
-                cmd.CommandText = @"UPDATE mails SET datetime=@dt, from_addr=@from, to_addr=@to, cc=@cc,
-                    subject=@subj, mbo=@mbo, body=@body, tag=@tag, location=@loc, flags=@flags, mailbox=@mailbox
-                    WHERE mid=@mid";
-                BindMail(cmd, mail);
-                cmd.ExecuteNonQuery();
+                using (var cmd = _connection.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = @"UPDATE mails SET datetime=@dt, from_addr=@from, to_addr=@to, cc=@cc,
+                        subject=@subj, mbo=@mbo, body=@body, tag=@tag, location=@loc, flags=@flags, mailbox=@mailbox
+                        WHERE mid=@mid";
+                    BindMail(cmd, mail);
+                    cmd.ExecuteNonQuery();
+                }
+                // Re-write attachment rows + files.
+                DeleteAttachmentRowsAndFiles(mail.MID, tx);
+                SaveAttachments(mail, tx);
+                tx.Commit();
             }
-            // Re-write attachment rows + files.
-            DeleteAttachmentRowsAndFiles(mail.MID);
-            SaveAttachments(mail);
             MailsChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -167,11 +177,18 @@ public sealed class SqliteMailStore : IMailStore
     {
         lock (_gate)
         {
-            DeleteAttachmentRowsAndFiles(mid);
-            using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM mails WHERE mid = @mid";
-            cmd.Parameters.AddWithValue("@mid", mid);
-            cmd.ExecuteNonQuery();
+            using (var tx = _connection.BeginTransaction())
+            {
+                DeleteAttachmentRowsAndFiles(mid, tx);
+                using (var cmd = _connection.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = "DELETE FROM mails WHERE mid = @mid";
+                    cmd.Parameters.AddWithValue("@mid", mid);
+                    cmd.ExecuteNonQuery();
+                }
+                tx.Commit();
+            }
             MailsChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -192,7 +209,7 @@ public sealed class SqliteMailStore : IMailStore
                     BindMail(cmd, mail);
                     cmd.ExecuteNonQuery();
                 }
-                SaveAttachments(mail);
+                SaveAttachments(mail, tx);
             }
             tx.Commit();
             MailsChanged?.Invoke(this, EventArgs.Empty);
@@ -247,7 +264,7 @@ public sealed class SqliteMailStore : IMailStore
         return s;
     }
 
-    private void SaveAttachments(WinLinkMail mail)
+    private void SaveAttachments(WinLinkMail mail, SqliteTransaction? tx = null)
     {
         if (mail.Attachments == null) return;
         foreach (var att in mail.Attachments)
@@ -255,6 +272,7 @@ public sealed class SqliteMailStore : IMailStore
             string fileName = $"{SafeName(mail.MID)}__{SafeName(att.Name ?? "att")}";
             if (att.Data != null) File.WriteAllBytes(Path.Combine(_attachmentsPath, fileName), att.Data);
             using var cmd = _connection.CreateCommand();
+            cmd.Transaction = tx;
             cmd.CommandText = "INSERT INTO attachments (mail_mid, filename, filepath) VALUES (@mid,@fn,@fp)";
             cmd.Parameters.AddWithValue("@mid", mail.MID);
             cmd.Parameters.AddWithValue("@fn", att.Name ?? "att");
@@ -277,13 +295,14 @@ public sealed class SqliteMailStore : IMailStore
             if (File.Exists(full)) att.Data = File.ReadAllBytes(full);
             list.Add(att);
         }
-        return list.Count > 0 ? list : null;
+        return list;   // empty list (not null) so consumers can iterate safely
     }
 
-    private void DeleteAttachmentRowsAndFiles(string mid)
+    private void DeleteAttachmentRowsAndFiles(string mid, SqliteTransaction? tx = null)
     {
         using (var cmd = _connection.CreateCommand())
         {
+            cmd.Transaction = tx;
             cmd.CommandText = "SELECT filepath FROM attachments WHERE mail_mid = @mid";
             cmd.Parameters.AddWithValue("@mid", mid);
             using var reader = cmd.ExecuteReader();
@@ -294,6 +313,7 @@ public sealed class SqliteMailStore : IMailStore
         }
         using (var del = _connection.CreateCommand())
         {
+            del.Transaction = tx;
             del.CommandText = "DELETE FROM attachments WHERE mail_mid = @mid";
             del.Parameters.AddWithValue("@mid", mid);
             del.ExecuteNonQuery();

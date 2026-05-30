@@ -53,6 +53,7 @@ internal static class NativeRfcomm
     private const short POLLOUT = 0x0004;
 
     private const int EINPROGRESS = 115;
+    private const int EINTR = 4;
 
     private const int SHUT_RDWR = 2;
 
@@ -137,9 +138,10 @@ internal static class NativeRfcomm
             setsockopt(fd, SOL_BLUETOOTH, BT_SECURITY, new byte[] { BT_SECURITY_MEDIUM, 0 }, 2);
 
             // Switch to non-blocking so connect() returns immediately and we can
-            // bound the wait with poll().
+            // bound the wait with poll(). If we can't, a blocking connect() would
+            // ignore timeoutMs and could hang the thread — fail fast instead.
             int flags = fcntl(fd, F_GETFL, 0);
-            if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+            if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
 
             byte[] addr = BuildSockAddr(bdaddr, channel);
             int rc = connect(fd, addr, (uint)addr.Length);
@@ -196,7 +198,12 @@ internal static class NativeRfcomm
             while (off < data.Length)
             {
                 nint n = write(fd, buf + off, (nuint)(data.Length - off));
-                if (n <= 0) return false;
+                if (n < 0)
+                {
+                    if (Marshal.GetLastPInvokeError() == EINTR) continue;   // interrupted: retry
+                    return false;
+                }
+                if (n == 0) return false;
                 off += (int)n;
             }
             return true;

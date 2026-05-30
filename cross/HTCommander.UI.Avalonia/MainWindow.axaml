@@ -387,12 +387,12 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Slot" Binding="{Binding ChannelId}" Width="55"/>
                                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="120"/>
-                                <DataGridTextColumn Header="RX MHz" Binding="{Binding RxMHz, StringFormat='0.0000'}" Width="100"/>
-                                <DataGridTextColumn Header="TX MHz" Binding="{Binding TxMHz, StringFormat='0.0000'}" Width="100"/>
+                                <DataGridTextColumn Header="RX MHz" Binding="{Binding RxMHzText}" Width="100"/>
+                                <DataGridTextColumn Header="TX MHz" Binding="{Binding TxMHzText}" Width="100"/>
                                 <DataGridTextColumn Header="Mode" Binding="{Binding Mode}" Width="70"/>
                                 <DataGridTextColumn Header="Power" Binding="{Binding Power}" Width="65"/>
-                                <DataGridTextColumn Header="RX Tone" Binding="{Binding RxToneHz, StringFormat='0.0'}" Width="80"/>
-                                <DataGridTextColumn Header="TX Tone" Binding="{Binding TxToneHz, StringFormat='0.0'}" Width="80"/>
+                                <DataGridTextColumn Header="RX Tone" Binding="{Binding RxToneText}" Width="80"/>
+                                <DataGridTextColumn Header="TX Tone" Binding="{Binding TxToneText}" Width="80"/>
                                 <DataGridCheckBoxColumn Header="Scan" Binding="{Binding Scan}" Width="55"/>
                             </DataGrid.Columns>
                         </DataGrid>

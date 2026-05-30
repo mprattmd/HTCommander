@@ -191,6 +191,14 @@ namespace HTCommander
         }
         private readonly State _state = new State();
 
+        // Serializes all session mutation across threads: incoming frames
+        // (OnUniqueDataFrame), the public API (Send/Connect/Disconnect/Receive), and the
+        // System.Timers.Timer callbacks (T1/T2/T3/Connect/Disconnect) all run on different
+        // threads and mutate _state/_timers. lock() (Monitor) is re-entrant, so a handler
+        // that calls back into the session on the same thread (e.g. the BBS calling Send()
+        // from a DataReceived handler) is safe and won't deadlock.
+        private readonly object _sync = new object();
+
         /// <summary>
         /// Internal timers for the AX.25 session protocol.
         /// </summary>
@@ -281,19 +289,21 @@ namespace HTCommander
         private void OnUniqueDataFrame(int deviceId, string name, object data)
         {
             if (!(data is TncDataFragment frame)) return;
-            
-            // Only process frames from our radio device
-            if (frame.RadioDeviceId != _radioDeviceId) return;
+            lock (_sync)
+            {
+                // Only process frames from our radio device
+                if (frame.RadioDeviceId != _radioDeviceId) return;
 
-            // Skip our own outgoing packets - only process incoming frames
-            if (!frame.incoming) return;
-            
-            // Parse the AX.25 packet from the frame data
-            AX25Packet packet = AX25Packet.DecodeAX25Packet(frame);
-            if (packet == null) return;
-            
-            // Process the received packet
-            Receive(packet);
+                // Skip our own outgoing packets - only process incoming frames
+                if (!frame.incoming) return;
+
+                // Parse the AX.25 packet from the frame data
+                AX25Packet packet = AX25Packet.DecodeAX25Packet(frame);
+                if (packet == null) return;
+
+                // Process the received packet
+                Receive(packet);
+            }
         }
 
         /// <summary>
@@ -550,6 +560,8 @@ namespace HTCommander
 
         private void ConnectTimerCallback(Object sender, ElapsedEventArgs e)
         {
+          lock (_sync)
+          {
             Trace("Timer - Connect");
             if (_timers.ConnectAttempts >= (Retries - 1))
             {
@@ -558,10 +570,13 @@ namespace HTCommander
                 return;
             }
             ConnectEx();
+          }
         }
 
         private void DisconnectTimerCallback(Object sender, ElapsedEventArgs e)
         {
+          lock (_sync)
+          {
             Trace("Timer - Disconnect");
             if (_timers.DisconnectAttempts >= (Retries - 1))
             {
@@ -580,6 +595,7 @@ namespace HTCommander
                 return;
             }
             Disconnect();
+          }
         }
 
         // Sent I-frame Acknowledgement Timer (6.7.1.3 and 4.4.5.1). This is started when a single
@@ -589,6 +605,8 @@ namespace HTCommander
         // the P-bit set and then restart the timer. After N attempts, we reset the link.
         private void T1TimerCallback(Object sender, ElapsedEventArgs e)
         {
+          lock (_sync)
+          {
             Trace("** Timer - T1 expired");
             if (_timers.T1Attempts >= Retries)
             {
@@ -598,6 +616,7 @@ namespace HTCommander
             }
             _timers.T1Attempts++;
             SendRR(true);
+          }
         }
 
         // Response Delay Timer (6.7.1.2). This is started when an I-frame is received. If
@@ -606,9 +625,12 @@ namespace HTCommander
         // to send.
         private void T2TimerCallback(Object sender, ElapsedEventArgs e)
         {
+          lock (_sync)
+          {
             Trace("** Timer - T2 expired");
             ClearTimer(TimerNames.T2);
             Drain(true);
+          }
         }
 
         // Poll Timer (6.7.1.3 and 4.4.5.2). This is started when T1 is not running (there are
@@ -616,6 +638,8 @@ namespace HTCommander
         // and T1 started.
         private void T3TimerCallback(Object sender, ElapsedEventArgs e)
         {
+          lock (_sync)
+          {
             Trace("** Timer - T3 expired");
             if (_timers.T1.Enabled) return; // Don't interfere if T1 is active
             if (_timers.T3Attempts >= Retries) // Use T3 specific retry count if you separate them
@@ -627,6 +651,7 @@ namespace HTCommander
             _timers.T3Attempts++;
             //SendRR(true); // Send RR with Poll bit set to solicit response (or RNR if remote busy logic applied here)
             //SetTimer(TimerNames.T1); // Start T1 to wait for acknowledgement of this RR/RNR
+          }
         }
 
         /// <summary>
@@ -636,6 +661,8 @@ namespace HTCommander
         /// <returns>True if the connection attempt was started, false if already connected or invalid addresses.</returns>
         public bool Connect(List<AX25Address> addresses)
         {
+          lock (_sync)
+          {
             Trace("Connect");
             if (CurrentState != ConnectionState.DISCONNECTED) return false;
             if ((addresses == null) || (addresses.Count < 2)) return false;
@@ -646,6 +673,7 @@ namespace HTCommander
             ClearTimer(TimerNames.T2);
             ClearTimer(TimerNames.T3);
             return ConnectEx();
+          }
         }
 
         /// <summary>
@@ -690,6 +718,8 @@ namespace HTCommander
         /// </summary>
         public void Disconnect()
         {
+          lock (_sync)
+          {
             if (_state.Connection == ConnectionState.DISCONNECTED) return;
             Trace("Disconnect");
             ClearTimer(TimerNames.Connect);
@@ -732,6 +762,7 @@ namespace HTCommander
                 )
             );
             if (!_timers.Disconnect.Enabled) { SetTimer(TimerNames.Disconnect); }
+          }
         }
 
         /// <summary>
@@ -751,6 +782,8 @@ namespace HTCommander
         /// <param name="info">The byte data to send.</param>
         public void Send(byte[] info)
         {
+          lock (_sync)
+          {
             Trace("Send");
             if ((info == null) || (info.Length == 0)) return;
             int packetLength = PacketLength;
@@ -767,6 +800,7 @@ namespace HTCommander
 
             // Check if timer is not enabled using Timer.Enabled property
             if (!_timers.T2.Enabled) { Drain(false); }
+          }
         }
 
         /// <summary>
@@ -777,6 +811,8 @@ namespace HTCommander
         /// <returns>True if the packet was processed, false if invalid.</returns>
         public bool Receive(AX25Packet packet)
         {
+          lock (_sync)
+          {
             if ((packet == null) || (packet.addresses.Count < 2)) return false;
             Trace("Receive " + packet.type.ToString());
 
@@ -1214,6 +1250,7 @@ namespace HTCommander
             }
 
             return true;
+          }
         }
 
         // Process any buffered packets that can now be delivered in sequence
