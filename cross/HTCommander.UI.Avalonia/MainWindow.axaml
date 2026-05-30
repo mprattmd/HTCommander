@@ -268,7 +268,98 @@
                     </StackPanel>
                 </Grid>
             </TabItem>
-            <TabItem Header="BBS"><TextBlock Margin="12" Text="BBS — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Mail">
+                <Grid ColumnDefinitions="150,300,*" Margin="12" ColumnSpacing="12">
+                    <!-- Mailbox folders -->
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                        <TextBlock Grid.Row="0" Text="Mailboxes" Classes="Section"/>
+                        <Border Grid.Row="1" Classes="ListCard">
+                            <ListBox ItemsSource="{Binding Mailboxes}" SelectedItem="{Binding SelectedMailbox}"/>
+                        </Border>
+                        <Button Grid.Row="2" Classes="Accent" x:Name="MailSyncButton" HorizontalAlignment="Stretch"
+                                Content="⇅ Sync (internet)"
+                                ToolTip.Tip="Connect to the Winlink CMS over the internet to send Outbox and receive mail"/>
+                    </Grid>
+
+                    <!-- Mail list -->
+                    <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Classes="Section" Text="{Binding MailCountText}"/>
+                        <Border Grid.Row="1" Classes="ListCard">
+                            <ListBox ItemsSource="{Binding Mails}" SelectedItem="{Binding SelectedMail}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="core:WinLinkMail">
+                                        <StackPanel Spacing="2" Margin="2">
+                                            <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="{Binding From}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding DateTime, StringFormat='{}{0:MM-dd HH:mm}'}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </Grid>
+
+                    <!-- Preview + compose -->
+                    <Grid Grid.Column="2" RowDefinitions="*,Auto">
+                        <Border Grid.Row="0" Classes="Card" IsVisible="{Binding HasSelectedMail}">
+                            <ScrollViewer>
+                                <SelectableTextBlock Text="{Binding MailPreview}" FontFamily="monospace" TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </Border>
+                        <StackPanel Grid.Row="0" Classes="Card" IsVisible="{Binding !HasSelectedMail}" VerticalAlignment="Top" Spacing="8">
+                            <TextBlock Text="Compose" Classes="Section"/>
+                            <TextBox Watermark="To (callsign or email)" Text="{Binding ComposeTo}"/>
+                            <TextBox Watermark="Subject" Text="{Binding ComposeSubject}"/>
+                            <TextBox Watermark="Message" Text="{Binding ComposeBody}" AcceptsReturn="True" Height="160" TextWrapping="Wrap"/>
+                            <Button x:Name="MailComposeButton" Classes="Accent" Content="Save to Outbox" HorizontalAlignment="Left"/>
+                            <TextBlock Classes="Hint" Text="Saved messages go to the Outbox and are sent on the next sync."/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                            <Button x:Name="MailDeleteButton" Content="Delete" IsEnabled="{Binding HasSelectedMail}"/>
+                            <Button x:Name="MailDisconnectButton" Content="Disconnect"/>
+                            <TextBlock Text="{Binding WinlinkStatus}" Foreground="{DynamicResource InfoBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="BBS">
+                <Grid RowDefinitions="Auto,*,180" Margin="12" RowSpacing="10">
+                    <!-- Toolbar -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="BBS / mail drop" Classes="Section" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button x:Name="BbsToggleButton" Classes="Accent" Content="{Binding BbsToggleText}"/>
+                        <Button x:Name="BbsClearStatsButton" Content="Clear stats"/>
+                        <TextBlock Classes="Hint" VerticalAlignment="Center" Margin="8,0,0,0"
+                                   Text="Hosts a connected-mode BBS / Winlink mail drop on the current channel. Requires a connected radio; remote stations connect over the air."/>
+                    </StackPanel>
+
+                    <!-- Traffic log -->
+                    <Grid Grid.Row="1" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Text="Traffic" Classes="Section"/>
+                        <Border Grid.Row="1" Classes="ListCard">
+                            <ListBox ItemsSource="{Binding BbsLog}" FontFamily="monospace"/>
+                        </Border>
+                    </Grid>
+
+                    <!-- Station stats -->
+                    <Grid Grid.Row="2" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Text="Stations heard" Classes="Section"/>
+                        <Border Grid.Row="1" Classes="ListCard">
+                            <DataGrid ItemsSource="{Binding BbsStations}" AutoGenerateColumns="False"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal" Background="Transparent">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Callsign" Binding="{Binding Callsign}" Width="130"/>
+                                    <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeen, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="160"/>
+                                    <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="110"/>
+                                    <DataGridTextColumn Header="Pkts in" Binding="{Binding TotalPacketsIn}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
             <TabItem Header="Channels">
                 <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12" x:Name="ChannelBuilderRoot">
                     <!-- Toolbar -->

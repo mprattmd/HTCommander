@@ -62,6 +62,16 @@ public partial class MainWindow : Window
 
         WireChannelBuilder();
 
+        // Mail (Winlink)
+        MailSyncButton.Click += (_, _) => Vm?.SyncWinlinkInternet();
+        MailComposeButton.Click += (_, _) => Vm?.ComposeSaveToOutbox();
+        MailDeleteButton.Click += (_, _) => Vm?.DeleteSelectedMail();
+        MailDisconnectButton.Click += (_, _) => Vm?.DisconnectWinlink();
+
+        // BBS
+        BbsToggleButton.Click += (_, _) => Vm?.ToggleBbs();
+        BbsClearStatsButton.Click += (_, _) => Vm?.ClearBbsStats();
+
         InitMap();
 
         // The VM is assigned as DataContext after construction; sync to it then.

@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+using System;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -29,6 +31,8 @@ namespace HTCommander.UI.Avalonia;
 
 public partial class App : Application
 {
+    private WinlinkClient? winlinkClient;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -44,6 +48,22 @@ public partial class App : Application
             IConfigStore configStore = new JsonConfigStore("HTCommander");
             DataBroker.Initialize(configStore, dispatcher);
             IAudioDeviceEnumerator audioDevices = new PortAudioDeviceEnumerator();
+
+            // Data services keyed in the DataBroker, shared with the WinForms app's
+            // contracts: the Winlink mail store (SQLite) and the connected-mode BBS
+            // manager (listens for the "CreateBbs"/"RemoveBbs" events from the UI).
+            string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            if (string.IsNullOrEmpty(baseDir))
+                baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+            string dataDir = Path.Combine(baseDir, "HTCommander");
+
+            DataBroker.AddDataHandler("MailStore", new SqliteMailStore(dataDir));
+            DataBroker.AddDataHandler("BbsHandler", new BbsHandler());
+
+            // Winlink B2F client: listens for "WinlinkSync"/"WinlinkDisconnect" and
+            // drives CMS sessions (over the internet or via the radio). Held alive by
+            // its DataBroker subscriptions; kept here too to be explicit.
+            winlinkClient = new WinlinkClient();
 
             desktop.MainWindow = new MainWindow
             {

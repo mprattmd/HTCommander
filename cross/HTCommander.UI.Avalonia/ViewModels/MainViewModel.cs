@@ -95,8 +95,21 @@ public sealed class MainViewModel : ViewModelBase
         });
         broker.Subscribe(0, "Stations", (_, _, data) => { if (data is System.Collections.Generic.List<StationInfoClass> list) ApplyContacts(list); });
 
+        // Winlink mail: reflect store changes (e.g. mail received during a sync) and
+        // surface the client's state messages. WinlinkStateMessage/Busy ride device 1.
+        broker.Subscribe(1, "WinlinkStateMessage", (_, _, data) => { if (data is string s) dispatcher.Post(() => WinlinkStatus = s); });
+        var store = DataBroker.GetDataHandler<IMailStore>("MailStore");
+        if (store != null) store.MailsChanged += (_, _) => dispatcher.Post(RefreshMails);
+
+        // BBS: live traffic + control messages + station stats (device-agnostic).
+        broker.Subscribe(DataBroker.AllDevices, "BbsTraffic", (_, _, data) => dispatcher.Post(() => AddBbsTraffic(data, false)));
+        broker.Subscribe(DataBroker.AllDevices, "BbsControlMessage", (_, _, data) => dispatcher.Post(() => AddBbsControl(data)));
+        broker.Subscribe(DataBroker.AllDevices, "BbsError", (_, _, data) => dispatcher.Post(() => AddBbsControl(data)));
+        broker.Subscribe(1, "BbsMergedStats", (_, _, data) => dispatcher.Post(() => ApplyBbsStats(data)));
+
         Refresh();
         LoadContacts();
+        RefreshMails();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -563,6 +576,180 @@ public sealed class MainViewModel : ViewModelBase
         }
         BuilderStatus = $"Wrote {written} channel(s) to the radio.";
         AppendLog($"Channel builder: wrote {written} channel(s) to the radio.");
+    }
+
+    // ---- Winlink mail -------------------------------------------------------
+
+    public string[] Mailboxes { get; } = { "Inbox", "Outbox", "Draft", "Sent", "Archive", "Trash" };
+
+    private string selectedMailbox = "Inbox";
+    public string SelectedMailbox
+    {
+        get => selectedMailbox;
+        set { if (SetField(ref selectedMailbox, value)) RefreshMails(); }
+    }
+
+    public ObservableCollection<WinLinkMail> Mails { get; } = new();
+
+    private WinLinkMail? selectedMail;
+    public WinLinkMail? SelectedMail
+    {
+        get => selectedMail;
+        set { if (SetField(ref selectedMail, value)) { OnPropertyChanged(nameof(MailPreview)); OnPropertyChanged(nameof(HasSelectedMail)); } }
+    }
+    public bool HasSelectedMail => selectedMail != null;
+
+    public string MailPreview => selectedMail == null ? "" :
+        $"From: {selectedMail.From}\nTo: {selectedMail.To}\n" +
+        (string.IsNullOrEmpty(selectedMail.Cc) ? "" : $"Cc: {selectedMail.Cc}\n") +
+        $"Date: {selectedMail.DateTime:yyyy-MM-dd HH:mm}\nSubject: {selectedMail.Subject}\n" +
+        new string('-', 40) + "\n" + selectedMail.Body;
+
+    private string composeTo = "", composeSubject = "", composeBody = "";
+    public string ComposeTo { get => composeTo; set => SetField(ref composeTo, value); }
+    public string ComposeSubject { get => composeSubject; set => SetField(ref composeSubject, value); }
+    public string ComposeBody { get => composeBody; set => SetField(ref composeBody, value); }
+
+    private string winlinkStatus = "Idle.";
+    public string WinlinkStatus { get => winlinkStatus; private set => SetField(ref winlinkStatus, value); }
+
+    private IMailStore? MailStore => DataBroker.GetDataHandler<IMailStore>("MailStore");
+
+    private void RefreshMails()
+    {
+        var store = MailStore;
+        if (store == null) return;
+        Mails.Clear();
+        foreach (var m in store.GetAllMails())
+            if (string.Equals(m.Mailbox, SelectedMailbox, StringComparison.OrdinalIgnoreCase))
+                Mails.Add(m);
+        OnPropertyChanged(nameof(MailCountText));
+    }
+
+    public string MailCountText => $"{SelectedMailbox} ({Mails.Count})";
+
+    /// <summary>Compose a new message and queue it in the Outbox for the next sync.</summary>
+    public void ComposeSaveToOutbox()
+    {
+        var store = MailStore;
+        if (store == null) { WinlinkStatus = "Mail store unavailable."; return; }
+        string to = (ComposeTo ?? "").Trim();
+        if (to.Length == 0) { WinlinkStatus = "Compose: 'To' is required."; return; }
+
+        string mine = TerminalMyCall ?? DataBroker.GetValue<string>(0, "CallSign", "") ?? "";
+        var mail = new WinLinkMail
+        {
+            MID = WinLinkMail.GenerateMID(),
+            DateTime = DateTime.Now,
+            From = mine,
+            To = to,
+            Subject = ComposeSubject ?? "",
+            Body = ComposeBody ?? "",
+            Mailbox = "Outbox",
+            Flags = 0,
+        };
+        store.AddMail(mail);
+        ComposeTo = ComposeSubject = ComposeBody = "";
+        WinlinkStatus = $"Saved to Outbox: {mail.Subject}";
+        SelectedMailbox = "Outbox";
+        RefreshMails();
+    }
+
+    public void DeleteSelectedMail()
+    {
+        var store = MailStore;
+        if (store == null || selectedMail == null) return;
+        if (string.Equals(selectedMail.Mailbox, "Trash", StringComparison.OrdinalIgnoreCase))
+        {
+            store.DeleteMail(selectedMail.MID);                 // permanent from Trash
+            WinlinkStatus = "Deleted.";
+        }
+        else
+        {
+            selectedMail.Mailbox = "Trash";                     // soft-delete elsewhere
+            store.UpdateMail(selectedMail);
+            WinlinkStatus = "Moved to Trash.";
+        }
+        RefreshMails();
+    }
+
+    /// <summary>Start a Winlink session over the internet (Telnet CMS) to send Outbox
+    /// mail and receive new mail. Needs network + a reachable CMS.</summary>
+    public void SyncWinlinkInternet()
+    {
+        WinlinkStatus = "Connecting to Winlink CMS (internet)…";
+        DataBroker.Dispatch(1, "WinlinkSync", new { Server = "server.winlink.org", Port = 8772, UseTls = false }, store: false);
+    }
+
+    public void DisconnectWinlink()
+    {
+        DataBroker.Dispatch(1, "WinlinkDisconnect", null, store: false);
+        WinlinkStatus = "Disconnect requested.";
+    }
+
+    // ---- BBS (connected-mode mail drop / bulletin board) --------------------
+
+    private const int BbsRadioDeviceId = 0;        // matches the Avalonia RadioController id
+
+    public ObservableCollection<string> BbsLog { get; } = new();
+    public ObservableCollection<MergedStationStats> BbsStations { get; } = new();
+
+    private bool bbsActive;
+    public bool BbsActive { get => bbsActive; private set { if (SetField(ref bbsActive, value)) OnPropertyChanged(nameof(BbsToggleText)); } }
+    public string BbsToggleText => bbsActive ? "Stop BBS" : "Start BBS";
+
+    private static string PropStr(object data, string name) => data?.GetType().GetProperty(name)?.GetValue(data)?.ToString() ?? "";
+
+    private void AddBbsTraffic(object data, bool _)
+    {
+        bool outgoing = string.Equals(PropStr(data, "Outgoing"), "True", StringComparison.OrdinalIgnoreCase);
+        string call = PropStr(data, "Callsign");
+        string msg = PropStr(data, "Message");
+        AppendBbs($"{call} {(outgoing ? "<" : ">")} {msg}");
+    }
+
+    private void AddBbsControl(object data) => AppendBbs("• " + PropStr(data, "Message") + PropStr(data, "Error"));
+
+    private void AppendBbs(string line)
+    {
+        BbsLog.Add(line);
+        while (BbsLog.Count > 500) BbsLog.RemoveAt(0);
+    }
+
+    private void ApplyBbsStats(object? data)
+    {
+        if (data is not System.Collections.Generic.List<MergedStationStats> list) return;
+        BbsStations.Clear();
+        foreach (var s in list) BbsStations.Add(s);
+    }
+
+    public void ToggleBbs()
+    {
+        if (bbsActive) { StopBbs(); return; }
+        if (!Connected) { AppendBbs("Connect to a radio before starting the BBS."); return; }
+
+        int region = 0, channel = 0;
+        var ht = DataBroker.GetValue<RadioHtStatus>(0, "HtStatus", null!);
+        if (ht != null) { region = ht.curr_region; channel = ht.curr_ch_id; }
+
+        DataBroker.Dispatch(1, "CreateBbs",
+            new CreateBbsData { RadioDeviceId = BbsRadioDeviceId, ChannelId = channel, RegionId = region },
+            store: false);
+        BbsActive = true;
+        AppendBbs($"BBS started on channel {channel}, region {region}. Waiting for stations to connect…");
+    }
+
+    public void StopBbs()
+    {
+        DataBroker.Dispatch(1, "RemoveBbs", new RemoveBbsData { RadioDeviceId = BbsRadioDeviceId }, store: false);
+        BbsActive = false;
+        AppendBbs("BBS stopped.");
+    }
+
+    public void ClearBbsStats()
+    {
+        DataBroker.Dispatch(1, "BbsClearAllStats", null, store: false);
+        BbsStations.Clear();
     }
 
     private void AddPacket(ReceivedPacketSummary p)
