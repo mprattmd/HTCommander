@@ -6,6 +6,7 @@
         xmlns:pl="using:HTCommander.Platform.Linux"
         xmlns:audio="using:HTCommander.Core.Abstractions.Audio"
         xmlns:core="using:HTCommander"
+        xmlns:ui="using:HTCommander.UI.Avalonia"
         xmlns:mapsui="clr-namespace:Mapsui.UI.Avalonia;assembly=Mapsui.UI.Avalonia"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="720"
         x:Class="HTCommander.UI.Avalonia.MainWindow"
@@ -237,6 +238,20 @@
                         <TextBlock Classes="Hint" TextWrapping="Wrap"
                                    Text="Clips are WAV files in ~/.config/HTCommander/AudioClips. Recorded from the mic selected in Settings; played through the chosen output."/>
                     </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Modem">
+                <Grid RowDefinitions="Auto,Auto,*" Margin="12" RowSpacing="10">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="Software modem" Classes="Section" VerticalAlignment="Center"/>
+                        <TextBlock Text="Mode" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <ComboBox MinWidth="140" ItemsSource="{Binding SoftModemModes}" SelectedItem="{Binding SoftModemMode}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Classes="Hint" TextWrapping="Wrap"
+                               Text="Demodulates the received audio on the PC (AFSK1200 / PSK / G3RUH). Decoded frames appear in the Packets tab. The waterfall below shows the received audio spectrum (newest at the bottom). Needs Voice RX active (connected radio); on-air decode is unverified — try it against real packet traffic."/>
+                    <Border Grid.Row="2" Classes="ListCard" Padding="0">
+                        <ui:WaterfallView x:Name="Waterfall"/>
+                    </Border>
                 </Grid>
             </TabItem>
             <TabItem Header="APRS">

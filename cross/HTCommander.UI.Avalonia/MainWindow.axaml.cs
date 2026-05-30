@@ -382,17 +382,22 @@ public partial class MainWindow : Window
         {
             subscribedVm.Stations.CollectionChanged -= OnStationsChanged;
             subscribedVm.PropertyChanged -= OnVmPropertyChanged;
+            subscribedVm.WaterfallPcm -= OnWaterfallPcm;
         }
         subscribedVm = Vm;
         if (subscribedVm != null)
         {
             subscribedVm.Stations.CollectionChanged += OnStationsChanged;
             subscribedVm.PropertyChanged += OnVmPropertyChanged;
+            subscribedVm.WaterfallPcm += OnWaterfallPcm;
         }
         RebuildStations();
     }
 
     private void OnStationsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildStations();
+
+    // RX audio (off the decode thread) → waterfall control (it marshals its own render).
+    private void OnWaterfallPcm(byte[] pcm, int count) => Waterfall.PushPcm(pcm, count);
 
     // Map appearance toggles (tracks/markers/time filter) and the radio's own
     // position fix all trigger a map rebuild.

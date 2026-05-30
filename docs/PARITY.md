@@ -60,8 +60,8 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | WAV recording / playback | ✅ | Phase 5a: record mic → WAV, play WAV → speaker (Core WavFile + PortAudio) |
 | SSTV send | ❌ | entire src/SSTV not ported |
 | SSTV receive (auto-detect) | ❌ | |
-| Spectrogram / waterfall | ❌ | |
-| Soft-modem (AFSK1200/PSK/G3RUH) + visualization | ❌ | SoftwareModem.cs in Core but **dead code** (not instantiated/wired) |
+| Spectrogram / waterfall | ✅ | Phase 5d: scrolling FFT waterfall of the RX audio (Modem tab) |
+| Soft-modem (AFSK1200/PSK/G3RUH) + visualization | ⏳ | Phase 5d: SoftwareModem instantiated + fed RX audio; decoded frames → Packets; mode selector + waterfall. Demod unverified (needs RF) |
 
 ## APRS
 | Feature | Status | Notes |

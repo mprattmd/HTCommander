@@ -321,7 +321,7 @@ namespace HTCommander
         /// </summary>
         private void OnHtStatusChanged(int deviceId, string name, object data)
         {
-            if (disposed || deviceId <= 0) return;
+            if (disposed || deviceId < 0) return;   // device 0 is a valid radio (cross-platform)
 
             lock (modemLock)
             {
@@ -352,7 +352,7 @@ namespace HTCommander
         /// </summary>
         private void OnAudioDataAvailable(int deviceId, string name, object data)
         {
-            if (disposed || deviceId <= 0) return;
+            if (disposed || deviceId < 0) return;   // device 0 is a valid radio (cross-platform)
             if (currentMode == SoftwareModemModeType.None) return;
 
             try
@@ -781,7 +781,7 @@ namespace HTCommander
         /// </summary>
         private void OnTransmitPacketRequested(int deviceId, string name, object data)
         {
-            if (disposed || deviceId <= 0) return;
+            if (disposed || deviceId < 0) return;   // device 0 is a valid radio (cross-platform)
             if (currentMode == SoftwareModemModeType.None) return;
 
             if (!(data is TncDataFragment fragment)) return;
@@ -910,7 +910,7 @@ namespace HTCommander
         /// </summary>
         private void OnChannelClear(int deviceId, string name, object data)
         {
-            if (disposed || deviceId <= 0) return;
+            if (disposed || deviceId < 0) return;   // device 0 is a valid radio (cross-platform)
 
             lock (modemLock)
             {

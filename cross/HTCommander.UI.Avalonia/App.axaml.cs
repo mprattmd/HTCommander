@@ -64,6 +64,9 @@ public partial class App : Application
             // GPS serial reader: reacts to GpsSerialPort/GpsBaudRate (device 0), parses
             // NMEA and publishes GpsData (device 1). Cross-platform (System.IO.Ports).
             DataBroker.AddDataHandler("GpsSerialHandler", new HTCommander.Gps.GpsSerialHandler());
+            // Software modem (AFSK1200/PSK/G3RUH): demodulates the received audio fed as
+            // "AudioDataAvailable" and publishes decoded frames as "DataFrame".
+            DataBroker.AddDataHandler("SoftwareModem", new SoftwareModem());
 
             // Winlink B2F client: listens for "WinlinkSync"/"WinlinkDisconnect" and
             // drives CMS sessions (over the internet or via the radio). Held alive by
