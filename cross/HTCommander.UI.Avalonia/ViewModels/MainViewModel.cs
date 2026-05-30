@@ -98,6 +98,7 @@ public sealed class MainViewModel : ViewModelBase
         // Winlink mail: reflect store changes (e.g. mail received during a sync) and
         // surface the client's state messages. WinlinkStateMessage/Busy ride device 1.
         broker.Subscribe(1, "WinlinkStateMessage", (_, _, data) => { if (data is string s) dispatcher.Post(() => WinlinkStatus = s); });
+        broker.Subscribe(1, "AprsFrame", (_, _, data) => dispatcher.Post(() => OnAprsFrame(data)));
         var store = DataBroker.GetDataHandler<IMailStore>("MailStore");
         if (store != null) store.MailsChanged += (_, _) => dispatcher.Post(RefreshMails);
 
@@ -141,6 +142,7 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanDisconnect));
                 OnPropertyChanged(nameof(CanTransmit));
                 OnPropertyChanged(nameof(CanSendData));
+                OnPropertyChanged(nameof(CanSendAprs));
                 OnPropertyChanged(nameof(CanWriteChannels));
             }
         }
@@ -188,6 +190,7 @@ public sealed class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(TxAuthorized));
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
+                OnPropertyChanged(nameof(CanSendAprs));
         }
     }
 
@@ -210,6 +213,7 @@ public sealed class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(TxAuthorized));
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
+                OnPropertyChanged(nameof(CanSendAprs));
         }
     }
 
@@ -960,6 +964,47 @@ public sealed class MainViewModel : ViewModelBase
         for (int i = 0; i < Stations.Count; i++)
             if (Stations[i].Callsign == s.Callsign) { Stations[i] = s; return; }
         Stations.Add(s);
+    }
+
+    // ---- APRS messaging (send + conversation) -------------------------------
+    public ObservableCollection<AprsMessageRow> AprsMessages { get; } = new();
+
+    private string aprsDestination = "";
+    public string AprsDestination { get => aprsDestination; set => SetField(ref aprsDestination, value); }
+    private string aprsMessageText = "";
+    public string AprsMessageText { get => aprsMessageText; set => SetField(ref aprsMessageText, value); }
+
+    /// <summary>APRS message send needs a connected, TX-authorized radio.</summary>
+    public bool CanSendAprs => CanSendData;
+
+    public void SendAprsMessage()
+    {
+        string dest = (AprsDestination ?? "").Trim().ToUpperInvariant();
+        string msg = AprsMessageText ?? "";
+        if (dest.Length == 0 || msg.Length == 0) { AppendLog("APRS: need a destination and message text."); return; }
+        if (!CanSendData) { AppendLog("APRS: set callsign + Allow-Transmit and connect first."); return; }
+        DataBroker.Dispatch(1, "SendAprsMessage",
+            new AprsSendMessageData { Destination = dest, Message = msg, RadioDeviceId = BbsRadioDeviceId, Route = null },
+            store: false);
+        AprsMessageText = "";
+    }
+
+    private void OnAprsFrame(object? data)
+    {
+        if (data is not AprsFrameEventArgs e || e.AprsPacket?.MessageData?.MsgText == null) return;
+        var md = e.AprsPacket.MessageData;
+        if (string.IsNullOrEmpty(md.MsgText)) return;                 // messages only (positions go to the map)
+        bool outgoing = e.AX25Packet != null && !e.AX25Packet.incoming;
+        string from = e.AX25Packet != null && e.AX25Packet.addresses.Count > 1 ? e.AX25Packet.addresses[1].ToString() : "";
+        AprsMessages.Add(new AprsMessageRow
+        {
+            Time = DateTime.Now,
+            From = from,
+            To = md.Addressee ?? "",
+            Text = md.MsgText,
+            Outgoing = outgoing,
+        });
+        while (AprsMessages.Count > 500) AprsMessages.RemoveAt(0);
     }
 
     private void AppendLog(string line)

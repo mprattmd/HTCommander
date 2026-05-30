@@ -699,9 +699,9 @@ namespace HTCommander
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
 
             // Compute authentication token
-            byte[] authKey = Utils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
+            byte[] authKey = CoreUtils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
             string hashInput = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + ackMessage;
-            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(hashInput));
+            byte[] authCode = CoreUtils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(hashInput));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
 
             // Add authentication token to APRS message
@@ -754,9 +754,9 @@ namespace HTCommander
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
 
             // Compute authentication token
-            byte[] authKey = Utils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
+            byte[] authKey = CoreUtils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
             string hashInput = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + ":" + aprsMessage + "{" + msgId;
-            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(hashInput));
+            byte[] authCode = CoreUtils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(hashInput));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
 
             // Add authentication token to APRS message
@@ -808,9 +808,9 @@ namespace HTCommander
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes;
 
             // Compute authentication token
-            byte[] authKey = Utils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
+            byte[] authKey = CoreUtils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
             string hashInput = minutesSinceEpoch + ":" + srcAddress + ":" + aprsAddr.Trim() + aprsMessage;
-            byte[] authCode = Utils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(hashInput));
+            byte[] authCode = CoreUtils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(hashInput));
             string authCodeBase64 = Convert.ToBase64String(authCode).Substring(0, 6);
 
             // Add authentication token to APRS message
@@ -888,7 +888,7 @@ namespace HTCommander
             long minutesSinceEpoch = (long)timeSinceEpoch.TotalMinutes - 2;
 
             // Compute auth key
-            byte[] authKey = Utils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
+            byte[] authKey = CoreUtils.ComputeSha256Hash(Encoding.UTF8.GetBytes(authPassword));
 
             // Build the hash message
             string hashMsg = ":" + srcAddress + ":" + aprsAddr.Trim() + cleanMessage;
@@ -900,7 +900,7 @@ namespace HTCommander
             // Try a window of 5 minutes to account for time drift
             for (long x = minutesSinceEpoch; x < (minutesSinceEpoch + 5); x++)
             {
-                byte[] computedAuth = Utils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(x + hashMsg));
+                byte[] computedAuth = CoreUtils.ComputeHmacSha256Hash(authKey, Encoding.UTF8.GetBytes(x + hashMsg));
                 string authCodeBase64 = Convert.ToBase64String(computedAuth).Substring(0, 6);
                 if (authCodeBase64Check == authCodeBase64)
                 {

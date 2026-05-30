@@ -160,25 +160,52 @@
                 </StackPanel>
             </TabItem>
             <TabItem Header="APRS">
-                <Grid RowDefinitions="Auto,*" Margin="8">
-                    <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
-                               Text="{Binding Stations.Count, StringFormat='APRS stations heard ({0})'}"/>
-                    <Border Grid.Row="1" Classes="ListCard">
-                        <ListBox ItemsSource="{Binding Stations}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="core:AprsStationSummary">
-                                    <Grid ColumnDefinitions="120,80,80,*" ColumnSpacing="10">
-                                        <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Callsign}"/>
-                                        <TextBlock Grid.Column="1" Foreground="#9CDCFE"
-                                                   Text="{Binding Latitude, StringFormat='{}{0:0.0000}'}"/>
-                                        <TextBlock Grid.Column="2" Foreground="#9CDCFE"
-                                                   Text="{Binding Longitude, StringFormat='{}{0:0.0000}'}"/>
-                                        <TextBlock Grid.Column="3" Text="{Binding Comment}" TextWrapping="NoWrap"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Border>
+                <Grid ColumnDefinitions="*,12,420" Margin="12" ColumnSpacing="12">
+                    <!-- Stations heard -->
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Classes="Section"
+                                   Text="{Binding Stations.Count, StringFormat='Stations heard ({0})'}"/>
+                        <Border Grid.Row="1" Classes="ListCard">
+                            <ListBox ItemsSource="{Binding Stations}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="core:AprsStationSummary">
+                                        <Grid ColumnDefinitions="120,80,80,*" ColumnSpacing="10">
+                                            <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Callsign}"/>
+                                            <TextBlock Grid.Column="1" Foreground="{DynamicResource InfoBrush}"
+                                                       Text="{Binding Latitude, StringFormat='{}{0:0.0000}'}"/>
+                                            <TextBlock Grid.Column="2" Foreground="{DynamicResource InfoBrush}"
+                                                       Text="{Binding Longitude, StringFormat='{}{0:0.0000}'}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Comment}" TextWrapping="NoWrap"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </Grid>
+
+                    <!-- Messages: conversation + compose -->
+                    <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto,Auto">
+                        <TextBlock Grid.Row="0" Classes="Section" Text="Messages"/>
+                        <Border Grid.Row="1" Classes="ListCard">
+                            <ListBox ItemsSource="{Binding AprsMessages}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:AprsMessageRow">
+                                        <StackPanel Spacing="1" Margin="2">
+                                            <TextBlock Text="{Binding Header}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                        <TextBox Grid.Row="2" Margin="0,8,0,0" Text="{Binding AprsDestination}"
+                                 PlaceholderText="To (callsign, e.g. KE4AXW-7, or APRS)"/>
+                        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,6,0,0" ColumnSpacing="8">
+                            <TextBox Grid.Column="0" Text="{Binding AprsMessageText}" PlaceholderText="Message" />
+                            <Button Grid.Column="1" x:Name="AprsSendButton" Classes="Accent" Content="Send"
+                                    IsEnabled="{Binding CanSendAprs}"/>
+                        </Grid>
+                    </Grid>
                 </Grid>
             </TabItem>
             <TabItem Header="Map">

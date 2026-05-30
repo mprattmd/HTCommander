@@ -62,6 +62,7 @@ public sealed class RadioController : IDisposable
     private bool txInFlight;
     private RadioHtStatus? lastStatus;           // cached for channel-busy gating + default ch/region
     private int lastDeviceChannelCount;          // channels-per-region (from dev info), for RefreshChannels
+    private RadioChannelInfo[] channelArray;      // indexed by channel_id; published as "Channels" for APRS/Winlink/BBS lookups
 
     private sealed class TxFragment
     {
@@ -89,7 +90,15 @@ public sealed class RadioController : IDisposable
         }
         transport.OnConnected += OnConnected;
         transport.ReceivedData += OnReceivedData;
+        // Transmit AX.25 frames dispatched by higher layers (APRS handler, etc.).
+        broker.Subscribe(deviceId, "TransmitDataFrame", OnTransmitDataFrame);
         transport.Connect();
+    }
+
+    private void OnTransmitDataFrame(int dev, string name, object data)
+    {
+        if (data is TransmitDataFrameData txData && txData.Packet != null)
+            SendPacket(txData.Packet, txData.ChannelId, txData.RegionId);
     }
 
     /// <summary>Disconnects and unsubscribes.</summary>
@@ -273,6 +282,8 @@ public sealed class RadioController : IDisposable
         if (v.Length < 15) return;
         int channelCount = v[13];
         lastDeviceChannelCount = channelCount;
+        if (channelArray == null || channelArray.Length != Math.Max(1, channelCount))
+            channelArray = new RadioChannelInfo[Math.Max(1, channelCount)];
         int regionCount = ((v[11] & 0x03) << 4) + ((v[12] & 0xF0) >> 4);   // banks/zones
         var info = new RadioDeviceSummary(
             VendorId: v[5],
@@ -309,8 +320,18 @@ public sealed class RadioController : IDisposable
 
         // Also publish the full editable channel record (the READ_RF_CH reply layout
         // matches RadioChannelInfo's byte ctor exactly) so the channel builder can
-        // load existing channels for editing / re-writing.
-        try { broker.Dispatch(deviceId, "ChannelInfo", new RadioChannelInfo(v), store: false); }
+        // load existing channels for editing / re-writing, and maintain an array
+        // indexed by channel_id stored as "Channels" (APRS/Winlink/BBS look it up).
+        try
+        {
+            var full = new RadioChannelInfo(v);
+            broker.Dispatch(deviceId, "ChannelInfo", full, store: false);
+            if (channelArray != null && full.channel_id >= 0 && full.channel_id < channelArray.Length)
+            {
+                channelArray[full.channel_id] = full;
+                broker.Dispatch(deviceId, "Channels", channelArray, store: true);
+            }
+        }
         catch { /* malformed channel row — skip */ }
     }
 

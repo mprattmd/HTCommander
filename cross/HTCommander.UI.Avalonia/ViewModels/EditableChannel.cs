@@ -10,6 +10,17 @@ using HTCommander;
 
 namespace HTCommander.UI.Avalonia.ViewModels;
 
+/// <summary>One APRS message row (sent or received) for the conversation list.</summary>
+public sealed class AprsMessageRow
+{
+    public DateTime Time { get; init; }
+    public string From { get; init; } = "";
+    public string To { get; init; } = "";
+    public string Text { get; init; } = "";
+    public bool Outgoing { get; init; }
+    public string Header => $"{Time:HH:mm}  {(Outgoing ? "▶ to " + To : "◀ " + From)}";
+}
+
 /// <summary>One memory-slot tile in the channel grid (mirrors the Windows channel cards).</summary>
 public sealed class ChannelSlot : ViewModelBase
 {

@@ -59,6 +59,8 @@ public partial class App : Application
 
             DataBroker.AddDataHandler("MailStore", new SqliteMailStore(dataDir));
             DataBroker.AddDataHandler("BbsHandler", new BbsHandler());
+            // APRS message send/receive handler (builds frames, tracks history, applies auth).
+            DataBroker.AddDataHandler("AprsHandler", new AprsHandler());
 
             // Winlink B2F client: listens for "WinlinkSync"/"WinlinkDisconnect" and
             // drives CMS sessions (over the internet or via the radio). Held alive by

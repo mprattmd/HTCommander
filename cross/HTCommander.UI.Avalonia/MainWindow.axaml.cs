@@ -73,6 +73,9 @@ public partial class MainWindow : Window
         BbsToggleButton.Click += (_, _) => Vm?.ToggleBbs();
         BbsClearStatsButton.Click += (_, _) => Vm?.ClearBbsStats();
 
+        // APRS message send
+        AprsSendButton.Click += (_, _) => Vm?.SendAprsMessage();
+
         // Screenshot (button + F12)
         ScreenshotButton.Click += (_, _) => SaveScreenshot();
 
