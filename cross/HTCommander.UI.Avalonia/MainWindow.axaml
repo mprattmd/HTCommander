@@ -438,9 +438,9 @@
                         </Border>
 
                         <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasBss}">
-                            <Button x:Name="WriteBssButton" Classes="Accent" Content="Write to radio" IsEnabled="{Binding CanWriteBss}"/>
+                            <Button x:Name="WriteBssButton" Classes="Accent" Content="⬆ Write beacon/ident to radio" IsEnabled="{Binding CanWriteBss}"/>
                             <TextBlock Classes="Hint" VerticalAlignment="Center"
-                                       Text="Writes beacon &amp; ident settings to the radio (WRITE_BSS_SETTINGS)."/>
+                                       Text="Applies the Beacon + Ident settings above (incl. Share interval) to the radio."/>
                         </StackPanel>
 
                         <!-- Global APRS routes (named digipeater paths) -->
