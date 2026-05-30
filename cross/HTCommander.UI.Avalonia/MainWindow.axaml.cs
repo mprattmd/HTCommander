@@ -72,6 +72,9 @@ public partial class MainWindow : Window
         BbsToggleButton.Click += (_, _) => Vm?.ToggleBbs();
         BbsClearStatsButton.Click += (_, _) => Vm?.ClearBbsStats();
 
+        // Screenshot (button + F12)
+        ScreenshotButton.Click += (_, _) => SaveScreenshot();
+
         // F12 saves a PNG of the whole window (compositor-independent) — handy for
         // docs/screenshots. Written to ~/htcommander-screenshot.png.
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
@@ -88,7 +91,14 @@ public partial class MainWindow : Window
     // loss of pointer capture un-keys the radio.
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.F12) return;
+        if (e.Key == Key.F12) SaveScreenshot();
+    }
+
+    // Saves a PNG of the whole window to ~/htcommander-screenshot.png. Triggered by the
+    // 📷 button in the status bar or F12 (compositor-independent — Wayland/ChromeOS block
+    // external screenshot tools).
+    private void SaveScreenshot()
+    {
         try
         {
             double scale = RenderScaling;
@@ -103,7 +113,7 @@ public partial class MainWindow : Window
             rtb.Save(path);
             Vm?.NoteScreenshot(path);
         }
-        catch { /* screenshot is best-effort */ }
+        catch (Exception ex) { Vm?.NoteScreenshot("(failed: " + ex.Message + ")"); }
     }
 
     private void WirePtt(Button button)

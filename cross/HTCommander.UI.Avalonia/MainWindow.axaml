@@ -61,13 +61,17 @@
         <!-- Status bar -->
         <Border DockPanel.Dock="Bottom" Padding="12,5" Background="{DynamicResource Surface1Brush}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" Spacing="18">
-                <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding Status, StringFormat='State: {0}'}"/>
-                <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding FrameCount, StringFormat='Frames: {0}'}"/>
-                <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding BluetoothAvailable, StringFormat='Bluetooth: {0}'}"/>
-                <TextBlock Foreground="{DynamicResource InfoBrush}" Text="🔊 Voice RX" IsVisible="{Binding VoiceRxActive}"/>
-                <TextBlock Foreground="{DynamicResource DangerActiveBrush}" FontWeight="Bold" Text="● TRANSMITTING" IsVisible="{Binding Transmitting}"/>
-            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
+                    <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding Status, StringFormat='State: {0}'}"/>
+                    <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding FrameCount, StringFormat='Frames: {0}'}"/>
+                    <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding BluetoothAvailable, StringFormat='Bluetooth: {0}'}"/>
+                    <TextBlock Foreground="{DynamicResource InfoBrush}" Text="🔊 Voice RX" IsVisible="{Binding VoiceRxActive}"/>
+                    <TextBlock Foreground="{DynamicResource DangerActiveBrush}" FontWeight="Bold" Text="● TRANSMITTING" IsVisible="{Binding Transmitting}"/>
+                </StackPanel>
+                <Button Grid.Column="1" x:Name="ScreenshotButton" Content="📷 Screenshot" Padding="10,3"
+                        ToolTip.Tip="Save a PNG of the window to ~/htcommander-screenshot.png"/>
+            </Grid>
         </Border>
 
         <!-- Main tabbed area -->
