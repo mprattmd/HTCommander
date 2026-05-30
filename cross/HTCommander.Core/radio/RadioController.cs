@@ -457,8 +457,37 @@ public sealed class RadioController : IDisposable
         }
     }
 
+    // 3-second dedup of incoming frames before re-publishing as UniqueDataFrame
+    // (the radio can deliver the same frame more than once). Mirrors the Windows
+    // FrameDeduplicator, which src/ runs before UniqueDataFrame is dispatched.
+    private readonly System.Collections.Generic.Dictionary<string, DateTime> recentFrames = new();
+    private const double DedupWindowSeconds = 3.0;
+
     private void PublishPacket(TncDataFragment frame)
     {
+        // Re-publish the raw incoming frame as a deduplicated "UniqueDataFrame" so
+        // connected-mode sessions (AX25Session) and the BBS — which subscribe to it —
+        // receive traffic. Nothing else emits this event on the cross-platform path.
+        try
+        {
+            string key = frame.ToHex();
+            if (!string.IsNullOrEmpty(key))
+            {
+                bool fresh;
+                var now = DateTime.UtcNow;
+                lock (recentFrames)
+                {
+                    var cutoff = now.AddSeconds(-DedupWindowSeconds);
+                    foreach (var k in recentFrames.Where(kv => kv.Value < cutoff).Select(kv => kv.Key).ToList())
+                        recentFrames.Remove(k);
+                    fresh = !recentFrames.ContainsKey(key);
+                    if (fresh) recentFrames[key] = now;
+                }
+                if (fresh) broker.Dispatch(deviceId, "UniqueDataFrame", frame, store: false);
+            }
+        }
+        catch (Exception) { /* never let routing break packet display */ }
+
         AX25Packet? ax;
         try { ax = AX25Packet.DecodeAX25Packet(frame); }
         catch (Exception) { return; }

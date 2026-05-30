@@ -352,14 +352,30 @@
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="Terminal">
-                <Grid RowDefinitions="*,Auto" Margin="8" RowSpacing="8">
-                    <Border Grid.Row="0" Classes="ListCard">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="8" RowSpacing="8">
+                    <!-- Connect (connected-mode AX.25 session) -->
+                    <Border Grid.Row="0" Classes="Card">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Connect" Classes="Section" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <ComboBox MinWidth="80" ItemsSource="{Binding TerminalProtocols}" SelectedItem="{Binding TerminalProtocol}"
+                                      ToolTip.Tip="Session protocol"/>
+                            <TextBox Width="130" PlaceholderText="Station (e.g. N0CALL-1)" Text="{Binding TerminalConnectTo}"
+                                     VerticalAlignment="Center"/>
+                            <ComboBox MinWidth="120" ItemsSource="{Binding ChannelNames}" SelectedItem="{Binding TerminalChannel}"
+                                      PlaceholderText="Channel (optional)" ToolTip.Tip="Lock the session to a channel (else current)"/>
+                            <Button x:Name="SessionConnectButton" Classes="Accent" Content="Connect" IsEnabled="{Binding CanConnectSession}"/>
+                            <Button x:Name="SessionDisconnectButton" Content="Disconnect" IsEnabled="{Binding CanDisconnectSession}"/>
+                            <TextBlock Text="{Binding SessionStateText}" Foreground="{DynamicResource InfoBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Classes="ListCard">
                         <ListBox ItemsSource="{Binding TerminalLog}" FontFamily="monospace"/>
                     </Border>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
                         <TextBox Width="110" PlaceholderText="My call" Text="{Binding TerminalMyCall}"/>
-                        <TextBox Width="110" PlaceholderText="To call" Text="{Binding TerminalTo}"/>
-                        <TextBox Width="320" PlaceholderText="Message (AX.25 UI text)" Text="{Binding TerminalText}"/>
+                        <TextBox Width="110" PlaceholderText="To call (UI frame)" Text="{Binding TerminalTo}"/>
+                        <TextBox Width="300" PlaceholderText="Message — session if connected, else AX.25 UI frame" Text="{Binding TerminalText}"/>
                         <Button x:Name="SendTerminalButton" Content="Send" IsEnabled="{Binding CanSendData}"/>
                     </StackPanel>
                 </Grid>
@@ -701,8 +717,12 @@
                 <Grid ColumnDefinitions="*,12,360" Margin="8" ColumnSpacing="12">
                     <!-- Live packet list (select a row for decoded detail) -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
-                                   Text="{Binding Packets.Count, StringFormat='Received packets ({0})'}"/>
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
+                            <TextBlock Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center"
+                                       Text="{Binding Packets.Count, StringFormat='Received packets ({0})'}"/>
+                            <Button Grid.Column="1" x:Name="PacketExportButton" Content="Export CSV…" Margin="0,0,6,0"/>
+                            <Button Grid.Column="2" x:Name="PacketLoadButton" Content="Load capture…"/>
+                        </Grid>
                         <Border Grid.Row="1" Classes="ListCard">
                             <ListBox ItemsSource="{Binding Packets}" SelectedItem="{Binding SelectedPacket}">
                                 <ListBox.ItemTemplate>

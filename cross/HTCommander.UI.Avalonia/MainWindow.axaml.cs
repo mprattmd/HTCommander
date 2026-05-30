@@ -59,7 +59,11 @@ public partial class MainWindow : Window
 
         AddContactButton.Click += (_, _) => Vm?.AddOrUpdateContact();
         RemoveContactButton.Click += (_, _) => Vm?.RemoveSelectedContact();
-        SendTerminalButton.Click += (_, _) => Vm?.SendTerminalMessage();
+        SendTerminalButton.Click += (_, _) => Vm?.SendTerminal();
+        SessionConnectButton.Click += (_, _) => Vm?.ConnectSession();
+        SessionDisconnectButton.Click += (_, _) => Vm?.DisconnectSession();
+        PacketExportButton.Click += async (_, _) => await ExportPacketsAsync();
+        PacketLoadButton.Click += async (_, _) => await LoadPacketsAsync();
 
         WireChannelBuilder();
 
@@ -251,6 +255,36 @@ public partial class MainWindow : Window
         });
         var path = file?.TryGetLocalPath();
         if (path != null) Vm?.ExportChannelsToCsv(path, chirp: false);
+    }
+
+    // ---- Packet capture: CSV export / load ----
+    private async Task ExportPacketsAsync()
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top == null) return;
+        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export packet capture (CSV)",
+            DefaultExtension = "csv",
+            SuggestedFileName = "packets.csv",
+            FileTypeChoices = new[] { new FilePickerFileType("CSV files") { Patterns = new[] { "*.csv" } } },
+        });
+        var path = file?.TryGetLocalPath();
+        if (path != null) Vm?.ExportPacketsCsv(path);
+    }
+
+    private async Task LoadPacketsAsync()
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top == null) return;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Load packet capture (CSV)",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { new FilePickerFileType("CSV files") { Patterns = new[] { "*.csv" } } },
+        });
+        var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (path != null) Vm?.LoadPacketsCsv(path);
     }
 
     // ---- Mail (Winlink): attachment + backup/restore file pickers ----

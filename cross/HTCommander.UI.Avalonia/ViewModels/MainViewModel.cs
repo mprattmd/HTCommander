@@ -152,6 +152,9 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanWriteBss));
                 OnPropertyChanged(nameof(CanCreateAprsChannel));
                 OnPropertyChanged(nameof(CanSyncRadio));
+                OnPropertyChanged(nameof(CanConnectSession));
+                OnPropertyChanged(nameof(CanDisconnectSession));
+                OnPropertyChanged(nameof(CanSendSession));
             }
         }
     }
@@ -197,6 +200,7 @@ public sealed class MainViewModel : ViewModelBase
             OnPropertyChanged(nameof(HasValidCallsign));
             OnPropertyChanged(nameof(TxAuthorized));
             OnPropertyChanged(nameof(CanSyncRadio));
+            OnPropertyChanged(nameof(CanConnectSession));
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
@@ -221,6 +225,7 @@ public sealed class MainViewModel : ViewModelBase
             if (!loadingIdentity) DataBroker.Dispatch(0, "AllowTransmit", value, store: true);
             OnPropertyChanged(nameof(TxAuthorized));
             OnPropertyChanged(nameof(CanSyncRadio));
+            OnPropertyChanged(nameof(CanConnectSession));
             OnPropertyChanged(nameof(CanTransmit));
             OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
@@ -274,6 +279,145 @@ public sealed class MainViewModel : ViewModelBase
     {
         TerminalLog.Add(line);
         while (TerminalLog.Count > 500) TerminalLog.RemoveAt(0);
+    }
+
+    // ---- Terminal connected-mode session (Core AX25Session) ----------------
+    private AX25Session? terminalSession;
+
+    private string terminalConnectTo = "";
+    public string TerminalConnectTo
+    {
+        get => terminalConnectTo;
+        set { if (SetField(ref terminalConnectTo, value)) OnPropertyChanged(nameof(CanConnectSession)); }
+    }
+
+    public string[] TerminalProtocols { get; } = { "AX.25" };
+    private string terminalProtocol = "AX.25";
+    public string TerminalProtocol { get => terminalProtocol; set => SetField(ref terminalProtocol, value); }
+
+    /// <summary>Optional channel to lock the session to (blank = the radio's current channel).</summary>
+    private string terminalChannel = "";
+    public string TerminalChannel { get => terminalChannel; set => SetField(ref terminalChannel, value); }
+
+    private bool sessionConnected;
+    public bool SessionConnected
+    {
+        get => sessionConnected;
+        private set { if (SetField(ref sessionConnected, value)) OnPropertyChanged(nameof(CanSendSession)); }
+    }
+
+    private string sessionStateText = "Disconnected";
+    public string SessionState { get => sessionStateText; private set => SetField(ref sessionStateText, value); }
+    public string SessionStateText => $"Session: {sessionStateText}";
+
+    public bool CanConnectSession => Connected && TxAuthorized && terminalSession == null && !string.IsNullOrWhiteSpace(TerminalConnectTo);
+    public bool CanDisconnectSession => terminalSession != null;
+    public bool CanSendSession => sessionConnected;
+
+    private void RaiseSessionGates()
+    {
+        OnPropertyChanged(nameof(CanConnectSession));
+        OnPropertyChanged(nameof(CanDisconnectSession));
+        OnPropertyChanged(nameof(CanSendSession));
+    }
+
+    /// <summary>Opens a connected-mode AX.25 session to a station. ON-AIR (keys the TNC).</summary>
+    public void ConnectSession()
+    {
+        if (terminalSession != null) { AddTerminalLine("* Already in a session."); return; }
+        if (!Connected) { AddTerminalLine("* Connect a radio first."); return; }
+        if (!TxAuthorized) { AddTerminalLine("* Set callsign + Allow-Transmit first."); return; }
+        string to = (TerminalConnectTo ?? "").Trim().ToUpperInvariant();
+        string mine = (string.IsNullOrEmpty(TerminalMyCall) ? MyCallsign : TerminalMyCall) ?? "";
+        if (to.Length == 0) { AddTerminalLine("* Enter a station to connect to."); return; }
+
+        var dest = AX25Address.GetAddress(to);
+        var src = AX25Address.GetAddress(mine);
+        if (dest == null || src == null) { AddTerminalLine("* Invalid callsign."); return; }
+        if (!CoreUtils.ParseCallsignWithId(mine, out string mc, out int mssid)) { mc = mine; mssid = 0; }
+
+        ApplyTerminalChannelLock();   // honor an explicit channel pick (else current channel)
+
+        var s = new AX25Session(BbsRadioDeviceId) { CallSignOverride = mc, StationIdOverride = mssid };
+        s.StateChanged += OnSessionStateChanged;
+        s.DataReceivedEvent += OnSessionDataReceived;
+        s.UiDataReceivedEvent += OnSessionDataReceived;
+        s.ErrorEvent += OnSessionError;
+        terminalSession = s;
+        SessionState = "Connecting";
+        RaiseSessionGates();
+        AddTerminalLine($"* Connecting to {to}…");
+        s.Connect(new System.Collections.Generic.List<AX25Address> { dest, src });
+    }
+
+    public void DisconnectSession()
+    {
+        var s = terminalSession;
+        if (s == null) return;
+        AddTerminalLine("* Disconnecting…");
+        try { s.Disconnect(); } catch (Exception) { }
+    }
+
+    // Lock the session's TX to a chosen channel (publishes RadioLockState that
+    // AX25Session reads in EmitPacket); blank selection clears the lock.
+    private void ApplyTerminalChannelLock()
+    {
+        if (string.IsNullOrWhiteSpace(TerminalChannel)) { DataBroker.Dispatch(BbsRadioDeviceId, "LockState", null!, store: false); return; }
+        var ch = Channels.FirstOrDefault(c => c.Name == TerminalChannel);
+        if (ch == null) return;
+        DataBroker.Dispatch(BbsRadioDeviceId, "LockState",
+            new RadioLockState { IsLocked = true, ChannelId = ch.ChannelId, RegionId = Region }, store: false);
+    }
+
+    private void OnSessionStateChanged(AX25Session sender, AX25Session.ConnectionState state)
+    {
+        dispatcher.Post(() =>
+        {
+            SessionState = state.ToString();
+            SessionConnected = state == AX25Session.ConnectionState.CONNECTED;
+            AddTerminalLine($"* Session {state}");
+            if (state == AX25Session.ConnectionState.DISCONNECTED) CleanupSession();
+            RaiseSessionGates();
+        });
+    }
+
+    private void OnSessionDataReceived(AX25Session sender, byte[] data)
+    {
+        string text = System.Text.Encoding.UTF8.GetString(data ?? Array.Empty<byte>());
+        dispatcher.Post(() => { foreach (var line in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')) if (line.Length > 0) AddTerminalLine($"< {line}"); });
+    }
+
+    private void OnSessionError(AX25Session sender, string error) =>
+        dispatcher.Post(() => AddTerminalLine("* Session error: " + error));
+
+    private void CleanupSession()
+    {
+        var s = terminalSession;
+        terminalSession = null;
+        SessionConnected = false;
+        if (s != null)
+        {
+            s.StateChanged -= OnSessionStateChanged;
+            s.DataReceivedEvent -= OnSessionDataReceived;
+            s.UiDataReceivedEvent -= OnSessionDataReceived;
+            s.ErrorEvent -= OnSessionError;
+            try { s.Dispose(); } catch (Exception) { }
+        }
+        RaiseSessionGates();
+    }
+
+    /// <summary>Send from the Terminal box: over the session if connected, else a UI frame.</summary>
+    public void SendTerminal()
+    {
+        if (sessionConnected && terminalSession != null)
+        {
+            string text = TerminalText ?? "";
+            if (text.Length == 0) return;
+            try { terminalSession.Send(text + "\r"); } catch (Exception ex) { AddTerminalLine("* Send failed: " + ex.Message); return; }
+            AddTerminalLine($"> {text}");
+            TerminalText = "";
+        }
+        else SendTerminalMessage();
     }
 
     public bool CanConnect => !Connected && SelectedRadio != null;
@@ -576,6 +720,8 @@ public sealed class MainViewModel : ViewModelBase
     private void OnDisconnected(string reason)
     {
         StopVoiceRx();
+        CleanupSession();
+        SessionState = "Disconnected";
         try { controller?.Dispose(); } catch (Exception) { }
         controller = null;
         transport = null;
@@ -1293,6 +1439,80 @@ public sealed class MainViewModel : ViewModelBase
         set { if (SetField(ref selectedPacket, value)) OnPropertyChanged(nameof(HasSelectedPacket)); }
     }
     public bool HasSelectedPacket => selectedPacket != null;
+
+    private static string CsvField(string? s)
+    {
+        s ??= "";
+        return (s.Contains(',') || s.Contains('"') || s.Contains('\n'))
+            ? "\"" + s.Replace("\"", "\"\"") + "\""
+            : s;
+    }
+
+    private static System.Collections.Generic.List<string> ParseCsvLine(string line)
+    {
+        var fields = new System.Collections.Generic.List<string>();
+        var sb = new System.Text.StringBuilder();
+        bool inQ = false;
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (inQ)
+            {
+                if (c == '"') { if (i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; } else inQ = false; }
+                else sb.Append(c);
+            }
+            else if (c == '"') inQ = true;
+            else if (c == ',') { fields.Add(sb.ToString()); sb.Clear(); }
+            else sb.Append(c);
+        }
+        fields.Add(sb.ToString());
+        return fields;
+    }
+
+    /// <summary>Exports the captured packets to a CSV file (decode columns + raw info).</summary>
+    public void ExportPacketsCsv(string path)
+    {
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Time,Source,Destination,Path,APRS,Type,Symbol,Latitude,Longitude,Comment,Info");
+            foreach (var p in Packets)
+                sb.AppendLine(string.Join(",",
+                    CsvField(p.TimeText), CsvField(p.Source), CsvField(p.Destination), CsvField(p.Path),
+                    p.IsAprs ? "1" : "0", CsvField(p.AprsType), CsvField(p.Symbol),
+                    CsvField(p.Latitude?.ToString(CultureInfo.InvariantCulture)),
+                    CsvField(p.Longitude?.ToString(CultureInfo.InvariantCulture)),
+                    CsvField(p.Comment), CsvField(p.Info)));
+            System.IO.File.WriteAllText(path, sb.ToString());
+            AppendLog($"Exported {Packets.Count} packet(s) to {System.IO.Path.GetFileName(path)}.");
+        }
+        catch (Exception ex) { AppendLog("Packet export failed: " + ex.Message); }
+    }
+
+    /// <summary>Loads a previously-exported packet capture CSV into the Packets list for viewing.</summary>
+    public void LoadPacketsCsv(string path)
+    {
+        try
+        {
+            var lines = System.IO.File.ReadAllLines(path);
+            if (lines.Length < 2) { AppendLog("Capture file has no rows."); return; }
+            Packets.Clear();
+            SelectedPacket = null;
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                var f = ParseCsvLine(lines[i]);
+                string Get(int n) => n < f.Count ? f[n] : "";
+                double? Dbl(int n) => double.TryParse(Get(n), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : (double?)null;
+                Packets.Add(new ReceivedPacketSummary(
+                    Get(1), Get(2), Get(10), Get(4) == "1",
+                    Path: Get(3), AprsType: Get(5), Symbol: Get(6),
+                    Latitude: Dbl(7), Longitude: Dbl(8), Comment: Get(9)));
+            }
+            AppendLog($"Loaded {Packets.Count} packet(s) from {System.IO.Path.GetFileName(path)}.");
+        }
+        catch (Exception ex) { AppendLog("Capture load failed: " + ex.Message); }
+    }
 
     // ---- Beacon / Ident (BSS) editable settings + write --------------------
     // The Config tab edits these; "Write to radio" sends the whole BSS object
