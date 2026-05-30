@@ -56,6 +56,8 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<ReceivedPacketSummary> Packets { get; } = new();
     public ObservableCollection<AprsStationSummary> Stations { get; } = new();
 
+    public ObservableCollection<string> TerminalLog { get; } = new();
+
     // Contacts (address book) — Core StationInfoClass, persisted via DataBroker "Stations".
     public ObservableCollection<StationInfoClass> Contacts { get; } = new();
     public Array StationTypeOptions { get; } = Enum.GetValues(typeof(StationInfoClass.StationTypes));
@@ -79,7 +81,13 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
         broker.Subscribe(0, "AprsStation", (_, _, data) => { if (data is AprsStationSummary st) AddStation(st); });
         broker.Subscribe(0, "Settings", (_, _, data) => { if (data is RadioSettingsSummary s) RadioSettings = s; });
-        broker.Subscribe(0, "BssSettings", (_, _, data) => { if (data is RadioBssSettings b) Bss = b; });
+        broker.Subscribe(0, "BssSettings", (_, _, data) =>
+        {
+            if (data is not RadioBssSettings b) return;
+            Bss = b;
+            if (string.IsNullOrEmpty(TerminalMyCall) && !string.IsNullOrEmpty(b.AprsCallsign))
+                TerminalMyCall = $"{b.AprsCallsign}-{b.AprsSsid}";   // prefill source callsign
+        });
         broker.Subscribe(0, "Stations", (_, _, data) => { if (data is System.Collections.Generic.List<StationInfoClass> list) ApplyContacts(list); });
 
         Refresh();
@@ -110,6 +118,7 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanConnect));
                 OnPropertyChanged(nameof(CanDisconnect));
                 OnPropertyChanged(nameof(CanTransmit));
+                OnPropertyChanged(nameof(CanSendData));
             }
         }
     }
@@ -129,6 +138,41 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>PTT is allowed only while connected with the audio channel open.</summary>
     public bool CanTransmit => Connected && VoiceRxActive;
+
+    /// <summary>Data/packet TX uses the command channel — allowed whenever connected.</summary>
+    public bool CanSendData => Connected;
+
+    private string terminalTo = "";
+    public string TerminalTo { get => terminalTo; set => SetField(ref terminalTo, value); }
+    private string terminalMyCall = "";
+    public string TerminalMyCall { get => terminalMyCall; set => SetField(ref terminalMyCall, value); }
+    private string terminalText = "";
+    public string TerminalText { get => terminalText; set => SetField(ref terminalText, value); }
+
+    /// <summary>Sends a text AX.25 UI frame (MYCALL &gt; TO : text) over the radio's TNC. ON-AIR.</summary>
+    public void SendTerminalMessage()
+    {
+        if (!Connected || controller == null) return;
+        string to = (TerminalTo ?? "").Trim();
+        string mine = (TerminalMyCall ?? "").Trim();
+        string text = TerminalText ?? "";
+        if (to.Length == 0 || mine.Length == 0 || text.Length == 0) { AppendLog("Terminal: need To, My callsign and text."); return; }
+
+        var dest = AX25Address.GetAddress(to);
+        var src = AX25Address.GetAddress(mine);
+        if (dest == null || src == null) { AppendLog("Terminal: invalid callsign."); return; }
+
+        var pkt = new AX25Packet(new System.Collections.Generic.List<AX25Address> { dest, src }, text, DateTime.Now);
+        controller.SendPacket(pkt);
+        AddTerminalLine($"> {mine} > {to}: {text}");
+        TerminalText = "";
+    }
+
+    private void AddTerminalLine(string line)
+    {
+        TerminalLog.Add(line);
+        while (TerminalLog.Count > 500) TerminalLog.RemoveAt(0);
+    }
 
     public bool CanConnect => !Connected && SelectedRadio != null;
     public bool CanDisconnect => Connected || controller != null;
@@ -282,6 +326,7 @@ public sealed class MainViewModel : ViewModelBase
         Channels.Clear();
         Packets.Clear();
         Stations.Clear();
+        TerminalLog.Clear();
         Status = $"Connecting to {radio.Name} ({radio.Address})...";
         AppendLog(Status);
 
@@ -444,6 +489,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         Packets.Insert(0, p);                       // newest first
         while (Packets.Count > 500) Packets.RemoveAt(Packets.Count - 1);
+        AddTerminalLine($"< {p.Source}: {p.Info}"); // mirror into the terminal log
     }
 
     private void AddStation(AprsStationSummary s)

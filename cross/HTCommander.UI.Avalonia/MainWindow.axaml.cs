@@ -55,6 +55,7 @@ public partial class MainWindow : Window
 
         AddContactButton.Click += (_, _) => Vm?.AddOrUpdateContact();
         RemoveContactButton.Click += (_, _) => Vm?.RemoveSelectedContact();
+        SendTerminalButton.Click += (_, _) => Vm?.SendTerminalMessage();
 
         InitMap();
 

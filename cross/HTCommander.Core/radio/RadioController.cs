@@ -42,6 +42,9 @@ public sealed class RadioController : IDisposable
     private const int CmdReadRfChannel = 13;
     private const int CmdReadBssSettings = 33;
     private const int CmdGetHtStatus = 20;
+    private const int CmdSendData = 31;          // HT_SEND_DATA
+    private const int MaxMtu = 50;               // TNC fragment payload size
+    private const int StateIncorrect = 6;        // RadioCommandState.INCORRECT_STATE (channel busy)
     private const int NotifyHtStatusChanged = 1;
     private const int NotifyDataRxd = 2;
     private const int PowerStatusBatteryPercent = 4;
@@ -50,6 +53,18 @@ public sealed class RadioController : IDisposable
     private readonly int deviceId;
     private readonly ILogger? logger;
     private readonly DataBrokerClient broker = new DataBrokerClient();
+
+    // Transmit (HT_SEND_DATA) fragment queue.
+    private readonly object txLock = new object();
+    private readonly System.Collections.Generic.List<TxFragment> txQueue = new();
+    private bool txInFlight;
+    private RadioHtStatus? lastStatus;           // cached for channel-busy gating + default ch/region
+
+    private sealed class TxFragment
+    {
+        public byte[] Frame; public bool IsLast; public int FragId;
+        public TxFragment(byte[] frame, bool isLast, int fragId) { Frame = frame; IsLast = isLast; FragId = fragId; }
+    }
     private readonly object gate = new object();
     private CancellationTokenSource? pollCts;
     private bool started;
@@ -119,6 +134,7 @@ public sealed class RadioController : IDisposable
             case CmdReadRfChannel: HandleChannel(v); break;
             case CmdReadSettings: HandleSettings(v); break;
             case CmdReadBssSettings: HandleBssSettings(v); break;
+            case CmdSendData: HandleSendDataResponse(v); break;
             case CmdEventNotification:
                 if (v.Length > 4)
                 {
@@ -145,6 +161,88 @@ public sealed class RadioController : IDisposable
 
     private void RequestBatteryPercent() => SendBasic(CmdReadStatus, new byte[] { 0x00, PowerStatusBatteryPercent });
 
+    // --- transmit data (HT_SEND_DATA) ---
+
+    /// <summary>
+    /// Transmits an AX.25 packet over the radio's hardware TNC (1200 AFSK). The frame
+    /// is fragmented to the Bluetooth MTU and queued; fragments are sent as the radio
+    /// acks each one. ⚠ ON-AIR EMISSION — call only from an explicit operator action.
+    /// Returns the number of payload bytes queued.
+    /// </summary>
+    public int SendPacket(AX25Packet packet, int channelId = -1, int regionId = -1)
+    {
+        if (packet == null) return 0;
+        byte[] data;
+        try { data = packet.ToByteArray(); } catch (Exception) { return 0; }
+        if (data == null || data.Length == 0) return 0;
+
+        if (channelId < 0) channelId = lastStatus?.curr_ch_id ?? 0;
+        if (regionId < 0) regionId = lastStatus?.curr_region ?? 0;
+
+        lock (txLock)
+        {
+            int fragid = 0;
+            for (int i = 0; i < data.Length; i += MaxMtu)
+            {
+                int n = Math.Min(MaxMtu, data.Length - i);
+                byte[] chunk = new byte[n];
+                Array.Copy(data, i, chunk, 0, n);
+                bool isLast = (i + n) == data.Length;
+                byte[] frame = new TncDataFragment(isLast, fragid, chunk, channelId, regionId).toByteArray();
+                txQueue.Add(new TxFragment(frame, isLast, fragid));
+                fragid++;
+            }
+            KickTxLocked();
+        }
+        return data.Length;
+    }
+
+    private bool ChannelFree() => lastStatus == null || (!lastStatus.is_in_tx && lastStatus.rssi == 0);
+
+    private void KickTxLocked()
+    {
+        if (txInFlight || txQueue.Count == 0) return;
+        if (txQueue[0].FragId != 0 || ChannelFree())
+        {
+            txInFlight = true;
+            SendBasic(CmdSendData, txQueue[0].Frame);
+        }
+    }
+
+    private void HandleSendDataResponse(byte[] v)
+    {
+        lock (txLock)
+        {
+            if (txQueue.Count == 0) { txInFlight = false; return; }
+            int err = v.Length > 4 ? v[4] : 0;
+
+            if (err == StateIncorrect)
+            {
+                if (txQueue[0].FragId == 0)
+                {
+                    // First fragment rejected (channel busy) — retry when clear, else hold.
+                    if (ChannelFree()) { txInFlight = true; SendBasic(CmdSendData, txQueue[0].Frame); }
+                    else txInFlight = false;
+                    return;
+                }
+                // Mid-message failure — drop the rest of this message.
+                while (txQueue.Count > 0 && !txQueue[0].IsLast) txQueue.RemoveAt(0);
+                if (txQueue.Count > 0) txQueue.RemoveAt(0);
+            }
+            else
+            {
+                txQueue.RemoveAt(0);   // fragment accepted
+            }
+
+            if (txQueue.Count > 0 && (txQueue[0].FragId != 0 || ChannelFree()))
+            {
+                txInFlight = true;
+                SendBasic(CmdSendData, txQueue[0].Frame);
+            }
+            else txInFlight = false;
+        }
+    }
+
     // --- response handlers -------------------------------------------------
 
     private void PublishHtStatus(byte[] v)
@@ -153,6 +251,7 @@ public sealed class RadioController : IDisposable
         try
         {
             var status = new RadioHtStatus(v);
+            lastStatus = status;
             broker.Dispatch(deviceId, "HtStatus", status, store: false);
         }
         catch (Exception) { /* malformed frame */ }

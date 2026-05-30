@@ -177,7 +177,19 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-            <TabItem Header="Terminal"><TextBlock Margin="12" Text="Terminal — port pending (Phase 3)."/></TabItem>
+            <TabItem Header="Terminal">
+                <Grid RowDefinitions="*,Auto" Margin="8" RowSpacing="8">
+                    <Border Grid.Row="0" BorderBrush="#3F3F46" BorderThickness="1">
+                        <ListBox ItemsSource="{Binding TerminalLog}" FontFamily="monospace"/>
+                    </Border>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                        <TextBox Width="110" PlaceholderText="My call" Text="{Binding TerminalMyCall}"/>
+                        <TextBox Width="110" PlaceholderText="To call" Text="{Binding TerminalTo}"/>
+                        <TextBox Width="320" PlaceholderText="Message (AX.25 UI text)" Text="{Binding TerminalText}"/>
+                        <Button x:Name="SendTerminalButton" Content="Send" IsEnabled="{Binding CanSendData}"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
             <TabItem Header="Contacts">
                 <Grid ColumnDefinitions="*,300" Margin="8" ColumnSpacing="12">
                     <!-- list -->
