@@ -537,7 +537,17 @@
                                       SelectedItem="{Binding EditChannel}"
                                       ToolTip.Tip="Radio memory channel/frequency to use to reach this station"/>
                             <TextBlock Text="APRS route / path"/>
-                            <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="e.g. WIDE1-1,WIDE2-1"/>
+                            <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding AprsRoutes}"
+                                      SelectedItem="{Binding SelectedContactRoute}"
+                                      PlaceholderText="Use a saved route…"
+                                      ToolTip.Tip="Pick a saved APRS route (Config tab) to fill the path below, or type a custom path">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:AprsRoute">
+                                        <TextBlock Text="{Binding Display}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="or type: WIDE1-1,WIDE2-1"/>
                             <TextBlock Text="AX.25 destination (for Terminal/BBS)"/>
                             <TextBox Text="{Binding EditAx25Destination}" PlaceholderText="destination callsign-SSID"/>
                             <CheckBox Content="Wait for incoming connection" IsChecked="{Binding EditWaitForConnection}"/>

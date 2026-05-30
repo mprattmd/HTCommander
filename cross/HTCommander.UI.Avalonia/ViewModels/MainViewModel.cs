@@ -521,6 +521,14 @@ public sealed class MainViewModel : ViewModelBase
     public string EditChannel { get => editChannel; set => SetField(ref editChannel, value); }
     private string editAprsRoute = "";
     public string EditAprsRoute { get => editAprsRoute; set => SetField(ref editAprsRoute, value); }
+
+    // Picking one of the saved APRS routes (Config tab) fills the contact's path.
+    private AprsRoute? selectedContactRoute;
+    public AprsRoute? SelectedContactRoute
+    {
+        get => selectedContactRoute;
+        set { if (SetField(ref selectedContactRoute, value) && value != null) EditAprsRoute = value.Path; }
+    }
     private string editAx25Destination = "";
     public string EditAx25Destination { get => editAx25Destination; set => SetField(ref editAx25Destination, value); }
     private bool editWaitForConnection;
