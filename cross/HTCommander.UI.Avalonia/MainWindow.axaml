@@ -147,6 +147,8 @@
                     <Button x:Name="PttButton2" Content="🎤  PTT — hold to talk"
                             IsEnabled="{Binding CanTransmit}" Background="#5A1F1F" Foreground="White"
                             Height="56" FontSize="16" HorizontalAlignment="Stretch"/>
+                    <TextBlock Classes="Hint" IsVisible="{Binding !TxAuthorized}" Foreground="{DynamicResource DangerActiveBrush}"
+                               Text="Transmit is disabled. Set your callsign and enable 'Allow transmit' on the Config tab to key the radio."/>
                     <StackPanel Spacing="4" DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
                         <TextBlock Text="{Binding MicGainPercent, StringFormat='Microphone gain (TX, max boost): {0}%'}"/>
                         <Slider Minimum="100" Maximum="4000" Value="{Binding MicGainPercent}"/>
@@ -189,7 +191,24 @@
             <TabItem Header="Config">
                 <ScrollViewer>
                     <StackPanel Margin="16" Spacing="12" MaxWidth="520" HorizontalAlignment="Left">
-                        <TextBlock Text="Radio settings" FontWeight="Bold" FontSize="16"/>
+                        <TextBlock Text="Station identity" FontWeight="Bold" FontSize="16"/>
+                        <Border Classes="Card">
+                            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
+                                <TextBlock Grid.Row="0" Text="Callsign" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding MyCallsign}" PlaceholderText="e.g. KE4AXW"/>
+                                <TextBlock Grid.Row="1" Text="Station ID (SSID)" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="80"
+                                          ItemsSource="{Binding StationIdOptions}" SelectedItem="{Binding MyStationId}"/>
+                                <TextBlock Grid.Row="2" Text="Winlink password" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding WinlinkPassword}" PasswordChar="•"/>
+                                <CheckBox Grid.Row="3" Grid.ColumnSpan="2" IsChecked="{Binding AllowTransmit}"
+                                          Content="Allow transmit (I am licensed and authorized to transmit)"/>
+                                <TextBlock Grid.Row="4" Grid.ColumnSpan="2" Classes="Hint"
+                                           Text="Transmitting (voice PTT and packet/APRS) requires a callsign and Allow transmit. Saved to ~/.config/HTCommander and used by APRS, Winlink, and the BBS."/>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Text="Radio settings" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>
                         <Grid IsVisible="{Binding HasRadioSettings}"
                               ColumnDefinitions="160,*"
                               RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"

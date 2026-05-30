@@ -113,6 +113,7 @@ public sealed class MainViewModel : ViewModelBase
         Refresh();
         LoadContacts();
         RefreshMails();
+        LoadIdentity();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -158,11 +159,76 @@ public sealed class MainViewModel : ViewModelBase
     private bool transmitting;
     public bool Transmitting { get => transmitting; private set => SetField(ref transmitting, value); }
 
-    /// <summary>PTT is allowed only while connected with the audio channel open.</summary>
-    public bool CanTransmit => Connected && VoiceRxActive;
+    /// <summary>True once a lawful callsign is set (identity required to transmit).</summary>
+    public bool HasValidCallsign => (MyCallsign ?? "").Trim().Length >= 3;
 
-    /// <summary>Data/packet TX uses the command channel — allowed whenever connected.</summary>
-    public bool CanSendData => Connected;
+    /// <summary>Operator transmit gate: a callsign and the Allow-Transmit switch (your
+    /// license) are required before any on-air transmission. Mirrors the Windows gate.</summary>
+    public bool TxAuthorized => AllowTransmit && HasValidCallsign;
+
+    /// <summary>PTT is allowed only while connected, audio channel open, and TX authorized.</summary>
+    public bool CanTransmit => Connected && VoiceRxActive && TxAuthorized;
+
+    /// <summary>Data/packet TX uses the command channel — allowed when connected + authorized.</summary>
+    public bool CanSendData => Connected && TxAuthorized;
+
+    // ---- Station identity & settings (DataBroker device 0; shared with Core: APRS,
+    // Winlink, BBS, AX25Session all read CallSign/StationId/WinlinkPassword/AllowTransmit) ----
+    private bool loadingIdentity;
+    private string myCallsign = "";
+    public string MyCallsign
+    {
+        get => myCallsign;
+        set
+        {
+            value = (value ?? "").ToUpperInvariant();
+            if (!SetField(ref myCallsign, value)) return;
+            if (!loadingIdentity) DataBroker.Dispatch(0, "CallSign", value, store: true);
+            OnPropertyChanged(nameof(HasValidCallsign));
+            OnPropertyChanged(nameof(TxAuthorized));
+            OnPropertyChanged(nameof(CanTransmit));
+            OnPropertyChanged(nameof(CanSendData));
+        }
+    }
+
+    public Array StationIdOptions { get; } = new[] { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
+    private int myStationId;
+    public int MyStationId
+    {
+        get => myStationId;
+        set { if (SetField(ref myStationId, value) && !loadingIdentity) DataBroker.Dispatch(0, "StationId", value, store: true); }
+    }
+
+    private bool allowTransmit;
+    public bool AllowTransmit
+    {
+        get => allowTransmit;
+        set
+        {
+            if (!SetField(ref allowTransmit, value)) return;
+            if (!loadingIdentity) DataBroker.Dispatch(0, "AllowTransmit", value, store: true);
+            OnPropertyChanged(nameof(TxAuthorized));
+            OnPropertyChanged(nameof(CanTransmit));
+            OnPropertyChanged(nameof(CanSendData));
+        }
+    }
+
+    private string winlinkPassword = "";
+    public string WinlinkPassword
+    {
+        get => winlinkPassword;
+        set { if (SetField(ref winlinkPassword, value) && !loadingIdentity) DataBroker.Dispatch(0, "WinlinkPassword", value, store: true); }
+    }
+
+    private void LoadIdentity()
+    {
+        loadingIdentity = true;
+        MyCallsign = DataBroker.GetValue<string>(0, "CallSign", "") ?? "";
+        MyStationId = DataBroker.GetValue<int>(0, "StationId", 0);
+        AllowTransmit = DataBroker.GetValue<bool>(0, "AllowTransmit", false);
+        WinlinkPassword = DataBroker.GetValue<string>(0, "WinlinkPassword", "") ?? "";
+        loadingIdentity = false;
+    }
 
     private string terminalTo = "";
     public string TerminalTo { get => terminalTo; set => SetField(ref terminalTo, value); }
