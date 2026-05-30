@@ -347,9 +347,14 @@ public sealed class RadioController : IDisposable
         // Without this, the burst keys whatever channel is currently active (e.g. Winlink).
         int currentChannel = lastStatus?.curr_ch_id ?? ActiveChannelA;
         bool switched = false;
+        // Under a session lock (Winlink/BBS), the radio is already held on the locked
+        // channel and MUST stay there for the whole connected-mode session — restoring
+        // after each burst would move it off-channel before the peer's reply arrives, so
+        // the handshake would never complete. Only the one-shot APRS path switches+restores.
+        bool isLocked = lockState != null && lockState.IsLocked;
         lock (txLock)
         {
-            bool needSwitch = rawSettings != null && channelId >= 0 &&
+            bool needSwitch = !isLocked && rawSettings != null && channelId >= 0 &&
                               (regionId != currentRegion || channelId != currentChannel);
             if (needSwitch)
             {
