@@ -80,19 +80,45 @@
         <!-- Main tabbed area -->
         <TabControl>
             <TabItem Header="Radio">
-                <Grid ColumnDefinitions="300,*" Margin="12" ColumnSpacing="12">
+                <Grid ColumnDefinitions="*,300" Margin="12" ColumnSpacing="12">
 
-                    <!-- Radio device panel (image + battery + live status) -->
-                    <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="12">
+                    <!-- Radio device panel: large image with a live status overlay, details below -->
+                    <Grid Grid.Column="0" RowDefinitions="*,Auto" RowSpacing="12">
 
-                        <!-- Device card: radio image, state, battery -->
-                        <Border Grid.Row="0" Classes="Card">
-                            <StackPanel Spacing="10">
-                                <Image Source="/Assets/Radio.png" Height="180" Stretch="Uniform"
-                                       HorizontalAlignment="Center"/>
+                        <!-- Big radio image with an on-screen status overlay -->
+                        <Border Grid.Row="0" Classes="Card" Padding="8">
+                            <StackPanel Spacing="10" VerticalAlignment="Top">
+                                <!-- Fixed-size box so the HUD lands on the radio's screen -->
+                                <Grid Width="222" Height="420" HorizontalAlignment="Center">
+                                    <Image Source="/Assets/Radio.png" Stretch="Uniform"/>
+
+                                    <!-- HUD over the screen region (~27% down, ~64% wide) -->
+                                    <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,118,0,0"
+                                            Width="138" Height="86" Padding="8,6" CornerRadius="3"
+                                            Background="#B0091505" IsVisible="{Binding HasStatus}">
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding WindowTitle}" Foreground="#86F29A" FontFamily="monospace"
+                                                       FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding TxRxState}" Foreground="#86F29A" FontFamily="monospace"
+                                                       FontSize="11" HorizontalAlignment="Center"/>
+                                            <Grid ColumnDefinitions="*,*">
+                                                <TextBlock Grid.Column="0" Foreground="#86F29A" FontFamily="monospace" FontSize="11"
+                                                           Text="{Binding ChannelId, StringFormat='CH {0}'}"/>
+                                                <TextBlock Grid.Column="1" Foreground="#86F29A" FontFamily="monospace" FontSize="11"
+                                                           HorizontalAlignment="Right"
+                                                           Text="{Binding BatteryPercent, StringFormat='{}{0}%'}"/>
+                                            </Grid>
+                                            <TextBlock Foreground="#86F29A" FontFamily="monospace" FontSize="11"
+                                                       Text="{Binding GpsText, StringFormat='GPS {0}'}" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Connection state + battery bar below the image -->
                                 <TextBlock Text="{Binding Status}" HorizontalAlignment="Center"
                                            FontWeight="SemiBold" Foreground="{DynamicResource InfoBrush}"/>
-                                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasStatus}">
+                                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasStatus}" MaxWidth="222">
                                     <ProgressBar Grid.Column="0" Minimum="0" Maximum="100"
                                                  Value="{Binding BatteryPercent}" Height="10"
                                                  VerticalAlignment="Center" Foreground="{DynamicResource GoodBrush}"/>
@@ -103,38 +129,38 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Live status grid -->
+                        <!-- Live status detail grid -->
                         <Border Grid.Row="1" Classes="Card" IsVisible="{Binding HasStatus}" VerticalAlignment="Top">
-                            <Grid ColumnDefinitions="Auto,*"
-                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
-                                  RowSpacing="7" ColumnSpacing="12">
-                                <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Radio status" Classes="Section"/>
+                            <Grid ColumnDefinitions="Auto,*,Auto,*"
+                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                  RowSpacing="7" ColumnSpacing="16">
+                                <TextBlock Grid.Row="0" Grid.ColumnSpan="4" Text="Radio status" Classes="Section"/>
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Power" Foreground="{DynamicResource TextMutedBrush}"/>
                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PowerText}"/>
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="State" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TxRxState}"/>
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Squelch" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SquelchText}"/>
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Channel" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ChannelId}"/>
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="RSSI" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Rssi}"/>
-                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Region" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Region}"/>
-                                <TextBlock Grid.Row="7" Grid.Column="0" Text="GPS" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding GpsText}"/>
-                                <TextBlock Grid.Row="9" Grid.ColumnSpan="2" Text="Device" Classes="Section" Margin="0,8,0,0"/>
-                                <TextBlock Grid.Row="10" Grid.ColumnSpan="2" Text="{Binding DeviceInfoText}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="State" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding TxRxState}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Squelch" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SquelchText}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Channel" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding ChannelId}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="RSSI" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Rssi}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="2" Text="Region" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding Region}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="GPS" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GpsText}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="2" Text="Device" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="3" Text="{Binding DeviceInfoText}" TextWrapping="Wrap"/>
                             </Grid>
                         </Border>
                     </Grid>
 
-                    <!-- Live transport log -->
+                    <!-- Live transport log (compact, to the side) -->
                     <Grid Grid.Column="1" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Classes="Section"
-                                   Text="Live transport log (BlueZ RFCOMM / GAIA frames)"/>
+                        <TextBlock Grid.Row="0" Classes="Section" Text="Transport log"
+                                   ToolTip.Tip="BlueZ RFCOMM / GAIA frames"/>
                         <Border Grid.Row="1" Classes="ListCard">
-                            <ListBox ItemsSource="{Binding Log}" FontFamily="monospace"/>
+                            <ListBox ItemsSource="{Binding Log}" FontFamily="monospace" FontSize="11"/>
                         </Border>
                     </Grid>
                 </Grid>
