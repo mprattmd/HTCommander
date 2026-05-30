@@ -123,6 +123,22 @@ public sealed class RadioController : IDisposable
         if (data is RadioBssSettings bss) WriteBssSettings(bss);
     }
 
+    /// <summary>
+    /// Pushes a fixed/manual position to the radio (SET_POSITION) — for a stationary
+    /// station with no GPS. The radio then beacons this position. Operator-initiated.
+    /// </summary>
+    public void SetManualPosition(double lat, double lon, double altMetres = 0)
+    {
+        var gps = new HTCommander.Gps.GpsData
+        {
+            Latitude = lat, Longitude = lon, Altitude = altMetres,
+            Speed = 0, Heading = 0, IsFixed = true, GpsTime = DateTime.UtcNow,
+        };
+        lastGpsLat = lat; lastGpsLon = lon;   // keep the serial-GPS throttle consistent
+        try { SendBasic(CmdSetPosition, EncodeSetPosition(gps)); } catch (Exception) { }
+        SendBasic(CmdGetPosition, null);       // read it back so the UI/map reflect it
+    }
+
     // Last serial-GPS fix pushed to the radio (distance-throttled, like the WinForms app).
     private double lastGpsLat = double.NaN, lastGpsLon;
 

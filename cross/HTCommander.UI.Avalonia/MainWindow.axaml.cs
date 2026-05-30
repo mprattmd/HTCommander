@@ -97,6 +97,7 @@ public partial class MainWindow : Window
         AprsSendButton.Click += (_, _) => Vm?.SendAprsMessage();
         CreateAprsChannelButton.Click += (_, _) => Vm?.CreateAprsChannel();
         RequestPositionButton.Click += (_, _) => Vm?.RequestPosition();
+        SetFixedPositionButton.Click += (_, _) => Vm?.SetManualPosition();
         CenterGpsButton.Click += (_, _) => CenterOnGps();
         WriteBssButton.Click += (_, _) => Vm?.WriteBssSettings();
         AddRouteButton.Click += (_, _) => Vm?.AddOrUpdateRoute();

@@ -125,6 +125,7 @@ public sealed class MainViewModel : ViewModelBase
         LoadAprsRoutes();
         LoadClips();
         LoadSoftModemMode();
+        LoadFixedPosition();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -643,6 +644,8 @@ public sealed class MainViewModel : ViewModelBase
             Status = $"Connected to {radio.Name}";
             AppendLog("Connected — querying device info, status and battery.");
             StartVoiceRx(radio.Address);   // best-effort: hear the radio on the PC speaker
+            // If a fixed position is configured, re-apply it once the connect settles.
+            _ = Task.Run(async () => { await Task.Delay(1500); dispatcher.Post(PushFixedPositionIfSet); });
         });
 
         transport.ReceivedData += (_, _, value) => dispatcher.Post(() =>
@@ -1530,6 +1533,49 @@ public sealed class MainViewModel : ViewModelBase
         if (controller == null || !Connected) { AppendLog("Connect a radio to request position."); return; }
         controller.RequestPosition();
         AppendLog("Requested fresh GPS position.");
+    }
+
+    // Fixed/manual position (for a stationary station with no GPS). Persisted and
+    // re-pushed on connect so the radio keeps beaconing it across restarts.
+    private string manualLatitude = "", manualLongitude = "";
+    public string ManualLatitude { get => manualLatitude; set => SetField(ref manualLatitude, value); }
+    public string ManualLongitude { get => manualLongitude; set => SetField(ref manualLongitude, value); }
+
+    private bool TryParseManualPosition(out double lat, out double lon)
+    {
+        lat = lon = 0;
+        return double.TryParse(ManualLatitude, NumberStyles.Float, CultureInfo.InvariantCulture, out lat)
+            && double.TryParse(ManualLongitude, NumberStyles.Float, CultureInfo.InvariantCulture, out lon)
+            && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    }
+
+    /// <summary>Pushes the entered lat/lon to the radio as a fixed position (no GPS needed).</summary>
+    public void SetManualPosition()
+    {
+        if (controller == null || !Connected) { AppendLog("Connect a radio first."); return; }
+        if (!TryParseManualPosition(out double lat, out double lon))
+        { AppendLog("Enter a valid latitude (-90..90) and longitude (-180..180), decimal degrees."); return; }
+        controller.SetManualPosition(lat, lon);
+        DataBroker.Dispatch(0, "FixedLat", ManualLatitude, store: true);
+        DataBroker.Dispatch(0, "FixedLon", ManualLongitude, store: true);
+        AppendLog($"Set fixed position {lat.ToString("0.0000", CultureInfo.InvariantCulture)}, {lon.ToString("0.0000", CultureInfo.InvariantCulture)} on the radio.");
+    }
+
+    private void LoadFixedPosition()
+    {
+        ManualLatitude = DataBroker.GetValue<string>(0, "FixedLat", "") ?? "";
+        ManualLongitude = DataBroker.GetValue<string>(0, "FixedLon", "") ?? "";
+    }
+
+    // Re-push a stored fixed position shortly after connect (radio has no GPS).
+    private void PushFixedPositionIfSet()
+    {
+        if (controller == null || !Connected) return;
+        if (TryParseManualPosition(out double lat, out double lon))
+        {
+            controller.SetManualPosition(lat, lon);
+            AppendLog($"Re-applied fixed position {lat.ToString("0.0000", CultureInfo.InvariantCulture)}, {lon.ToString("0.0000", CultureInfo.InvariantCulture)}.");
+        }
     }
 
     // Per-callsign track history (timestamped), for map polylines.

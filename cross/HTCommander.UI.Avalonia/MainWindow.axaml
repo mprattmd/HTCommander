@@ -398,8 +398,25 @@
                             <TextBlock Grid.Row="1" Text="Details"/>     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding MyPosition.DetailText}"/>
                             <TextBlock Grid.Row="2" Text="Fix time"/>    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MyPosition.TimeText}"/>
                         </Grid>
-                        <TextBlock Text="(no GPS fix — request fresh, or enable GPS on the radio)" Foreground="#888"
+                        <TextBlock Text="(no GPS fix — request fresh, enable GPS on the radio, or set a fixed position below)" Foreground="#888"
                                    IsVisible="{Binding !HasMyPosition}"/>
+
+                        <!-- Fixed/manual position (stationary station, no GPS needed) -->
+                        <Border Classes="Card">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Fixed position (no GPS)" FontWeight="SemiBold"/>
+                                <Grid ColumnDefinitions="90,*,90,*" ColumnSpacing="8">
+                                    <TextBlock Grid.Column="0" Text="Latitude" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBox Grid.Column="1" Text="{Binding ManualLatitude}" PlaceholderText="e.g. 35.7796"/>
+                                    <TextBlock Grid.Column="2" Text="Longitude" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBox Grid.Column="3" Text="{Binding ManualLongitude}" PlaceholderText="e.g. -78.6382"/>
+                                </Grid>
+                                <Button x:Name="SetFixedPositionButton" Content="Set fixed position on radio"
+                                        IsEnabled="{Binding CanRequestPosition}" HorizontalAlignment="Left"/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="Decimal degrees (south/west negative). Pushes the position to the radio (SET_POSITION) so a station with no GPS can beacon. Saved and re-applied on connect."/>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Beacon (position) settings — written to the radio's BSS settings -->
                         <TextBlock Text="Beacon (position)" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>
