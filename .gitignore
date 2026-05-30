@@ -305,3 +305,7 @@ __pycache__/
 
 # Claude Code local (per-user) settings
 .claude/settings.local.json
+
+# Packaging build artifacts
+packaging/AppDir/
+packaging/*.AppImage

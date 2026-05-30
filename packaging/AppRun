@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# AppImage entry point: launch the self-contained HTCommander binary.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/bin/HTCommander.UI.Avalonia" "$@"

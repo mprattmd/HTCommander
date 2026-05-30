@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=HTCommander
+GenericName=Ham Radio Control
+Comment=Control Benshi / UV-PRO handheld radios — APRS, packet, voice
+Exec=HTCommander.UI.Avalonia
+Icon=htcommander
+Categories=HamRadio;Network;Utility;
+Terminal=false
+Keywords=ham;radio;aprs;ax25;packet;bluetooth;uv-pro;
