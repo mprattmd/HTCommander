@@ -184,7 +184,7 @@
                     </Grid>
 
                     <!-- Messages: conversation + compose -->
-                    <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto,Auto">
+                    <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto">
                         <TextBlock Grid.Row="0" Classes="Section" Text="Messages"/>
                         <Border Grid.Row="1" Classes="ListCard">
                             <ListBox ItemsSource="{Binding AprsMessages}">
@@ -198,13 +198,44 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </Border>
-                        <TextBox Grid.Row="2" Margin="0,8,0,0" Text="{Binding AprsDestination}"
-                                 PlaceholderText="To (callsign, e.g. KE4AXW-7, or APRS)"/>
-                        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,6,0,0" ColumnSpacing="8">
-                            <TextBox Grid.Column="0" Text="{Binding AprsMessageText}" PlaceholderText="Message" />
-                            <Button Grid.Column="1" x:Name="AprsSendButton" Classes="Accent" Content="Send"
-                                    IsEnabled="{Binding CanSendAprs}"/>
-                        </Grid>
+
+                        <StackPanel Grid.Row="2" Spacing="6" Margin="0,8,0,0">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <TextBlock Grid.Column="0" Text="Route" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                          ItemsSource="{Binding AprsRoutes}" SelectedItem="{Binding SelectedSendRoute}"
+                                          ToolTip.Tip="Named digipeater path (manage routes in the Config tab)">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:AprsRoute">
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                            <TextBox Text="{Binding AprsDestination}"
+                                     PlaceholderText="To (callsign, e.g. KE4AXW-7, or APRS)"/>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBox Grid.Column="0" Text="{Binding AprsMessageText}" PlaceholderText="Message" />
+                                <Button Grid.Column="1" x:Name="AprsSendButton" Classes="Accent" Content="Send"
+                                        IsEnabled="{Binding CanSendAprs}"/>
+                            </Grid>
+
+                            <!-- Create the standard APRS memory channel (144.39 FM, wide) -->
+                            <Border Classes="Card" Margin="0,8,0,0" IsVisible="{Binding CanCreateAprsChannel}">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Create APRS channel" FontWeight="SemiBold"/>
+                                    <Grid ColumnDefinitions="Auto,90,Auto,*" ColumnSpacing="8">
+                                        <TextBlock Grid.Column="0" Text="Slot" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding ChannelSlotIds}" SelectedItem="{Binding AprsChannelSlot}"/>
+                                        <TextBlock Grid.Column="2" Text="MHz" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBox Grid.Column="3" Text="{Binding AprsChannelFreq}"/>
+                                    </Grid>
+                                    <Button x:Name="CreateAprsChannelButton" Content="Write APRS channel" HorizontalAlignment="Left"/>
+                                    <TextBlock Classes="Hint" Text="Programs a 144.39 MHz FM (wide) memory channel named APRS so APRS RX/TX has a channel to use."/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </Grid>
                 </Grid>
             </TabItem>
@@ -250,16 +281,72 @@
                         </Grid>
                         <TextBlock Text="(waiting for radio…)" Foreground="#888" IsVisible="{Binding !HasRadioSettings}"/>
 
-                        <TextBlock Text="APRS / BSS settings" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>
-                        <Grid IsVisible="{Binding HasBss}"
-                              ColumnDefinitions="160,*"
-                              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
-                              RowSpacing="4" ColumnSpacing="12">
-                            <TextBlock Grid.Row="0" Text="APRS callsign"/>     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Bss.AprsCallsign}"/>
-                            <TextBlock Grid.Row="1" Text="APRS SSID"/>         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Bss.AprsSsid}"/>
-                            <TextBlock Grid.Row="2" Text="APRS symbol"/>       <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Bss.AprsSymbol}"/>
-                            <TextBlock Grid.Row="3" Text="Beacon message"/>    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Bss.BeaconMessage}"/>
-                            <TextBlock Grid.Row="4" Text="Share interval (s)"/><TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Bss.LocationShareInterval}"/>
+                        <!-- Beacon (position) settings — written to the radio's BSS settings -->
+                        <TextBlock Text="Beacon (position)" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>
+                        <TextBlock Text="(connect a radio to edit beacon/ident)" Foreground="#888" IsVisible="{Binding !HasBss}"/>
+                        <Border Classes="Card" IsVisible="{Binding HasBss}">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
+                                    <TextBlock Grid.Row="0" Text="APRS callsign" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" MaxLength="6" Text="{Binding BeaconCallsign}" PlaceholderText="e.g. KE4AXW"/>
+                                    <TextBlock Grid.Row="1" Text="APRS SSID" VerticalAlignment="Center"/>
+                                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="80"
+                                              ItemsSource="{Binding StationIdOptions}" SelectedItem="{Binding BeaconSsid}"/>
+                                    <TextBlock Grid.Row="2" Text="APRS symbol" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" MaxLength="2" Width="60" HorizontalAlignment="Left"
+                                             Text="{Binding BeaconSymbol}" ToolTip.Tip="Two-char APRS symbol, e.g. /- (house) or /[ (person)"/>
+                                    <TextBlock Grid.Row="3" Text="Beacon message" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="3" Grid.Column="1" MaxLength="18" Text="{Binding BeaconMessageText}" PlaceholderText="comment (max 18 chars)"/>
+                                    <TextBlock Grid.Row="4" Text="Share interval (s)" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="4" Grid.Column="1" Width="100" HorizontalAlignment="Left" Text="{Binding BeaconInterval}"/>
+                                </Grid>
+                                <CheckBox IsChecked="{Binding BeaconShareLocation}" Content="Share my location (beacon position)"/>
+                                <CheckBox IsChecked="{Binding BeaconOnPttRelease}" Content="Send position on PTT release"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Ident (PTT-release station ID) -->
+                        <TextBlock Text="Ident (PTT-release ID)" FontWeight="Bold" FontSize="16" Margin="0,8,0,0" IsVisible="{Binding HasBss}"/>
+                        <Border Classes="Card" IsVisible="{Binding HasBss}">
+                            <StackPanel Spacing="8">
+                                <CheckBox IsChecked="{Binding IdentOnPttRelease}" Content="Send ID info on PTT release"/>
+                                <Grid ColumnDefinitions="160,*">
+                                    <TextBlock Grid.Column="0" Text="ID text" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1" MaxLength="12" Text="{Binding IdentText}" PlaceholderText="station ID text (max 12 chars)"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasBss}">
+                            <Button x:Name="WriteBssButton" Classes="Accent" Content="Write to radio" IsEnabled="{Binding CanWriteBss}"/>
+                            <TextBlock Classes="Hint" VerticalAlignment="Center"
+                                       Text="Writes beacon &amp; ident settings to the radio (WRITE_BSS_SETTINGS)."/>
+                        </StackPanel>
+
+                        <!-- Global APRS routes (named digipeater paths) -->
+                        <TextBlock Text="APRS routes" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
+                        <Grid ColumnDefinitions="*,12,240" ColumnSpacing="12">
+                            <Border Grid.Column="0" Classes="ListCard" MinHeight="120">
+                                <ListBox ItemsSource="{Binding AprsRoutes}" SelectedItem="{Binding SelectedRoute}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:AprsRoute">
+                                            <TextBlock Text="{Binding Display}"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                            <StackPanel Grid.Column="2" Spacing="6">
+                                <TextBlock Text="Name"/>
+                                <TextBox Text="{Binding EditRouteName}" PlaceholderText="e.g. Standard"/>
+                                <TextBlock Text="Destination"/>
+                                <TextBox Text="{Binding EditRouteDest}" PlaceholderText="APN000-0"/>
+                                <TextBlock Text="Digipeater path"/>
+                                <TextBox Text="{Binding EditRoutePath}" PlaceholderText="WIDE1-1,WIDE2-2"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                    <Button x:Name="AddRouteButton" Classes="Accent" Content="Add / Update"/>
+                                    <Button x:Name="RemoveRouteButton" Content="Remove"/>
+                                </StackPanel>
+                            </StackPanel>
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>
@@ -535,25 +622,58 @@
                 </Grid>
             </TabItem>
             <TabItem Header="Packets">
-                <Grid RowDefinitions="Auto,*" Margin="8">
-                    <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
-                               Text="{Binding Packets.Count, StringFormat='Received packets ({0})'}"/>
-                    <Border Grid.Row="1" Classes="ListCard">
-                        <ListBox ItemsSource="{Binding Packets}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="core:ReceivedPacketSummary">
-                                    <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="8">
-                                        <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Source}"/>
-                                        <TextBlock Grid.Column="1" Foreground="#888"
-                                                   Text="{Binding Destination, StringFormat='&gt; {0}'}"/>
-                                        <TextBlock Grid.Column="2" Foreground="#9CDCFE" Text="APRS"
-                                                   IsVisible="{Binding IsAprs}"/>
-                                        <TextBlock Grid.Column="3" Text="{Binding Info}" TextWrapping="NoWrap"/>
+                <Grid ColumnDefinitions="*,12,360" Margin="8" ColumnSpacing="12">
+                    <!-- Live packet list (select a row for decoded detail) -->
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
+                                   Text="{Binding Packets.Count, StringFormat='Received packets ({0})'}"/>
+                        <Border Grid.Row="1" Classes="ListCard">
+                            <ListBox ItemsSource="{Binding Packets}" SelectedItem="{Binding SelectedPacket}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="core:ReceivedPacketSummary">
+                                        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="8">
+                                            <TextBlock Grid.Column="0" Foreground="#888" Text="{Binding TimeText}"/>
+                                            <TextBlock Grid.Column="1" FontWeight="Bold" Text="{Binding Source}"/>
+                                            <TextBlock Grid.Column="2" Foreground="#888"
+                                                       Text="{Binding Destination, StringFormat='&gt; {0}'}"/>
+                                            <TextBlock Grid.Column="3" Foreground="#9CDCFE" Text="APRS"
+                                                       IsVisible="{Binding IsAprs}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding Info}" TextWrapping="NoWrap"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </Grid>
+
+                    <!-- Per-packet decode detail -->
+                    <Grid Grid.Column="2" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Classes="Section" Text="Packet detail"/>
+                        <Border Grid.Row="1" Classes="Card" IsVisible="{Binding HasSelectedPacket}">
+                            <ScrollViewer>
+                                <StackPanel Spacing="6"
+                                            DataContext="{Binding SelectedPacket}" x:DataType="core:ReceivedPacketSummary">
+                                    <Grid ColumnDefinitions="92,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
+                                        <TextBlock Grid.Row="0" Text="Time" Foreground="#888"/>          <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TimeText}"/>
+                                        <TextBlock Grid.Row="1" Text="Source" Foreground="#888"/>        <TextBlock Grid.Row="1" Grid.Column="1" FontWeight="Bold" Text="{Binding Source}"/>
+                                        <TextBlock Grid.Row="2" Text="Destination" Foreground="#888"/>   <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Destination}"/>
+                                        <TextBlock Grid.Row="3" Text="Path" Foreground="#888"/>          <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Path}" TextWrapping="Wrap"/>
+                                        <TextBlock Grid.Row="4" Text="APRS type" Foreground="#888" IsVisible="{Binding IsAprs}"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding AprsType}" IsVisible="{Binding IsAprs}"/>
+                                        <TextBlock Grid.Row="5" Text="Symbol" Foreground="#888" IsVisible="{Binding IsAprs}"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Symbol}" IsVisible="{Binding IsAprs}"/>
+                                        <TextBlock Grid.Row="6" Text="Position" Foreground="#888" IsVisible="{Binding HasPosition}"/>
+                                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding PositionText}" IsVisible="{Binding HasPosition}"/>
                                     </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Border>
+                                    <TextBlock Text="Comment" Foreground="#888" IsVisible="{Binding Comment, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    <SelectableTextBlock Text="{Binding Comment}" TextWrapping="Wrap"
+                                                         IsVisible="{Binding Comment, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    <TextBlock Text="Raw info" Foreground="#888" Margin="0,4,0,0"/>
+                                    <SelectableTextBlock Text="{Binding Info}" FontFamily="monospace" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
                 </Grid>
             </TabItem>
             <TabItem Header="Settings">

@@ -71,11 +71,11 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 | Message ACK/REJ tracking | 🟡 | AprsHandler sends/handles acks; no UI ack indicator yet |
 | Authenticated messages (send + ✓/❌ display) | 🟡 | AprsHandler applies auth on send; no ✓/❌ display |
 | Message/chat conversation view | ✅ | APRS tab now has a messages list + compose bar |
-| Per-packet detail view | ❌ | AprsDetailsForm |
-| Beacon (position) transmit + settings | ❌ | BSS settings read-only; no EditBeaconSettingsForm/SetBssSettings |
-| Ident settings (PTT-release ID) | ❌ | EditIdentSettingsForm |
-| APRS routes/paths manager (global) | 🟡 | per-contact path text only; no routes editor/picker |
-| APRS channel setup (create "APRS" channel) | ❌ | AprsConfigurationForm |
+| Per-packet detail view | ✅ | Phase 1b: Packets tab is now list+detail (time, src/dest, path, APRS type/symbol/position/comment, raw info) |
+| Beacon (position) transmit + settings | ⏳ | Phase 1b: editable Beacon section in Config → SetBssSettings (WRITE_BSS_SETTINGS); needs RF to verify |
+| Ident settings (PTT-release ID) | ⏳ | Phase 1b: editable Ident section in Config → SetBssSettings; needs RF to verify |
+| APRS routes/paths manager (global) | ✅ | Phase 1b: routes editor in Config (AprsRoutes key) + route picker on the compose bar |
+| APRS channel setup (create "APRS" channel) | ⏳ | Phase 1b: "Create APRS channel" (144.39 FM/wide) on the APRS tab → WriteChannel; write needs RF to verify |
 | APRS-over-SMS | ❌ | |
 | APRS weather (WXBOT) | ❌ | |
 | Copy message/callsign, context menu | ❌ | |
@@ -95,7 +95,7 @@ Status: ✅ done · 🟡 partial · ⏳ in code, needs live RF/CMS/peer to verif
 ## Packet / Terminal
 | Feature | Status | Notes |
 |---|---|---|
-| Packet capture (live list) | 🟡 | one-line summary only; no decode detail, no modem/ECC, no selection |
+| Packet capture (live list) | 🟡 | Phase 1b added selection + a decode-detail panel; still no modem/ECC, no CSV export |
 | Packet viewer / CSV export / load capture / copy | ❌ | |
 | Terminal connectionless (UI-frame) send | ✅ | |
 | Terminal connected-mode session (+ channel lock) | ❌ | Terminal tab never uses AX25Session |

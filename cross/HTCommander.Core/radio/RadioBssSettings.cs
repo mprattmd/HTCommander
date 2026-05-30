@@ -28,6 +28,18 @@ namespace HTCommander
         public string AprsSymbol { get; set; }
         public string AprsCallsign { get; set; }
 
+        /// <summary>Empty settings with non-null strings (for building a write payload).</summary>
+        public RadioBssSettings()
+        {
+            PttReleaseIdInfo = "";
+            BeaconMessage = "";
+            AprsSymbol = "";
+            AprsCallsign = "";
+        }
+
+        /// <summary>Deep copy — used to edit a subset of fields then write the whole object back.</summary>
+        public RadioBssSettings Clone() => (RadioBssSettings)MemberwiseClone();
+
         public RadioBssSettings(byte[] msg)
         {
             if (msg.Length < 51) // Ensure minimum length

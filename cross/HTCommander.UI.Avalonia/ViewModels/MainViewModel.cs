@@ -16,6 +16,7 @@ limitations under the License.
 
 using System;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using HTCommander;                       // RadioController, RadioHtStatus, RadioDeviceSummary, DataBrokerClient (Core)
@@ -90,6 +91,7 @@ public sealed class MainViewModel : ViewModelBase
         {
             if (data is not RadioBssSettings b) return;
             Bss = b;
+            SeedBssEditor(b);                                        // refresh the editable beacon/ident fields
             if (string.IsNullOrEmpty(TerminalMyCall) && !string.IsNullOrEmpty(b.AprsCallsign))
                 TerminalMyCall = $"{b.AprsCallsign}-{b.AprsSsid}";   // prefill source callsign
         });
@@ -115,6 +117,7 @@ public sealed class MainViewModel : ViewModelBase
         LoadContacts();
         RefreshMails();
         LoadIdentity();
+        LoadAprsRoutes();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -144,6 +147,8 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanSendData));
                 OnPropertyChanged(nameof(CanSendAprs));
                 OnPropertyChanged(nameof(CanWriteChannels));
+                OnPropertyChanged(nameof(CanWriteBss));
+                OnPropertyChanged(nameof(CanCreateAprsChannel));
             }
         }
     }
@@ -313,7 +318,7 @@ public sealed class MainViewModel : ViewModelBase
     public RadioBssSettings? Bss
     {
         get => bss;
-        private set { if (SetField(ref bss, value)) OnPropertyChanged(nameof(HasBss)); }
+        private set { if (SetField(ref bss, value)) { OnPropertyChanged(nameof(HasBss)); OnPropertyChanged(nameof(CanWriteBss)); } }
     }
     public bool HasBss => Bss != null;
 
@@ -595,6 +600,11 @@ public sealed class MainViewModel : ViewModelBase
         DeviceInfoText = $"Vendor {d.VendorId} · Product {d.ProductId} · HW v{d.HardwareVersion} · FW v{d.SoftwareVersion} · {d.ChannelCount} ch · {d.RegionCount} bank(s)";
         channelCount = Math.Max(1, d.ChannelCount);
         EnsureSlots();
+        if (ChannelSlotIds.Count != channelCount)
+        {
+            ChannelSlotIds.Clear();
+            for (int i = 0; i < channelCount; i++) ChannelSlotIds.Add(i);
+        }
         RegionCount = Math.Max(1, d.RegionCount);
         loadingBanks = true;
         Banks.Clear();
@@ -983,9 +993,13 @@ public sealed class MainViewModel : ViewModelBase
         string msg = AprsMessageText ?? "";
         if (dest.Length == 0 || msg.Length == 0) { AppendLog("APRS: need a destination and message text."); return; }
         if (!CanSendData) { AppendLog("APRS: set callsign + Allow-Transmit and connect first."); return; }
+        string[]? route = SelectedSendRoute?.ToRouteArray();   // optional named digipeater path
         DataBroker.Dispatch(1, "SendAprsMessage",
-            new AprsSendMessageData { Destination = dest, Message = msg, RadioDeviceId = BbsRadioDeviceId, Route = null },
+            new AprsSendMessageData { Destination = dest, Message = msg, RadioDeviceId = BbsRadioDeviceId, Route = route },
             store: false);
+        AppendLog(route != null
+            ? $"APRS → {dest} via {SelectedSendRoute!.Name}: {msg}"
+            : $"APRS → {dest}: {msg}");
         AprsMessageText = "";
     }
 
@@ -1005,6 +1019,199 @@ public sealed class MainViewModel : ViewModelBase
             Outgoing = outgoing,
         });
         while (AprsMessages.Count > 500) AprsMessages.RemoveAt(0);
+    }
+
+    // ---- Per-packet detail (Packets tab selection) -------------------------
+    private ReceivedPacketSummary? selectedPacket;
+    public ReceivedPacketSummary? SelectedPacket
+    {
+        get => selectedPacket;
+        set { if (SetField(ref selectedPacket, value)) OnPropertyChanged(nameof(HasSelectedPacket)); }
+    }
+    public bool HasSelectedPacket => selectedPacket != null;
+
+    // ---- Beacon / Ident (BSS) editable settings + write --------------------
+    // The Config tab edits these; "Write to radio" sends the whole BSS object
+    // (preserving fields we don't expose) via the SetBssSettings broker event.
+    private bool loadingBss;
+    private string beaconCallsign = "";
+    public string BeaconCallsign { get => beaconCallsign; set { if (!loadingBss) value = (value ?? "").ToUpperInvariant(); SetField(ref beaconCallsign, value); } }
+    private int beaconSsid;
+    public int BeaconSsid { get => beaconSsid; set => SetField(ref beaconSsid, value); }
+    private string beaconSymbol = "";
+    public string BeaconSymbol { get => beaconSymbol; set => SetField(ref beaconSymbol, value); }
+    private string beaconMessageText = "";
+    public string BeaconMessageText { get => beaconMessageText; set => SetField(ref beaconMessageText, value); }
+    private int beaconInterval;
+    public int BeaconInterval { get => beaconInterval; set => SetField(ref beaconInterval, value); }
+    private bool beaconShareLocation;
+    public bool BeaconShareLocation { get => beaconShareLocation; set => SetField(ref beaconShareLocation, value); }
+    private bool beaconOnPttRelease;
+    public bool BeaconOnPttRelease { get => beaconOnPttRelease; set => SetField(ref beaconOnPttRelease, value); }
+    private bool identOnPttRelease;
+    public bool IdentOnPttRelease { get => identOnPttRelease; set => SetField(ref identOnPttRelease, value); }
+    private string identText = "";
+    public string IdentText { get => identText; set => SetField(ref identText, value); }
+
+    /// <summary>BSS write needs a connected radio with settings already read (so we
+    /// preserve the fields the editor doesn't expose).</summary>
+    public bool CanWriteBss => Connected && HasBss;
+
+    private void SeedBssEditor(RadioBssSettings b)
+    {
+        loadingBss = true;
+        BeaconCallsign = b.AprsCallsign ?? "";
+        BeaconSsid = b.AprsSsid;
+        BeaconSymbol = b.AprsSymbol ?? "";
+        BeaconMessageText = b.BeaconMessage ?? "";
+        BeaconInterval = b.LocationShareInterval;
+        BeaconShareLocation = b.ShouldShareLocation;
+        BeaconOnPttRelease = b.PttReleaseSendLocation;
+        IdentOnPttRelease = b.PttReleaseSendIdInfo;
+        IdentText = b.PttReleaseIdInfo ?? "";
+        loadingBss = false;
+    }
+
+    private static string Clamp(string? s, int max)
+    {
+        s ??= "";
+        return s.Length > max ? s.Substring(0, max) : s;
+    }
+
+    /// <summary>Writes the edited beacon/ident settings to the radio (WRITE_BSS_SETTINGS).
+    /// This configures PTT-release beacon/ident transmissions, so it is operator-initiated.</summary>
+    public void WriteBssSettings()
+    {
+        if (!CanWriteBss) { AppendLog("Connect to a radio (and let settings load) before writing beacon/ident."); return; }
+        var b = Bss!.Clone();
+        b.AprsCallsign = Clamp((BeaconCallsign ?? "").Trim().ToUpperInvariant(), 6);
+        b.AprsSsid = Math.Clamp(BeaconSsid, 0, 15);
+        b.AprsSymbol = Clamp(string.IsNullOrEmpty(BeaconSymbol) ? "/-" : BeaconSymbol, 2);
+        b.BeaconMessage = Clamp(BeaconMessageText, 18);
+        b.LocationShareInterval = Math.Max(0, BeaconInterval);
+        b.ShouldShareLocation = BeaconShareLocation;
+        b.PttReleaseSendLocation = BeaconOnPttRelease;
+        b.PttReleaseSendIdInfo = IdentOnPttRelease;
+        b.PttReleaseIdInfo = Clamp(IdentText, 12);
+        DataBroker.Dispatch(0, "SetBssSettings", b, store: false);
+        AppendLog("Beacon/ident settings written to the radio.");
+    }
+
+    // ---- Global APRS routes (named digipeater paths) -----------------------
+    public ObservableCollection<AprsRoute> AprsRoutes { get; } = new();
+
+    private AprsRoute? selectedSendRoute;
+    /// <summary>Route chosen on the compose bar; null = the radio's default path.</summary>
+    public AprsRoute? SelectedSendRoute { get => selectedSendRoute; set => SetField(ref selectedSendRoute, value); }
+
+    private AprsRoute? selectedRoute;
+    public AprsRoute? SelectedRoute
+    {
+        get => selectedRoute;
+        set
+        {
+            if (!SetField(ref selectedRoute, value) || value == null) return;
+            EditRouteName = value.Name;
+            EditRouteDest = value.Destination;
+            EditRoutePath = value.Path;
+        }
+    }
+
+    private string editRouteName = "";
+    public string EditRouteName { get => editRouteName; set => SetField(ref editRouteName, value); }
+    private string editRouteDest = "APN000-0";
+    public string EditRouteDest { get => editRouteDest; set => SetField(ref editRouteDest, value); }
+    private string editRoutePath = "";
+    public string EditRoutePath { get => editRoutePath; set => SetField(ref editRoutePath, value); }
+
+    private void LoadAprsRoutes()
+    {
+        string s = DataBroker.GetValue<string>(0, "AprsRoutes", "") ?? "";
+        var keepName = SelectedSendRoute?.Name;
+        AprsRoutes.Clear();
+        if (string.IsNullOrWhiteSpace(s))
+            AprsRoutes.Add(new AprsRoute { Name = "Standard", Destination = "APN000-0", Path = "WIDE1-1,WIDE2-2" });
+        else
+            foreach (var r in s.Split('|', StringSplitOptions.RemoveEmptyEntries))
+                AprsRoutes.Add(AprsRoute.FromStorage(r));
+        SelectedSendRoute = AprsRoutes.FirstOrDefault(r => r.Name == keepName) ?? AprsRoutes.FirstOrDefault();
+    }
+
+    private void SaveAprsRoutes()
+    {
+        string s = string.Join("|", AprsRoutes.Select(r => r.ToStorage()));
+        DataBroker.Dispatch(0, "AprsRoutes", s, store: true);
+    }
+
+    public void AddOrUpdateRoute()
+    {
+        string name = (EditRouteName ?? "").Trim();
+        if (name.Length == 0) { AppendLog("APRS route needs a name."); return; }
+        var existing = AprsRoutes.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
+        var route = existing ?? new AprsRoute();
+        route.Name = name;
+        route.Destination = string.IsNullOrWhiteSpace(EditRouteDest) ? "APN000-0" : EditRouteDest.Trim();
+        route.Path = (EditRoutePath ?? "").Trim();
+        if (existing == null) AprsRoutes.Add(route);
+        SaveAprsRoutes();
+        SelectedSendRoute ??= route;
+        AppendLog($"Saved APRS route '{name}'.");
+    }
+
+    public void RemoveSelectedRoute()
+    {
+        if (SelectedRoute == null) return;
+        bool wasSend = ReferenceEquals(SelectedRoute, SelectedSendRoute);
+        AprsRoutes.Remove(SelectedRoute);
+        SelectedRoute = null;
+        if (wasSend) SelectedSendRoute = AprsRoutes.FirstOrDefault();
+        SaveAprsRoutes();
+    }
+
+    // ---- Create an "APRS" memory channel (144.39 FM, wide) -----------------
+    public ObservableCollection<int> ChannelSlotIds { get; } = new();
+
+    private int aprsChannelSlot;
+    public int AprsChannelSlot { get => aprsChannelSlot; set => SetField(ref aprsChannelSlot, value); }
+
+    private string aprsChannelFreq = "144.3900";
+    public string AprsChannelFreq { get => aprsChannelFreq; set => SetField(ref aprsChannelFreq, value); }
+
+    public bool CanCreateAprsChannel => Connected && controller != null;
+
+    /// <summary>Programs an APRS memory channel (FM, wide, muted) into the chosen slot —
+    /// the standard 144.39 MHz packet channel, so APRS TX/RX has a channel to use.</summary>
+    public void CreateAprsChannel()
+    {
+        if (controller == null || !Connected) { AppendLog("Connect to a radio to create an APRS channel."); return; }
+        if (!float.TryParse(AprsChannelFreq, NumberStyles.Float, CultureInfo.InvariantCulture, out float mhz) || mhz < 144 || mhz > 148)
+        { AppendLog("APRS channel: frequency must be between 144 and 148 MHz."); return; }
+
+        int slot = AprsChannelSlot;
+        int hz = (int)(mhz * 1_000_000);
+        var ch = new RadioChannelInfo
+        {
+            channel_id = slot,
+            name_str = "APRS",
+            rx_freq = hz,
+            tx_freq = hz,
+            rx_mod = RadioModulationType.FM,
+            tx_mod = RadioModulationType.FM,
+            bandwidth = RadioBandwidthType.WIDE,
+            mute = true,
+            pre_de_emph_bypass = true,
+            scan = false,
+            talk_around = false,
+            tx_at_max_power = true,
+            tx_at_med_power = false,
+            tx_sub_audio = 0,
+            rx_sub_audio = 0,
+            tx_disable = false,
+        };
+        if (HasBanks) controller.SetRegion(SelectedBank);
+        controller.WriteChannel(ch);
+        if (slot < Slots.Count) { Slots[slot].Name = "APRS"; Slots[slot].RxMHz = mhz; }
+        AppendLog($"Created APRS channel at {mhz.ToString("0.0000", CultureInfo.InvariantCulture)} MHz in slot {slot}.");
     }
 
     private void AppendLog(string line)
