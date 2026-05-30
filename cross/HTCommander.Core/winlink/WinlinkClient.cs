@@ -118,7 +118,7 @@ namespace HTCommander
         /// </summary>
         private void StartRadioSync(int radioId, StationInfoClass station)
         {
-            if (radioId <= 0 || station == null) return;
+            if (radioId < 0 || station == null) return;   // device 0 is a valid radio on the cross-platform app
             
             // Get the current region from HtStatus
             RadioHtStatus htStatus = broker.GetValue<RadioHtStatus>(radioId, "HtStatus", null);
@@ -186,7 +186,7 @@ namespace HTCommander
             DisposeAX25Session();
             
             // Get our callsign from settings
-            string myCallsignWithId = broker.GetValue<string>(0, "Callsign", "N0CALL-0");
+            string myCallsignWithId = broker.GetValue<string>(0, "CallSign", "N0CALL-0");   // key is "CallSign" everywhere else
             string myCallsign;
             int myStationId;
             if (!CoreUtils.ParseCallsignWithId(myCallsignWithId, out myCallsign, out myStationId))
@@ -322,7 +322,7 @@ namespace HTCommander
         /// </summary>
         private void UnlockRadio()
         {
-            if (lockedRadioId > 0)
+            if (lockedRadioId >= 0)   // -1 = not locked; device 0 is a valid radio
             {
                 broker.LogInfo("[WinlinkClient] Unlocking radio " + lockedRadioId);
                 var unlockData = new SetUnlockData { Usage = "Winlink" };

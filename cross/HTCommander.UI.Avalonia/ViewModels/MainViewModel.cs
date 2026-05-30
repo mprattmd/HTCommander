@@ -362,15 +362,17 @@ public sealed class MainViewModel : ViewModelBase
         try { s.Disconnect(); } catch (Exception) { }
     }
 
-    // Lock the session's TX to a chosen channel (publishes RadioLockState that
-    // AX25Session reads in EmitPacket); blank selection clears the lock.
+    // Lock the session's TX to a chosen channel. AX25Session.EmitPacket reads this
+    // from the store via GetValue, so it must be stored (store:true). A blank
+    // selection stores a cleared lock (ChannelId -1 → EmitPacket falls back to the
+    // current channel).
     private void ApplyTerminalChannelLock()
     {
-        if (string.IsNullOrWhiteSpace(TerminalChannel)) { DataBroker.Dispatch(BbsRadioDeviceId, "LockState", null!, store: false); return; }
-        var ch = Channels.FirstOrDefault(c => c.Name == TerminalChannel);
-        if (ch == null) return;
-        DataBroker.Dispatch(BbsRadioDeviceId, "LockState",
-            new RadioLockState { IsLocked = true, ChannelId = ch.ChannelId, RegionId = Region }, store: false);
+        var ch = string.IsNullOrWhiteSpace(TerminalChannel) ? null : Channels.FirstOrDefault(c => c.Name == TerminalChannel);
+        var lockState = ch == null
+            ? new RadioLockState { IsLocked = false, ChannelId = -1, RegionId = -1 }
+            : new RadioLockState { IsLocked = true, ChannelId = ch.ChannelId, RegionId = Region };
+        DataBroker.Dispatch(BbsRadioDeviceId, "LockState", lockState, store: true);
     }
 
     private void OnSessionStateChanged(AX25Session sender, AX25Session.ConnectionState state)
@@ -1044,6 +1046,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         var store = MailStore;
         if (store == null) return;
+        string? keepMid = selectedMail?.MID;        // preserve selection across the rebuild
         var all = store.GetAllMails();
         Mails.Clear();
         foreach (var m in all)
@@ -1051,6 +1054,11 @@ public sealed class MainViewModel : ViewModelBase
                 Mails.Add(m);
         UpdateFolderCounts(all);
         OnPropertyChanged(nameof(MailCountText));
+        if (keepMid != null)
+        {
+            var again = Mails.FirstOrDefault(m => m.MID == keepMid);
+            if (again != null) SelectedMail = again;   // re-open the same message (no flicker/loss)
+        }
     }
 
     private void UpdateFolderCounts(System.Collections.Generic.List<WinLinkMail> all)
@@ -1152,7 +1160,7 @@ public sealed class MainViewModel : ViewModelBase
         ComposeCc = cc;
         ComposeSubject = original.Subject.StartsWith(subjectPrefix, StringComparison.OrdinalIgnoreCase)
             ? original.Subject : subjectPrefix + original.Subject;
-        ComposeBody = $"\n\n{header}\n{original.Body}";
+        ComposeBody = $"\r\n\r\n{header}\r\n{original.Body}";
         ComposeAttachments.Clear();
         if (keepAttachments && original.Attachments != null)
             foreach (var a in original.Attachments) ComposeAttachments.Add(a);
@@ -1163,21 +1171,21 @@ public sealed class MainViewModel : ViewModelBase
     {
         if (selectedMail is not { } m) return;
         ComposeFrom(m, m.From, "", "Re: ",
-            $"--- Original Message ---\nFrom: {m.From}\nDate: {m.DateTime.ToLocalTime()}\n", false);
+            $"--- Original Message ---\r\nFrom: {m.From}\r\nDate: {m.DateTime.ToLocalTime()}\r\n", false);
     }
 
     public void ReplyAllMail()
     {
         if (selectedMail is not { } m) return;
         ComposeFrom(m, m.From, m.Cc ?? "", "Re: ",
-            $"--- Original Message ---\nFrom: {m.From}\nDate: {m.DateTime.ToLocalTime()}\n", false);
+            $"--- Original Message ---\r\nFrom: {m.From}\r\nDate: {m.DateTime.ToLocalTime()}\r\n", false);
     }
 
     public void ForwardMail()
     {
         if (selectedMail is not { } m) return;
         ComposeFrom(m, "", "", "Fwd: ",
-            $"--- Forwarded Message ---\nFrom: {m.From}\nTo: {m.To}\nDate: {m.DateTime.ToLocalTime()}\nSubject: {m.Subject}\n", true);
+            $"--- Forwarded Message ---\r\nFrom: {m.From}\r\nTo: {m.To}\r\nDate: {m.DateTime.ToLocalTime()}\r\nSubject: {m.Subject}\r\n", true);
     }
 
     // ---- Attachments ----
@@ -1211,10 +1219,14 @@ public sealed class MainViewModel : ViewModelBase
         if (SelectedAttachment?.Data == null) return;
         try
         {
-            string tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), SelectedAttachment.Name);
+            // Sanitize the remote-supplied name to its leaf only — never let an
+            // attachment write outside the temp dir (e.g. "../" or an absolute path).
+            string safeName = System.IO.Path.GetFileName(SelectedAttachment.Name);
+            if (string.IsNullOrWhiteSpace(safeName)) safeName = "attachment";
+            string tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), safeName);
             System.IO.File.WriteAllBytes(tmp, SelectedAttachment.Data);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", $"\"{tmp}\"") { UseShellExecute = false });
-            WinlinkStatus = $"Opened {SelectedAttachment.Name}.";
+            WinlinkStatus = $"Opened {safeName}.";
         }
         catch (Exception ex) { WinlinkStatus = "Open failed: " + ex.Message; }
     }
@@ -1546,7 +1558,8 @@ public sealed class MainViewModel : ViewModelBase
             sb.AppendLine("Time,Source,Destination,Path,APRS,Type,Symbol,Latitude,Longitude,Comment,Info");
             foreach (var p in Packets)
                 sb.AppendLine(string.Join(",",
-                    CsvField(p.TimeText), CsvField(p.Source), CsvField(p.Destination), CsvField(p.Path),
+                    CsvField(p.TimeLocal == default ? "" : p.TimeLocal.ToString("o", CultureInfo.InvariantCulture)),
+                    CsvField(p.Source), CsvField(p.Destination), CsvField(p.Path),
                     p.IsAprs ? "1" : "0", CsvField(p.AprsType), CsvField(p.Symbol),
                     CsvField(p.Latitude?.ToString(CultureInfo.InvariantCulture)),
                     CsvField(p.Longitude?.ToString(CultureInfo.InvariantCulture)),
@@ -1572,9 +1585,10 @@ public sealed class MainViewModel : ViewModelBase
                 var f = ParseCsvLine(lines[i]);
                 string Get(int n) => n < f.Count ? f[n] : "";
                 double? Dbl(int n) => double.TryParse(Get(n), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : (double?)null;
+                DateTime t = DateTime.TryParse(Get(0), CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt : default;
                 Packets.Add(new ReceivedPacketSummary(
                     Get(1), Get(2), Get(10), Get(4) == "1",
-                    Path: Get(3), AprsType: Get(5), Symbol: Get(6),
+                    TimeLocal: t, Path: Get(3), AprsType: Get(5), Symbol: Get(6),
                     Latitude: Dbl(7), Longitude: Dbl(8), Comment: Get(9)));
             }
             AppendLog($"Loaded {Packets.Count} packet(s) from {System.IO.Path.GetFileName(path)}.");
@@ -1699,6 +1713,11 @@ public sealed class MainViewModel : ViewModelBase
     {
         string name = (EditRouteName ?? "").Trim();
         if (name.Length == 0) { AppendLog("APRS route needs a name."); return; }
+        // Comma is the field delimiter in the stored "Name,Dest,Path…" route form, so a
+        // comma in the name or destination would shift the route array and mis-address TX.
+        // (The path may contain commas — they separate digipeaters.)
+        if (name.Contains(',') || (EditRouteDest ?? "").Contains(','))
+        { AppendLog("APRS route name/destination can't contain a comma."); return; }
         var existing = AprsRoutes.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
         var route = existing ?? new AprsRoute();
         route.Name = name;

@@ -349,7 +349,7 @@ namespace HTCommander
                 if (!string.IsNullOrEmpty(mail.Mbo)) { sb.AppendLine($"Mbo={mail.Mbo}"); }
                 sb.AppendLine($"Body={EscapeString(mail.Body)}");
                 if (!string.IsNullOrEmpty(mail.Tag)) { sb.AppendLine($"Tag={mail.Tag}"); }
-                if (!string.IsNullOrEmpty(mail.Location)) { sb.AppendLine($"Tag={mail.Location}"); }
+                if (!string.IsNullOrEmpty(mail.Location)) { sb.AppendLine($"Location={mail.Location}"); }
                 if (mail.Flags != 0) { sb.AppendLine($"Flags={(int)mail.Flags}"); }
                 if (!string.IsNullOrEmpty(mail.Mailbox)) { sb.AppendLine($"Mailbox={mail.Mailbox}"); }
                 if (mail.Attachments != null)

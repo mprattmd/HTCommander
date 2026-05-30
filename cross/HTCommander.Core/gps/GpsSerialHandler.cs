@@ -145,9 +145,45 @@ namespace HTCommander.Gps
                     return;
                 }
 
-                port.DataReceived += OnDataReceived;
                 lock (_portLock) { _port = port; }
+
+                // Read on a dedicated background thread. SerialPort.DataReceived is
+                // unreliable on Linux (the event often never fires), so we block-read
+                // BaseStream instead — the portable pattern that works on Linux + Windows.
+                var reader = new Thread(() => ReadLoop(port)) { IsBackground = true, Name = "GpsSerialRead" };
+                reader.Start();
             });
+        }
+
+        // Background read loop for one open port. Exits when the port is closed/replaced
+        // (StopPort disposes the port, which makes the blocking read throw).
+        private void ReadLoop(SerialPort port)
+        {
+            var buf = new byte[512];
+            while (!_disposed)
+            {
+                lock (_portLock) { if (_port != port) break; }   // superseded by a newer port
+                if (!port.IsOpen) break;
+                int n;
+                try { n = port.BaseStream.Read(buf, 0, buf.Length); }
+                catch (TimeoutException) { continue; }            // no data this interval
+                catch (Exception) { break; }                      // port closed / I/O error
+                if (n <= 0) continue;
+                for (int i = 0; i < n; i++)
+                {
+                    char ch = (char)buf[i];
+                    if (ch == '\n')
+                    {
+                        string line = _lineBuffer.ToString().TrimEnd('\r');
+                        _lineBuffer.Clear();
+                        if (line.Length > 0) ProcessNmeaLine(line);
+                    }
+                    else if (ch != '\0' && ch != '\r')
+                    {
+                        _lineBuffer.Append(ch);
+                    }
+                }
+            }
         }
 
         private void StopPort()
@@ -171,9 +207,8 @@ namespace HTCommander.Gps
                 _port = null;
             }
 
-            if (port != null && port != pending)   // avoid double-close
+            if (port != null && port != pending)   // avoid double-close (the read thread exits on close)
             {
-                try { port.DataReceived -= OnDataReceived; } catch { }
                 try { if (port.IsOpen) port.Close(); }      catch { }
                 try { port.Dispose(); }                     catch { }
             }
@@ -190,32 +225,20 @@ namespace HTCommander.Gps
         // Serial data reception
         // ------------------------------------------------------------------
 
-        private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
+        // Immutable snapshot of the current fix to publish — the read thread keeps
+        // mutating _gpsData, so subscribers must not receive that shared instance.
+        private GpsData SnapshotFix() => new GpsData
         {
-            if (_disposed || _port == null || !_port.IsOpen)
-                return;
-
-            try
-            {
-                string incoming = _port.ReadExisting();
-                foreach (char ch in incoming)
-                {
-                    if (ch == '\n')
-                    {
-                        // Strip trailing CR if present
-                        string line = _lineBuffer.ToString().TrimEnd('\r');
-                        _lineBuffer.Clear();
-                        if (line.Length > 0)
-                            ProcessNmeaLine(line);
-                    }
-                    else
-                    {
-                        _lineBuffer.Append(ch);
-                    }
-                }
-            }
-            catch (Exception) { /* ignore read errors */ }
-        }
+            Latitude = _gpsData.Latitude,
+            Longitude = _gpsData.Longitude,
+            Altitude = _gpsData.Altitude,
+            Speed = _gpsData.Speed,
+            Heading = _gpsData.Heading,
+            FixQuality = _gpsData.FixQuality,
+            Satellites = _gpsData.Satellites,
+            IsFixed = _gpsData.IsFixed,
+            GpsTime = _gpsData.GpsTime,
+        };
 
         // ------------------------------------------------------------------
         // NMEA processing
@@ -315,7 +338,7 @@ namespace HTCommander.Gps
                     System.Globalization.CultureInfo.InvariantCulture, out double heading))
                 _gpsData.Heading = heading;
 
-            broker.Dispatch(1, "GpsData", _gpsData, store: true);
+            broker.Dispatch(1, "GpsData", SnapshotFix(), store: true);
         }
 
         // ------------------------------------------------------------------
@@ -351,7 +374,7 @@ namespace HTCommander.Gps
                     System.Globalization.CultureInfo.InvariantCulture, out double alt))
                 _gpsData.Altitude = alt;
 
-            broker.Dispatch(1, "GpsData", _gpsData, store: true);
+            broker.Dispatch(1, "GpsData", SnapshotFix(), store: true);
         }
 
         // ------------------------------------------------------------------
