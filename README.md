@@ -49,9 +49,15 @@ but await on-air / server / station verification:
 - **Live voice RX/TX** over Bluetooth audio (SBC) with **press-and-hold PTT**, mic
   gain/AGC and speaker volume. Transmit is gated on your callsign + Allow-Transmit.
 - **APRS** — receive + decode + station list; **send messages** with a global
-  **routes** manager and a destination picker; **beacon (position)** and **ident**
-  (PTT-release ID) settings written to the radio; a **per-packet decode detail** view;
-  a **"create APRS channel"** helper *(send/beacon/ident need RF)*.
+  **routes** manager and a destination picker; a **per-packet decode detail** view;
+  a **"create APRS channel"** helper; and a **fixed/manual position** (beacon without GPS).
+- **APRS beaconing — two ways** *(needs RF to verify)*:
+  - **Radio's built-in beacon** — write the Beacon/Ident (BSS) settings to the radio;
+    the radio beacons on its own, on whatever channel it's *tuned to* (so tune it to
+    your APRS channel). This matches the Windows app.
+  - **App beacon on the APRS channel** — *Beacon now* / *Auto-beacon* builds a position
+    report and sends it on the channel named `APRS` via the radio's TNC, regardless of
+    the tuned channel (uses your fixed/GPS position + symbol + comment).
 - **Map** (OpenStreetMap) — station markers, **per-callsign track polylines**, a
   last-N-minutes **time filter**, large/small marker toggle, a **radio + serial GPS
   marker**, and **center-to-GPS**.
