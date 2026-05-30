@@ -290,7 +290,9 @@
                         <Border Classes="Card" IsVisible="{Binding IsRadioBeacon}">
                             <StackPanel Spacing="6">
                                 <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                           Text="The RADIO beacons on its own using the settings above — but on whatever channel it's TUNED to, so tune the radio to your APRS channel. Click Write to apply (also writes Ident)."/>
+                                           Text="The RADIO beacons on its own using the settings above. Click Write to apply (also writes Ident) — this points the radio's beacon at your APRS channel (above), so you don't have to be tuned to it."/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="#E0A030"
+                                           Text="⚠ Requires Digital mode ON in the radio's own menu — the app can't toggle that. Also needs a memory channel named to match your APRS channel above."/>
                                 <Button x:Name="WriteBssButton" Classes="Accent" Content="⬆ Write beacon/ident to radio"
                                         IsEnabled="{Binding CanWriteBss}" HorizontalAlignment="Left"/>
                             </StackPanel>

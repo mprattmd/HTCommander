@@ -1901,7 +1901,22 @@ public sealed class MainViewModel : ViewModelBase
         b.PttReleaseSendIdInfo = IdentOnPttRelease;
         b.PttReleaseIdInfo = Clamp(IdentText, 12);
         DataBroker.Dispatch(0, "SetBssSettings", b, store: false);
-        AppendLog("Beacon/ident settings written to the radio (radio beacons on its tuned channel).");
+
+        if (IsRadioBeacon)
+        {
+            // Point the radio's built-in beacon at the resolved APRS channel (auto_share_loc_ch),
+            // so it transmits there instead of "Current" (whatever you're tuned to). Mirrors the
+            // WinForms beacon editor. Needs a memory channel named to match the APRS picker.
+            var loc = DataBroker.GetValue<AprsChannelLocation>(0, "AprsChannel", null);
+            if (loc != null && controller != null && controller.WriteAutoShareLocChannel(loc.ChannelId))
+                AppendLog($"Beacon/ident written. Radio beacon set to the '{AprsChannelName}' channel — make sure Digital mode is ON in the radio's menu (the app can't toggle it).");
+            else
+                AppendLog($"Beacon/ident written, but couldn't find a channel named '{AprsChannelName}' to target — the radio will beacon on its currently-tuned channel. Add a memory channel named '{AprsChannelName}', and enable Digital mode in the radio's menu.");
+        }
+        else
+        {
+            AppendLog("Beacon/ident settings written to the radio (radio's built-in beacon is off).");
+        }
     }
 
     // ---- App-driven beacon (sends a position report on the APRS channel) ----

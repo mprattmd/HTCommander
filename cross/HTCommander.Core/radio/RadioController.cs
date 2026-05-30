@@ -568,6 +568,28 @@ public sealed class RadioController : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Sets the channel the radio's built-in beacon transmits on (auto_share_loc_ch),
+    /// preserving every other setting byte-for-byte. Mirrors the WinForms beacon editor:
+    /// the stored value is channel_id + 1 (0 = "Current"/tuned channel), in buf[5] low 5 bits
+    /// (read-frame byte 10). So selecting the radio beacon can target the APRS channel
+    /// instead of whatever channel the operator happens to be tuned to. Returns false if
+    /// settings haven't been read yet.
+    /// </summary>
+    public bool WriteAutoShareLocChannel(int channelId)
+    {
+        if (rawSettings == null || rawSettings.Length <= 10 || channelId < 0) return false;
+        int value = (channelId + 1) & 0x1F;             // 1-based; 0 means "Current" (tuned)
+        int n = rawSettings.Length - 5;
+        byte[] buf = new byte[n];
+        Array.Copy(rawSettings, 5, buf, 0, n);          // settings payload (skip 5-byte header)
+        buf[5] = (byte)((buf[5] & 0xE0) | value);       // auto_share_loc_ch = low 5 bits of buf[5]
+        SendBasic(CmdWriteSettings, buf);
+        SendBasic(CmdReadSettings, null);               // re-read so our cached settings stay accurate
+        logger?.Debug($"Radio beacon channel set to auto_share_loc_ch={value} (channel_id {channelId}).");
+        return true;
+    }
+
     /// <summary>Re-reads all channels for the current region (after a region switch).</summary>
     public void RefreshChannels()
     {
