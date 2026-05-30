@@ -310,9 +310,9 @@
                         </Border>
                         <StackPanel Grid.Row="0" Classes="Card" IsVisible="{Binding !HasSelectedMail}" VerticalAlignment="Top" Spacing="8">
                             <TextBlock Text="Compose" Classes="Section"/>
-                            <TextBox Watermark="To (callsign or email)" Text="{Binding ComposeTo}"/>
-                            <TextBox Watermark="Subject" Text="{Binding ComposeSubject}"/>
-                            <TextBox Watermark="Message" Text="{Binding ComposeBody}" AcceptsReturn="True" Height="160" TextWrapping="Wrap"/>
+                            <TextBox PlaceholderText="To (callsign or email)" Text="{Binding ComposeTo}"/>
+                            <TextBox PlaceholderText="Subject" Text="{Binding ComposeSubject}"/>
+                            <TextBox PlaceholderText="Message" Text="{Binding ComposeBody}" AcceptsReturn="True" Height="160" TextWrapping="Wrap"/>
                             <Button x:Name="MailComposeButton" Classes="Accent" Content="Save to Outbox" HorizontalAlignment="Left"/>
                             <TextBlock Classes="Hint" Text="Saved messages go to the Outbox and are sent on the next sync."/>
                         </StackPanel>
