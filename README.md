@@ -84,6 +84,10 @@ but await on-air / server / station verification:
   *(needs an RMS gateway)*.
 - **BBS host** — connected-mode AX.25 mail drop on the current channel *(needs a
   station to connect over the air)*.
+- **DSP / audio extras** — a scrolling **FFT waterfall** of the RX audio (Modem tab),
+  a **soft-modem** (AFSK1200 / PSK / G3RUH) fed the RX audio with decoded frames routed
+  to Packets *(demod needs RF to verify)*, **WAV record/playback**, an **audio clips**
+  recorder, and **Morse / DTMF** generate + local preview.
 - **Station identity & settings** — callsign, Station ID, Allow-Transmit, Winlink
   password, plus audio devices / mic gain / volume.
 - **AppImage packaging** + GitHub releases.
@@ -94,11 +98,14 @@ See [docs/ROADMAP.md](docs/ROADMAP.md). Phases 0–4 (identity, APRS, mail, term
 GPS/map) are in the app; the next work is on-air verification of the **(needs RF/CMS/peer)**
 items above and the longer-haul features below.
 
-> **Not yet ported / planned later** (deferred): voice transmit modes (Morse / DTMF /
-> text-to-speech) and speech-to-text, SSTV send/receive, soft-modem / waterfall, audio
-> clips & WAV recording, AGWPE server, YAPP & torrent file transfer, web server,
-> ADS-B / dump1090, self-update, detached tabs, and a macOS build. These exist in the
-> original Windows app but are **not available** in the Linux build today.
+> **Partially done** (usable, with caveats): **Morse / DTMF** generate + local preview
+> (on-air tone TX pending), **soft-modem** decode (AFSK1200/PSK/G3RUH — wired, demod
+> unverified on RF), and **audio clips** (record/name/play/delete; transmit-clip pending).
+>
+> **Not yet ported / planned later:** text-to-speech and speech-to-text, SSTV
+> send/receive, AGWPE server, YAPP & torrent file transfer, web server, ADS-B / dump1090,
+> self-update, detached tabs, and a macOS build. These exist in the original Windows app
+> but are **not available** in the Linux build today.
 
 ---
 

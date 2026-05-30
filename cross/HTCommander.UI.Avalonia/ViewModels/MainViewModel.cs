@@ -2364,7 +2364,7 @@ public sealed class MainViewModel : ViewModelBase
     private static HttpClient CreateAprsFiHttp()
     {
         var c = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("HTCommander/0.2 (+https://github.com/mprattmd/HTCommander)");
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("HTCommander/0.3 (+https://github.com/mprattmd/HTCommander)");
         return c;
     }
 
