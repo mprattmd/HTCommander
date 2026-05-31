@@ -94,13 +94,15 @@ jobs:
         run: |
           APP=dist/mac/HTCommander.app
           ENT=mac/HTCommander.entitlements
-          # Sign every nested Mach-O (dylibs + executables, incl. createdump) inside-out…
-          find "$APP/Contents/MacOS" -type f | while read -r f; do
-            if file "$f" | grep -q "Mach-O"; then
-              codesign --force --options runtime --timestamp --entitlements "$ENT" --sign "$SIGN_ID" "$f"
-            fi
-          done
-          # …then the bundle itself.
+          EXE=HTCommander.UI.Avalonia
+          # The .NET self-contained layout puts the whole payload in Contents/MacOS, and
+          # codesign treats EVERY file there as code that must be signed — not just Mach-O.
+          # Drop debug symbols first (they break sealing and shouldn't ship)…
+          find "$APP" -name '*.pdb' -delete
+          # …sign every nested file except the apphost (managed .dll, .json, dylibs, createdump)…
+          find "$APP/Contents/MacOS" -type f ! -name "$EXE" -print0 \
+            | xargs -0 codesign --force --options runtime --timestamp --entitlements "$ENT" --sign "$SIGN_ID"
+          # …then the bundle itself (signs the apphost and seals the rest).
           codesign --force --options runtime --timestamp --entitlements "$ENT" --sign "$SIGN_ID" "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
 
