@@ -405,9 +405,6 @@ public sealed class BlueZRadioDiscovery : IRadioTransportDiscovery
     }
 }
 
-/// <summary>A discovered Bluetooth radio: model name + BD_ADDR ("AA:BB:CC:DD:EE:FF").</summary>
-public sealed record RadioDeviceInfo(string Name, string Address);
-
 /// <summary>Thin async helpers over the BlueZ system bus.</summary>
 internal static class BlueZ
 {

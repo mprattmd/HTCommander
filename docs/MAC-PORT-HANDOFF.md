@@ -210,6 +210,103 @@ works.)
 
 ---
 
+## 4b. Findings from the first on-radio session (2026-05-30, macOS)
+
+**The macOS IOBluetooth path WORKS — the radio answers GAIA on the Mac.** Verified live:
+a clean scan opened RFCOMM channels and the UV-PRO replied to a GAIA `GET_DEV_INFO`
+with a full 19-byte device-info frame (`FF 01 00 0B 00 02 80 04 …`) on **ch1 and ch4**.
+
+What it took to get there (each a real gotcha for the bridge):
+1. **GAIA probe length byte.** The probe must be `FF 01 00 01 00 02 00 04 03` — the
+   payload-length byte (index 3) is `cmd.Length-4 = 1`, NOT the full 5. A wrong length
+   byte makes the radio **silently ignore the frame** (channel opens, zero reply) — this
+   was the single thing that masked everything else. Fixed in `htbt.swift`.
+2. **Async open, not sync.** `openRFCOMMChannelSync` returns a generic
+   `kIOReturnError 0xE00002BC`; use `openRFCOMMChannelAsync` + `rfcommChannelOpenComplete:`
+   and pump the run loop.
+3. **Warm the link first.** A cold `openRFCOMMChannelAsync` against an idle/disconnected
+   radio tends not to complete; call `IOBluetoothDevice.openConnection()` first.
+4. **Channel is dynamic + SDP is unreliable.** SDP showed SerialPort `0x1101` ("SPP Dev")
+   on ch1, but GAIA also answered on ch4 (not in SDP). The bridge now probes SDP channels
+   first, then falls back to a full 1..30 GAIA-validated scan.
+5. **Radio wedges after repeated opens.** Many rapid open/probe cycles wedge the radio's
+   RFCOMM (same as the Linux note); clear it by toggling Bluetooth / power-cycling the
+   radio. The reliable runs were right after a fresh connect.
+
+SDP map macOS sees (FYI; channels are dynamic): Voice Gateway `0x111F` (HFP AG) → ch1,
+Voice Gateway `0x1203` (GenericAudio) → ch1, **SerialPort `0x1101` ("SPP Dev") → ch1**,
+BS AOC (custom 128-bit) → ch2. (The earlier "HFP holds ch1 so GAIA is blocked" theory was
+a red herring — the probe bug was the real cause.)
+
+**RESOLVED — the bridge connects end-to-end.** After fixing three things together, the
+standalone `htbt-test` connected to the UV-PRO through the real bridge code path:
+`openComplete status=0x0` on the probed channels, `ch1: GAIA validated (19 bytes)`,
+`RX 19: FF 01 00 0B 00 02 80 04 …` device-info frame delivered to the C# `onData` callback,
+`Connected, handle=1`. The fixes:
+1. **Event-driven state machine on the MAIN run loop.** IOBluetooth delivers RFCOMM
+   open-completion + data on the main run loop. The probe must NOT nest a run loop (inside
+   a worker thread OR inside a GCD main-queue block — both starve the callbacks → every
+   open times out). `HtRfcomm` now drives open→complete→write→data/timeout purely via the
+   delegate + `Timer`s on the main run loop. `htbt_connect` is called off-main (background
+   Task / Thread) and dispatches the kickoff to main; the host must pump the main run loop.
+2. **SDP-only probing by default.** A full 1..30 sweep WEDGES this radio's RFCOMM; probe
+   only the SDP-advertised channels (the SerialPort/SPP `0x1101` GAIA channel is among
+   them). `HTBT_FULLSCAN=1` re-enables the full sweep if ever needed.
+3. The corrected probe byte (above).
+
+**Managed stack VERIFIED end-to-end (headless).** A small console harness (CFRunLoopRun on
+the main thread to mimic Avalonia, connect on a background thread) drove the real C# types:
+`MacRadioDiscovery` enumerated the UV-PRO, `MacRadioTransport.Connect` opened the GAIA
+channel, the initial device-info frame was decoded by the C# GAIA deframer
+(`00 02 80 04 …` = `0x8002` GET_DEV_INFO reply), `OnConnected` fired, then a GET_DEV_INFO
+sent via `EnqueueWrite` got a fresh decoded reply — **full TX→RX round-trip through the
+managed transport.** Fix that made it work: `MacRadioTransport` now sets an `accepting`
+flag before `NativeHtbt.Connect` so the channel-validation reply (delivered DURING connect)
+isn't dropped. This is the exact path `RadioController` uses, so telemetry/channels/settings
+will flow.
+
+**Remaining (next session): launch the actual GUI.** Plumbing is fully done + verified
+(`IRadioPlatform` → `MacRadioPlatform` → `MacRadioTransport` → bridge → radio). Run
+`dotnet run --project cross/HTCommander.UI.Avalonia` on the Mac (needs a display + a click
+on Connect), confirm telemetry/battery/channels render, then a 1200 APRS packet (the §4
+definition of done). Voice RX/TX on macOS is still deferred (uses Linux audio-channel
+types). NOTE: the radio wedges after unclean disconnects / full 1..30 scans — toggle its
+Bluetooth to clear. (A throwaway harness lives at `/tmp/macprobe` — re-creatable from this
+doc; not committed.)
+
+Diagnostics live in the bridge behind `HTBT_DEBUG=1` (per-channel open status + probe
+bytes). The standalone `htbt-test` (see README) is the iteration tool.
+
+## 4c. Voice channel — wired, needs hardware verification
+
+The radio's voice audio is a SECOND RFCOMM stream (the SDP service named **"BS AOC"**, ch2
+in the macOS SDP dump — NOT the silent 0x1203 HFP gateway). It is now plumbed end-to-end,
+mirroring the Linux path:
+- **Bridge:** `libhtbt` gained `HtAudio` + exports `htbt_open_audio(addr, nameSubstr, …)` /
+  `htbt_audio_write` / `htbt_audio_close`. It opens the SDP-named channel (match "AOC") and
+  forwards RAW bytes both ways (no GAIA probe), same main-run-loop discipline as the command
+  channel.
+- **Seam:** new Core `IRadioAudioChannel` (Connect/Send/Disconnect/DataReceived); both
+  `RadioAudioChannelLinux` and the new `RadioAudioChannelMac` implement it; created via
+  `IRadioPlatform.CreateAudioChannel`. `MainViewModel.StartVoiceRx` now goes through the seam
+  instead of `new RadioAudioChannelLinux`.
+- **Reuses existing Core/audio:** `RadioVoiceReceiver`/`RadioVoiceTransmitter` (SBC) + PortAudio
+  playback/capture — already cross-platform.
+
+**Channel-open + PortAudio HARDWARE-VERIFIED (2026-05-30).** A headless harness opened the
+voice channel through the real managed path: `audio: opening 'AOC' on RFCOMM ch 2` →
+`audio: channel open` → `RadioAudioChannelMac` reports open. PortAudio also loaded and
+enumerated CoreAudio devices (1 out / 1 in) after `brew install portaudio`. **Still unverified:
+hearing actual audio** — needs a SECOND radio keying the channel (0 bytes with no transmitter
+is expected). To test fully: connect, toggle **Voice RX**, key a nearby radio. Caveat from
+Linux: the audio channel competes with the hardware TNC's TX audio, so it's opened on demand
+(Voice RX toggle), not on connect. TX (PTT) is implemented but keys the radio on the air —
+operator-gated.
+
+NOTE for packaging: the app needs `libportaudio.dylib` next to it (the .NET DllImport searches
+the app dir) — bundle it alongside `libhtbt.dylib` in the `.app`. On a dev box, `brew install
+portaudio` + copying `libportaudio.2.dylib` → `libportaudio.dylib` next to the binary works.
+
 ## 5. Context you’ll want (gotchas already learned on Linux)
 
 - **GAIA RFCOMM channel moves between sessions** — never hard‑code it; discover + probe.

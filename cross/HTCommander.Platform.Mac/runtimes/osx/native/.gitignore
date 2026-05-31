@@ -1,0 +1,3 @@
+# The native bridge is a build artifact (mac/htbt/build.sh copies it here).
+# Keep the directory in git but not the compiled dylib.
+libhtbt.dylib

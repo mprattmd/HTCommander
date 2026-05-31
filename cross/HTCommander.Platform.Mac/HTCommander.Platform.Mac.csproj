@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HTCommander.Core\HTCommander.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 'annotations' matches HTCommander.Core / Platform.Linux. -->
+    <Nullable>annotations</Nullable>
+  </PropertyGroup>
+
+  <!-- Ship the native IOBluetooth bridge next to the app when it has been built
+       (mac/htbt/build.sh). Conditioned on Exists so the project still builds on
+       Linux/Windows CI, where the dylib is absent and simply never invoked. -->
+  <ItemGroup Condition="Exists('runtimes\osx\native\libhtbt.dylib')">
+    <None Include="runtimes\osx\native\libhtbt.dylib">
+      <Link>libhtbt.dylib</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

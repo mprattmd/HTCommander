@@ -49,6 +49,13 @@ public partial class App : Application
             DataBroker.Initialize(configStore, dispatcher);
             IAudioDeviceEnumerator audioDevices = new PortAudioDeviceEnumerator();
 
+            // Pick the radio transport backend for this OS via the IRadioPlatform seam:
+            // macOS IOBluetooth (libhtbt) or Linux BlueZ. The rest of Platform.Linux
+            // (PortAudio→CoreAudio, SQLite mail, JSON config) is portable and reused.
+            IRadioPlatform radioPlatform = OperatingSystem.IsMacOS()
+                ? new HTCommander.Platform.Mac.MacRadioPlatform()
+                : new LinuxRadioPlatform();
+
             // Data services keyed in the DataBroker, shared with the WinForms app's
             // contracts: the Winlink mail store (SQLite) and the connected-mode BBS
             // manager (listens for the "CreateBbs"/"RemoveBbs" events from the UI).
@@ -75,7 +82,7 @@ public partial class App : Application
 
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainViewModel(dispatcher, audioDevices)
+                DataContext = new MainViewModel(dispatcher, audioDevices, radioPlatform)
             };
         }
 
