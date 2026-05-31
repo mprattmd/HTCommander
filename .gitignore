@@ -310,3 +310,6 @@ __pycache__/
 packaging/AppDir/
 packaging/*.AppImage
 .claude/scheduled_tasks.lock
+
+# Build outputs (mac .app, etc.)
+dist/
