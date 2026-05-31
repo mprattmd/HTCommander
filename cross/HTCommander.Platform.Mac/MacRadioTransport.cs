@@ -37,6 +37,8 @@ public sealed class MacRadioTransport : IRadioTransport
 
     private int handle = -1;
     private volatile bool running;
+    private volatile bool accepting;   // true once callbacks are wired, so the GAIA
+                                       // probe-reply that arrives DURING connect isn't dropped
     private bool isConnecting;
     private readonly object connectionLock = new object();
     private Task? connectionTask;
@@ -105,6 +107,10 @@ public sealed class MacRadioTransport : IRadioTransport
         dataCb = OnNativeData;
         eventCb = OnNativeEvent;
         lock (accumLock) { accumulatorPtr = 0; accumulatorLen = 0; }
+        // Accept callbacks now: the GAIA channel-validation reply (the first device-info
+        // frame) is forwarded by the bridge DURING NativeHtbt.Connect, before it returns
+        // the handle — without this it would be dropped.
+        accepting = true;
 
         int h;
         try
@@ -114,6 +120,7 @@ public sealed class MacRadioTransport : IRadioTransport
         }
         catch (DllNotFoundException)
         {
+            accepting = false;
             lock (connectionLock) { isConnecting = false; }
             logger?.Error("Transport: libhtbt.dylib not found — build it with mac/htbt/build.sh.");
             onDisconnected?.Invoke("Bluetooth bridge missing");
@@ -121,6 +128,7 @@ public sealed class MacRadioTransport : IRadioTransport
         }
         catch (Exception ex)
         {
+            accepting = false;
             lock (connectionLock) { isConnecting = false; }
             Debug("Connect failed: " + ex.Message);
             onDisconnected?.Invoke("Unable to connect");
@@ -129,6 +137,7 @@ public sealed class MacRadioTransport : IRadioTransport
 
         if (h < 0)
         {
+            accepting = false;
             lock (connectionLock) { isConnecting = false; }
             onDisconnected?.Invoke("Unable to connect");
             return;
@@ -151,6 +160,7 @@ public sealed class MacRadioTransport : IRadioTransport
         {
             if (!running && handle < 0 && connectionTask == null) return;
             running = false;
+            accepting = false;
             h = handle;
             handle = -1;
         }
@@ -174,7 +184,7 @@ public sealed class MacRadioTransport : IRadioTransport
 
     private void OnNativeData(IntPtr data, int len)
     {
-        if (!running || len <= 0 || data == IntPtr.Zero) return;
+        if (!accepting || len <= 0 || data == IntPtr.Zero) return;
         byte[] chunk = new byte[len];
         Marshal.Copy(data, chunk, 0, len);
 
@@ -219,6 +229,7 @@ public sealed class MacRadioTransport : IRadioTransport
         {
             wasRunning = running;
             running = false;
+            accepting = false;
             handle = -1;
         }
         if (wasRunning)

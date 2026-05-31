@@ -254,12 +254,25 @@ standalone `htbt-test` connected to the UV-PRO through the real bridge code path
    them). `HTBT_FULLSCAN=1` re-enables the full sweep if ever needed.
 3. The corrected probe byte (above).
 
-**Remaining (next session): wire + verify the GUI.** The plumbing is done (`IRadioPlatform`
-seam → `MacRadioPlatform` → `MacRadioTransport` → bridge). Launch
-`dotnet run --project cross/HTCommander.UI.Avalonia` on the Mac, pick the UV-PRO, Connect,
-and confirm telemetry/battery/channels, then a 1200 APRS packet (the §4 definition of done).
-Voice RX/TX on macOS is still deferred (uses Linux audio-channel types). NOTE: the radio
-wedges after unclean disconnects / multi-channel scans — toggle its Bluetooth to clear.
+**Managed stack VERIFIED end-to-end (headless).** A small console harness (CFRunLoopRun on
+the main thread to mimic Avalonia, connect on a background thread) drove the real C# types:
+`MacRadioDiscovery` enumerated the UV-PRO, `MacRadioTransport.Connect` opened the GAIA
+channel, the initial device-info frame was decoded by the C# GAIA deframer
+(`00 02 80 04 …` = `0x8002` GET_DEV_INFO reply), `OnConnected` fired, then a GET_DEV_INFO
+sent via `EnqueueWrite` got a fresh decoded reply — **full TX→RX round-trip through the
+managed transport.** Fix that made it work: `MacRadioTransport` now sets an `accepting`
+flag before `NativeHtbt.Connect` so the channel-validation reply (delivered DURING connect)
+isn't dropped. This is the exact path `RadioController` uses, so telemetry/channels/settings
+will flow.
+
+**Remaining (next session): launch the actual GUI.** Plumbing is fully done + verified
+(`IRadioPlatform` → `MacRadioPlatform` → `MacRadioTransport` → bridge → radio). Run
+`dotnet run --project cross/HTCommander.UI.Avalonia` on the Mac (needs a display + a click
+on Connect), confirm telemetry/battery/channels render, then a 1200 APRS packet (the §4
+definition of done). Voice RX/TX on macOS is still deferred (uses Linux audio-channel
+types). NOTE: the radio wedges after unclean disconnects / full 1..30 scans — toggle its
+Bluetooth to clear. (A throwaway harness lives at `/tmp/macprobe` — re-creatable from this
+doc; not committed.)
 
 Diagnostics live in the bridge behind `HTBT_DEBUG=1` (per-channel open status + probe
 bytes). The standalone `htbt-test` (see README) is the iteration tool.
