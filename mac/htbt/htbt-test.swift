@@ -48,12 +48,21 @@ struct HtbtTest {
             print("EVENT: \(label) (\(kind))")
         }
 
-        let h = addr.withCString { htbt_connect($0, 0, onData, onEvent) }
-        if h < 0 { print("Failed to find a GAIA channel."); return }
-        print("Connected, handle=\(h). Listening for 20s…")
+        // htbt_connect must run off the main thread (it dispatches the IOBluetooth
+        // probe to the main run loop), so drive it from a background thread and pump
+        // the main run loop here so those callbacks are delivered.
+        let worker = Thread {
+            let h = addr.withCString { htbt_connect($0, 0, onData, onEvent) }
+            if h < 0 { print("Failed to find a GAIA channel."); exit(1) }
+            print("Connected, handle=\(h). Listening for 20s…")
+            Thread.sleep(forTimeInterval: 20)
+            htbt_close(h)
+            print("Closed.")
+            exit(0)
+        }
+        worker.stackSize = 1 << 20
+        worker.start()
 
-        RunLoop.current.run(until: Date().addingTimeInterval(20))
-        htbt_close(h)
-        print("Closed.")
+        RunLoop.main.run()   // pump main; the worker calls exit() when done
     }
 }

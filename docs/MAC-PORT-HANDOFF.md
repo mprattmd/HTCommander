@@ -210,6 +210,60 @@ works.)
 
 ---
 
+## 4b. Findings from the first on-radio session (2026-05-30, macOS)
+
+**The macOS IOBluetooth path WORKS — the radio answers GAIA on the Mac.** Verified live:
+a clean scan opened RFCOMM channels and the UV-PRO replied to a GAIA `GET_DEV_INFO`
+with a full 19-byte device-info frame (`FF 01 00 0B 00 02 80 04 …`) on **ch1 and ch4**.
+
+What it took to get there (each a real gotcha for the bridge):
+1. **GAIA probe length byte.** The probe must be `FF 01 00 01 00 02 00 04 03` — the
+   payload-length byte (index 3) is `cmd.Length-4 = 1`, NOT the full 5. A wrong length
+   byte makes the radio **silently ignore the frame** (channel opens, zero reply) — this
+   was the single thing that masked everything else. Fixed in `htbt.swift`.
+2. **Async open, not sync.** `openRFCOMMChannelSync` returns a generic
+   `kIOReturnError 0xE00002BC`; use `openRFCOMMChannelAsync` + `rfcommChannelOpenComplete:`
+   and pump the run loop.
+3. **Warm the link first.** A cold `openRFCOMMChannelAsync` against an idle/disconnected
+   radio tends not to complete; call `IOBluetoothDevice.openConnection()` first.
+4. **Channel is dynamic + SDP is unreliable.** SDP showed SerialPort `0x1101` ("SPP Dev")
+   on ch1, but GAIA also answered on ch4 (not in SDP). The bridge now probes SDP channels
+   first, then falls back to a full 1..30 GAIA-validated scan.
+5. **Radio wedges after repeated opens.** Many rapid open/probe cycles wedge the radio's
+   RFCOMM (same as the Linux note); clear it by toggling Bluetooth / power-cycling the
+   radio. The reliable runs were right after a fresh connect.
+
+SDP map macOS sees (FYI; channels are dynamic): Voice Gateway `0x111F` (HFP AG) → ch1,
+Voice Gateway `0x1203` (GenericAudio) → ch1, **SerialPort `0x1101` ("SPP Dev") → ch1**,
+BS AOC (custom 128-bit) → ch2. (The earlier "HFP holds ch1 so GAIA is blocked" theory was
+a red herring — the probe bug was the real cause.)
+
+**RESOLVED — the bridge connects end-to-end.** After fixing three things together, the
+standalone `htbt-test` connected to the UV-PRO through the real bridge code path:
+`openComplete status=0x0` on the probed channels, `ch1: GAIA validated (19 bytes)`,
+`RX 19: FF 01 00 0B 00 02 80 04 …` device-info frame delivered to the C# `onData` callback,
+`Connected, handle=1`. The fixes:
+1. **Event-driven state machine on the MAIN run loop.** IOBluetooth delivers RFCOMM
+   open-completion + data on the main run loop. The probe must NOT nest a run loop (inside
+   a worker thread OR inside a GCD main-queue block — both starve the callbacks → every
+   open times out). `HtRfcomm` now drives open→complete→write→data/timeout purely via the
+   delegate + `Timer`s on the main run loop. `htbt_connect` is called off-main (background
+   Task / Thread) and dispatches the kickoff to main; the host must pump the main run loop.
+2. **SDP-only probing by default.** A full 1..30 sweep WEDGES this radio's RFCOMM; probe
+   only the SDP-advertised channels (the SerialPort/SPP `0x1101` GAIA channel is among
+   them). `HTBT_FULLSCAN=1` re-enables the full sweep if ever needed.
+3. The corrected probe byte (above).
+
+**Remaining (next session): wire + verify the GUI.** The plumbing is done (`IRadioPlatform`
+seam → `MacRadioPlatform` → `MacRadioTransport` → bridge). Launch
+`dotnet run --project cross/HTCommander.UI.Avalonia` on the Mac, pick the UV-PRO, Connect,
+and confirm telemetry/battery/channels, then a 1200 APRS packet (the §4 definition of done).
+Voice RX/TX on macOS is still deferred (uses Linux audio-channel types). NOTE: the radio
+wedges after unclean disconnects / multi-channel scans — toggle its Bluetooth to clear.
+
+Diagnostics live in the bridge behind `HTBT_DEBUG=1` (per-channel open status + probe
+bytes). The standalone `htbt-test` (see README) is the iteration tool.
+
 ## 5. Context you’ll want (gotchas already learned on Linux)
 
 - **GAIA RFCOMM channel moves between sessions** — never hard‑code it; discover + probe.

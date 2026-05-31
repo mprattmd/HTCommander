@@ -25,6 +25,17 @@
 import Foundation
 import IOBluetooth
 
+// Verbose probe diagnostics to stderr when HTBT_DEBUG is set (1/true/yes).
+private let htbtDebug: Bool = {
+    if let v = ProcessInfo.processInfo.environment["HTBT_DEBUG"] {
+        return v == "1" || v.lowercased() == "true" || v.lowercased() == "yes"
+    }
+    return false
+}()
+private func dbg(_ s: @autoclosure () -> String) {
+    if htbtDebug { FileHandle.standardError.write(("[htbt] " + s() + "\n").data(using: .utf8)!) }
+}
+
 // C callbacks into .NET. Kept alive on the managed side (stored in fields).
 private typealias DataCallback = @convention(c) (UnsafePointer<UInt8>?, Int32) -> Void
 private typealias EventCallback = @convention(c) (Int32) -> Void   // 0=connected, 1=closed, 2=error
@@ -40,17 +51,29 @@ private final class HtRfcomm: NSObject, IOBluetoothRFCOMMChannelDelegate {
     private let onData: DataCallback
     private let onEvent: EventCallback
 
+    // The validated GAIA channel once connected.
     private var channel: IOBluetoothRFCOMMChannel?
-    private var worker: Thread?
 
-    // During the probe we buffer incoming bytes here and check for a GAIA reply;
-    // once validated we forward bytes straight through onData.
+    // --- Probe state machine (all touched only on the main run loop) ---
+    private var dev: IOBluetoothDevice?
+    private var candidates: [UInt8] = []
+    private var candidateIndex = 0
+    private var activeChannel: IOBluetoothRFCOMMChannel?   // channel currently being probed
     private var probing = false
     private var probeBytes = [UInt8]()
+    private var openTimer: Timer?
+    private var dataTimer: Timer?
+    private var resultSemaphore: DispatchSemaphore?
+    private var connected = false                         // final probe result
 
-    // GAIA-framed BASIC/GET_DEV_INFO probe, identical bytes to the Linux backend:
-    // GaiaEncode({0x00,0x02,0x00,0x04,0x03}) => FF 01 00 05 00 02 00 04 03
-    private static let gaiaProbe: [UInt8] = [0xFF, 0x01, 0x00, 0x05, 0x00, 0x02, 0x00, 0x04, 0x03]
+    private let openTimeout: TimeInterval = 2.5
+    private let dataTimeout: TimeInterval = 1.3
+
+    // GAIA-framed BASIC/GET_DEV_INFO probe, identical bytes to the Linux backend.
+    // GaiaEncode({0x00,0x02,0x00,0x04,0x03}): the payload-length byte (index 3) is
+    // cmd.Length-4 = 1 (the first 4 bytes are the command header) => FF 01 00 01 ...
+    // (A wrong length byte here makes the radio silently ignore the frame.)
+    private static let gaiaProbe: [UInt8] = [0xFF, 0x01, 0x00, 0x01, 0x00, 0x02, 0x00, 0x04, 0x03]
 
     init(address: String, onData: @escaping DataCallback, onEvent: @escaping EventCallback) {
         self.address = address
@@ -58,85 +81,169 @@ private final class HtRfcomm: NSObject, IOBluetoothRFCOMMChannelDelegate {
         self.onEvent = onEvent
     }
 
-    /// Opens the validated GAIA channel. Blocks until a channel is found or all
-    /// candidates are exhausted. Returns true on success; on success a dedicated
-    /// run-loop thread keeps delivering data callbacks until close().
+    /// Connects + discovers the GAIA channel. Blocks the CALLING thread until the probe
+    /// finishes, then returns true on success.
+    ///
+    /// IOBluetooth delivers RFCOMM open-completion + data callbacks on the MAIN run loop,
+    /// so the whole probe runs there as an EVENT-DRIVEN state machine (open → on-complete
+    /// → write probe → on-data/timeout → next). We must NOT nest a run loop inside a GCD
+    /// main-queue block (that starves the IOBluetooth callbacks → every open times out),
+    /// so the state machine is driven purely by delegate callbacks + Timers on the host's
+    /// main run loop. REQUIREMENT: htbt_connect is called from a NON-main thread (the
+    /// .NET side from a background Task; the standalone test from a background Thread) and
+    /// the host pumps the main run loop.
     func start(preferred: UInt8) -> Bool {
-        var ok = false
+        if Thread.isMainThread {
+            dbg("ERROR: htbt_connect must be called off the main thread")
+            return false
+        }
         let done = DispatchSemaphore(value: 0)
-        let t = Thread {
-            ok = self.connectGaia(preferred: preferred)
-            done.signal()
-            if ok {
-                // Keep this thread's run loop alive so rfcommChannelData: keeps firing.
-                while self.channel != nil {
-                    RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.25))
+        resultSemaphore = done
+        DispatchQueue.main.async { self.beginProbe(preferred: preferred) }
+        done.wait()
+        return connected
+    }
+
+    // Kick off on the main run loop: warm the link, query SDP, then (after a short
+    // delay for the async SDP) build the candidate list and probe the first channel.
+    private func beginProbe(preferred: UInt8) {
+        guard let device = IOBluetoothDevice(addressString: address) else {
+            dbg("IOBluetoothDevice(addressString:) returned nil for \(address)")
+            finish(false); return
+        }
+        dev = device
+        let oc = device.openConnection()              // warm the ACL link
+        let sdp = device.performSDPQuery(nil)          // async; records populate shortly
+        dbg("openConnection -> \(String(format: "0x%08X", oc)); performSDPQuery -> \(String(format: "0x%08X", sdp)); name=\(device.name ?? "?") connected=\(device.isConnected())")
+
+        if preferred > 0 {
+            candidates = [preferred]
+        }
+        // Give SDP ~1s to populate, then build candidates + start probing.
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            if preferred == 0 {
+                // Probe the SDP-advertised RFCOMM channels (the SerialPort/SPP 0x1101
+                // GAIA channel is among them, e.g. ch4). Default to SDP-only because a
+                // full 1..30 sweep WEDGES this radio's RFCOMM; opt in with HTBT_FULLSCAN.
+                self.candidates = self.sdpRfcommChannels(device)
+                if ProcessInfo.processInfo.environment["HTBT_FULLSCAN"] != nil {
+                    for ch in UInt8(1)...UInt8(30) where !self.candidates.contains(ch) {
+                        self.candidates.append(ch)
+                    }
                 }
             }
+            self.candidateIndex = 0
+            dbg("probing channels: \(self.candidates.map { String($0) }.joined(separator: ","))")
+            self.probeNext()
         }
-        t.stackSize = 512 * 1024
-        worker = t
-        t.start()
-        done.wait()
-        return ok
     }
 
-    private func connectGaia(preferred: UInt8) -> Bool {
-        let candidates: [UInt8] = preferred > 0 ? [preferred] : Array(1...30)
-        for ch in candidates {
-            if openAndProbe(channelID: ch) { return true }
+    // Collects the RFCOMM channel IDs published in the device's SDP service records.
+    private func sdpRfcommChannels(_ device: IOBluetoothDevice) -> [UInt8] {
+        var result = [UInt8]()
+        guard let services = device.services else { return result }
+        for case let rec as IOBluetoothSDPServiceRecord in services {
+            var chID: BluetoothRFCOMMChannelID = 0
+            if rec.getRFCOMMChannelID(&chID) == kIOReturnSuccess && chID != 0 {
+                dbg("SDP service '\(rec.getServiceName() ?? "?")' -> RFCOMM ch \(chID)")
+                if !result.contains(chID) { result.append(chID) }
+            }
         }
-        return false
+        return result
     }
 
-    private func openAndProbe(channelID: UInt8) -> Bool {
-        guard let dev = IOBluetoothDevice(addressString: address) else { return false }
+    // Open the next candidate channel; on success the open-complete delegate continues.
+    private func probeNext() {
+        guard let device = dev else { finish(false); return }
+        if candidateIndex >= candidates.count { finish(false); return }
+        let chId = candidates[candidateIndex]
+
         probing = true
         probeBytes.removeAll(keepingCapacity: true)
 
         var ch: IOBluetoothRFCOMMChannel?
-        let rc = dev.openRFCOMMChannelSync(&ch, withChannelID: channelID, delegate: self)
-        guard rc == kIOReturnSuccess, let opened = ch else { return false }
-        channel = opened
-
-        // Send the GAIA probe.
-        var probe = HtRfcomm.gaiaProbe
-        let wrc = probe.withUnsafeMutableBytes { raw in
-            opened.writeSync(raw.baseAddress, length: UInt16(raw.count))
+        let rc = device.openRFCOMMChannelAsync(&ch, withChannelID: chId, delegate: self)
+        if rc != kIOReturnSuccess || ch == nil {
+            dbg("ch \(chId): openAsync rejected rc=\(String(format: "0x%08X", rc))")
+            advance(); return
         }
-        if wrc != kIOReturnSuccess {
-            opened.close(); channel = nil; probing = false; return false
+        activeChannel = ch
+        // Guard against an open that never completes.
+        openTimer = Timer.scheduledTimer(withTimeInterval: openTimeout, repeats: false) { [weak self] _ in
+            guard let self = self, let active = self.activeChannel else { return }
+            dbg("ch \(chId): open timed out")
+            active.close(); self.advance()
         }
+    }
 
-        // Spin the run loop up to ~1.2s waiting for a GAIA reply (0xFF 0x01).
-        let deadline = Date().addingTimeInterval(1.2)
-        while Date() < deadline {
-            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
-            if probeBytes.count >= 2 && probeBytes[0] == 0xFF && probeBytes[1] == 0x01 {
-                probing = false
-                // Forward the probe reply so the C# GAIA accumulator stays aligned
-                // (mirrors how the Linux backend seeds its accumulator with the reply).
-                probeBytes.withUnsafeBufferPointer { onData($0.baseAddress, Int32($0.count)) }
-                return true
-            }
-        }
+    // Move to the next candidate channel.
+    private func advance() {
+        invalidateTimers()
+        activeChannel = nil
+        candidateIndex += 1
+        probeNext()
+    }
 
-        // Not a GAIA channel — close and try the next.
-        opened.close(); channel = nil; probing = false
-        return false
+    private func invalidateTimers() {
+        openTimer?.invalidate(); openTimer = nil
+        dataTimer?.invalidate(); dataTimer = nil
+    }
+
+    // Resolve the probe: keep the channel on success, signal the waiting caller.
+    private func finish(_ ok: Bool) {
+        invalidateTimers()
+        probing = false
+        connected = ok
+        if ok { channel = activeChannel } else { activeChannel = nil }
+        resultSemaphore?.signal()
+        resultSemaphore = nil
     }
 
     func write(_ ptr: UnsafePointer<UInt8>, _ len: Int32) {
-        guard let ch = channel else { return }
-        _ = ch.writeSync(UnsafeMutableRawPointer(mutating: ptr), length: UInt16(len))
+        // Keep all IOBluetooth access on the main thread; copy the bytes for the hop.
+        let bytes = Array(UnsafeBufferPointer(start: ptr, count: Int(len)))
+        DispatchQueue.main.async { [weak self] in
+            guard let ch = self?.channel else { return }
+            var b = bytes
+            _ = b.withUnsafeMutableBytes { ch.writeSync($0.baseAddress, length: UInt16($0.count)) }
+        }
     }
 
     func close() {
-        channel?.close()
-        channel = nil   // also drops the run-loop thread out of its while-loop
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.invalidateTimers()
+            self.channel?.close()
+            self.activeChannel?.close()
+            self.channel = nil
+            self.activeChannel = nil
+        }
     }
 
     // MARK: IOBluetoothRFCOMMChannelDelegate
+
+    func rfcommChannelOpenComplete(_ rfcommChannel: IOBluetoothRFCOMMChannel!, status error: IOReturn) {
+        guard rfcommChannel === activeChannel else { return }   // ignore stale channels
+        openTimer?.invalidate(); openTimer = nil
+        let chId = rfcommChannel?.getID() ?? 0
+        dbg("openComplete ch \(chId) status=\(String(format: "0x%08X", error))")
+        if error != kIOReturnSuccess {
+            rfcommChannel?.close(); advance(); return
+        }
+        // Send the GAIA probe and wait (via the data delegate) for a GAIA reply.
+        var probe = HtRfcomm.gaiaProbe
+        let wrc = probe.withUnsafeMutableBytes { rfcommChannel.writeSync($0.baseAddress, length: UInt16($0.count)) }
+        if wrc != kIOReturnSuccess {
+            dbg("ch \(chId): probe writeSync failed wrc=\(String(format: "0x%08X", wrc))")
+            rfcommChannel?.close(); advance(); return
+        }
+        dataTimer = Timer.scheduledTimer(withTimeInterval: dataTimeout, repeats: false) { [weak self] _ in
+            guard let self = self, let active = self.activeChannel else { return }
+            dbg("ch \(chId): no GAIA reply (\(self.probeBytes.count) bytes)")
+            active.close(); self.advance()
+        }
+    }
 
     func rfcommChannelData(_ rfcommChannel: IOBluetoothRFCOMMChannel!,
                            data dataPointer: UnsafeMutableRawPointer!,
@@ -144,15 +251,25 @@ private final class HtRfcomm: NSObject, IOBluetoothRFCOMMChannelDelegate {
         guard dataLength > 0 else { return }
         let p = dataPointer.assumingMemoryBound(to: UInt8.self)
         if probing {
+            guard rfcommChannel === activeChannel else { return }
             probeBytes.append(contentsOf: UnsafeBufferPointer(start: p, count: dataLength))
+            if probeBytes.count >= 2 && probeBytes[0] == 0xFF && probeBytes[1] == 0x01 {
+                dbg("ch \(rfcommChannel?.getID() ?? 0): GAIA validated (\(probeBytes.count) bytes)")
+                probing = false
+                // Forward the probe reply so the C# GAIA accumulator stays aligned.
+                probeBytes.withUnsafeBufferPointer { onData($0.baseAddress, Int32($0.count)) }
+                finish(true)
+            }
         } else {
             onData(p, Int32(dataLength))
         }
     }
 
     func rfcommChannelClosed(_ rfcommChannel: IOBluetoothRFCOMMChannel!) {
-        channel = nil
-        onEvent(EVT_CLOSED)
+        if rfcommChannel === channel {
+            channel = nil
+            onEvent(EVT_CLOSED)
+        }
     }
 }
 
