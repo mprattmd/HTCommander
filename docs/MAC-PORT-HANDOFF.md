@@ -293,12 +293,19 @@ mirroring the Linux path:
 - **Reuses existing Core/audio:** `RadioVoiceReceiver`/`RadioVoiceTransmitter` (SBC) + PortAudio
   playback/capture — already cross-platform.
 
-**Builds clean; NOT yet hardware-verified.** To test on the Mac: `brew install portaudio` (the
-PortAudio backend needs the native `libportaudio.dylib`), connect, toggle **Voice RX**, and key
-a nearby radio — you should hear it. Watch `HTBT_DEBUG=1` for `audio: opening 'AOC' on RFCOMM
-ch N` / `audio: channel open`. Caveat from Linux: the audio channel competes with the hardware
-TNC's TX audio, so it's opened on demand (Voice RX toggle), not on connect. TX (PTT) is
-implemented but keys the radio on the air — operator-gated.
+**Channel-open + PortAudio HARDWARE-VERIFIED (2026-05-30).** A headless harness opened the
+voice channel through the real managed path: `audio: opening 'AOC' on RFCOMM ch 2` →
+`audio: channel open` → `RadioAudioChannelMac` reports open. PortAudio also loaded and
+enumerated CoreAudio devices (1 out / 1 in) after `brew install portaudio`. **Still unverified:
+hearing actual audio** — needs a SECOND radio keying the channel (0 bytes with no transmitter
+is expected). To test fully: connect, toggle **Voice RX**, key a nearby radio. Caveat from
+Linux: the audio channel competes with the hardware TNC's TX audio, so it's opened on demand
+(Voice RX toggle), not on connect. TX (PTT) is implemented but keys the radio on the air —
+operator-gated.
+
+NOTE for packaging: the app needs `libportaudio.dylib` next to it (the .NET DllImport searches
+the app dir) — bundle it alongside `libhtbt.dylib` in the `.app`. On a dev box, `brew install
+portaudio` + copying `libportaudio.2.dylib` → `libportaudio.dylib` next to the binary works.
 
 ## 5. Context you’ll want (gotchas already learned on Linux)
 
