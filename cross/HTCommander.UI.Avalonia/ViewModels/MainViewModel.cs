@@ -91,7 +91,7 @@ public sealed class MainViewModel : ViewModelBase
         broker.Subscribe(0, "BatteryAsPercentage", (_, _, data) => { if (data is int p) BatteryPercent = p; });
         broker.Subscribe(0, "DeviceInfo", (_, _, data) => { if (data is RadioDeviceSummary d) ApplyDeviceInfo(d); });
         broker.Subscribe(0, "Channel", (_, _, data) => { if (data is RadioChannelSummary c) ApplyChannel(c); });
-        broker.Subscribe(0, "ChannelInfo", (_, _, data) => { if (data is RadioChannelInfo c) { radioChannels[c.channel_id] = c; UpdateSlotFromChannel(c); } });
+        broker.Subscribe(0, "ChannelInfo", (_, _, data) => { if (data is RadioChannelInfo c) { channelReplyCounter++; radioChannels[c.channel_id] = c; UpdateSlotFromChannel(c); } });
         broker.Subscribe(0, "PacketReceived", (_, _, data) => { if (data is ReceivedPacketSummary p) AddPacket(p); });
         broker.Subscribe(0, "AprsStation", (_, _, data) => { if (data is AprsStationSummary st) AddStation(st); });
         broker.Subscribe(0, "Position", (_, _, data) => { if (data is RadioPositionInfo p) MyPosition = p; });
@@ -967,6 +967,28 @@ public sealed class MainViewModel : ViewModelBase
     /// banks — the radio only exposes one bank at a time, so this sweeps each bank,
     /// accumulating channel names, then returns the radio to the bank it started on.
     /// </summary>
+    // Incremented on every ChannelInfo reply; LoadAllBanks watches it to know when a
+    // bank's channel reads have drained.
+    private volatile int channelReplyCounter;
+
+    /// <summary>
+    /// Waits until the current bank's channel replies stop arriving (quiescence), so a
+    /// slow reply can't spill into the NEXT bank's region and get filed under the wrong
+    /// region in the channel→location map (which broke Winlink/APRS channel selection —
+    /// the channel id was right but the region pointed at an empty slot). Robust to empty
+    /// slots (which don't reply) and to slow transports. Hard-capped so it can't hang.
+    /// </summary>
+    private async Task DrainBankReplies()
+    {
+        var hardCap = DateTime.UtcNow.AddSeconds(6);
+        while (DateTime.UtcNow < hardCap)
+        {
+            int before = channelReplyCounter;
+            await Task.Delay(450);
+            if (channelReplyCounter == before) return;   // no new replies in the window → drained
+        }
+    }
+
     public void LoadAllBanks()
     {
         if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
@@ -986,7 +1008,7 @@ public sealed class MainViewModel : ViewModelBase
                     controller.RefreshChannels();
                     int shown = b;
                     dispatcher.Post(() => BuilderStatus = $"Reading bank {shown} of {banks - 1}…");
-                    await Task.Delay(1200);            // let this bank's channel replies arrive
+                    await DrainBankReplies();          // wait for THIS bank's replies before the next SetRegion
                 }
                 // Restore the bank the operator was on and re-read it cleanly.
                 dispatcher.Post(() => { radioChannels.Clear(); foreach (var s in Slots) { s.Name = ""; s.RxMHz = 0; } });
