@@ -1,0 +1,78 @@
+name: Release packages
+
+# On a version tag push (e.g. v0.4.3), build the Linux AppImage and the macOS .app
+# and attach them to that tag's GitHub release — so cutting a release no longer needs
+# a manual build on a Linux/Mac box. Create the release (with notes) first, or let this
+# workflow create a bare one.
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to (re)attach packages to'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  linux-appimage:
+    name: Linux AppImage
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install appimagetool
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          sudo mv appimagetool /usr/local/bin/appimagetool
+
+      - name: Build AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'   # run appimagetool without FUSE (not on the runner)
+        run: |
+          ./packaging/build-appimage.sh
+          mv packaging/HTCommander-linux-x64.AppImage HTCommander-x86_64.AppImage
+          ls -lh HTCommander-x86_64.AppImage
+
+      - name: Attach to the release
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes || true
+          gh release upload "$TAG" HTCommander-x86_64.AppImage --clobber --repo "$GITHUB_REPOSITORY"
+
+  macos-app:
+    name: macOS .app (Apple Silicon)
+    runs-on: macos-latest          # macos-latest is Apple Silicon (arm64)
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install PortAudio (bundled into the .app)
+        run: brew install portaudio
+
+      - name: Build .app
+        run: ./mac/build-app.sh osx-arm64      # builds libhtbt (swiftc) + publishes + bundles
+
+      - name: Zip the bundle
+        run: ditto -c -k --keepParent dist/mac/HTCommander.app HTCommander-macos-arm64.zip
+
+      - name: Attach to the release
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes || true
+          gh release upload "$TAG" HTCommander-macos-arm64.zip --clobber --repo "$GITHUB_REPOSITORY"

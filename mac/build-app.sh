@@ -15,7 +15,7 @@ VERSION="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$PROJ" | head -1)"
 VERSION="${VERSION:-0.0.0}"
 PUBDIR="cross/HTCommander.UI.Avalonia/bin/Release/net9.0/$RID/publish"
 BUNDLE="dist/mac/$APP.app"
-DOTNET="${DOTNET:-$HOME/.dotnet/dotnet}"
+DOTNET="${DOTNET:-$(command -v dotnet || echo "$HOME/.dotnet/dotnet")}"
 
 echo "==> [1/4] Building the IOBluetooth bridge (libhtbt.dylib)"
 ( cd mac/htbt && ./build.sh )
