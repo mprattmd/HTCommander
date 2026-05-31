@@ -30,8 +30,8 @@ chmod +x HTCommander-x86_64.AppImage
 
 ```bash
 # It's not notarized yet, so macOS quarantines downloaded apps and reports the app as
-# "damaged". Clear the quarantine flag once, then open it:
-xattr -cr HTCommander.app
+# "damaged". Remove the quarantine flag once, then open it:
+xattr -dr com.apple.quarantine HTCommander.app
 open HTCommander.app
 ```
 
