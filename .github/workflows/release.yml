@@ -85,6 +85,12 @@ jobs:
           security import /tmp/cert.p12 -k /tmp/build.keychain -P "$CERT_PW" \
             -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci /tmp/build.keychain
+          # Put the build keychain on codesign's search list — setting it as the *default*
+          # is not enough; codesign only searches the list, so without this the identity
+          # imports fine but `codesign --sign` fails with "no identity found".
+          security list-keychains -d user -s /tmp/build.keychain login.keychain-db
+          # Sanity-check the identity is actually visible before we rely on it.
+          security find-identity -v -p codesigning /tmp/build.keychain
           rm -f /tmp/cert.p12
 
       - name: Codesign (hardened runtime, all nested Mach-O)
