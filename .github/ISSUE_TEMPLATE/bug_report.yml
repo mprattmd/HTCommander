@@ -1,0 +1,65 @@
+name: 🐞 Bug report
+description: Report a problem with HTCommander (Linux or macOS)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! The more detail the better — especially your **platform**,
+        **app version**, **radio model**, and any **terminal logs**.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux (AppImage)
+        - Linux (built from source)
+        - macOS (Apple Silicon)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in Help → About, or the release you downloaded.
+      placeholder: "0.4.3"
+    validations:
+      required: true
+  - type: input
+    id: radio
+    attributes:
+      label: Radio model
+      placeholder: "Benshi UV-PRO"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Connect to the radio
+        2. Open the … tab
+        3. …
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / terminal output
+      description: |
+        Launch from a terminal to capture logs. For Bluetooth detail on macOS, set HTBT_DEBUG=1:
+        • macOS:  `HTBT_DEBUG=1 /Applications/HTCommander.app/Contents/MacOS/HTCommander.UI.Avalonia`
+        • Linux:  `HTBT_DEBUG=1 ./HTCommander-x86_64.AppImage`
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: The radio is paired in my OS Bluetooth settings
+        - label: I'm on the latest release
+        - label: I searched existing issues for a duplicate

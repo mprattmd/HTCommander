@@ -223,6 +223,19 @@ dotnet run --project cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.cspro
 The full install/usage/architecture guide is in
 [README-CrossPlatform.md](README-CrossPlatform.md).
 
+## 🐞 Reporting bugs
+
+Found a problem? **[Open an issue](https://github.com/mprattmd/HTCommander/issues/new/choose)**
+— the bug-report form asks for your platform, app version, radio model, and steps. For
+Bluetooth problems, run from a terminal with `HTBT_DEBUG=1` and paste the output:
+
+```bash
+# macOS
+HTBT_DEBUG=1 /Applications/HTCommander.app/Contents/MacOS/HTCommander.UI.Avalonia
+# Linux
+HTBT_DEBUG=1 ./HTCommander-x86_64.AppImage
+```
+
 ## Coming next
 
 See [docs/ROADMAP.md](docs/ROADMAP.md). Phases 0–4 (identity, APRS, mail, terminal,
