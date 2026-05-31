@@ -1,19 +1,21 @@
-# 📻 Handi-Talky Commander — Linux Edition
+# 📻 Handi-Talky Commander — Linux & macOS
 
-> A native **Linux** build of Handi-Talky Commander: control your Benshi / BTech UV-Pro
-> handheld radio over Bluetooth — live voice, APRS + map, packet, a **drag-and-drop
+> Native **Linux** and **macOS** builds of Handi-Talky Commander: control your Benshi / BTech
+> UV-Pro handheld radio over Bluetooth — live voice, APRS + map, packet, a **drag-and-drop
 > channel builder**, Winlink mail, and a BBS — without needing Windows.
 >
 > It's a cross-platform port (Avalonia / .NET 9) of
 > [Ylian Saint-Hilaire's HTCommander](https://github.com/Ylianst/HTCommander). All credit
 > for the original application goes to Ylian; this fork rehouses the same core to run
-> natively on Linux. Licensed under **Apache 2.0**, same as upstream.
+> natively on Linux and macOS. Licensed under **Apache 2.0**, same as upstream.
 
 <p align="center">
   <img src="docs/images/screenshot.png" alt="HTCommander on Linux" width="820">
 </p>
 
-## ⬇ Download for Linux (x86-64)
+## ⬇ Download
+
+### Linux (x86-64)
 
 **[HTCommander-x86_64.AppImage](https://github.com/mprattmd/HTCommander/releases/latest/download/HTCommander-x86_64.AppImage)** — a single self-contained file (bundles the .NET runtime, PortAudio, SQLite, Skia). No install:
 
@@ -21,6 +23,26 @@
 chmod +x HTCommander-x86_64.AppImage
 ./HTCommander-x86_64.AppImage
 ```
+
+### macOS (Apple Silicon)
+
+**[HTCommander-macos-arm64.zip](https://github.com/mprattmd/HTCommander/releases/download/v0.4.3/HTCommander-macos-arm64.zip)** — a self-contained `HTCommander.app` (bundles the .NET runtime, the IOBluetooth bridge, PortAudio, SQLite, Skia). Unzip, then:
+
+```bash
+# It's not notarized yet, so macOS quarantines downloaded apps. First launch:
+xattr -dr com.apple.quarantine HTCommander.app   # or: right-click the app → Open
+open HTCommander.app
+```
+
+> Apple Silicon (M-series) only for now. Pair the radio in **System Settings → Bluetooth**
+> first. macOS will prompt for **Bluetooth** (and **Microphone**, for voice PTT) permission.
+
+### 🔊 PortAudio (audio library)
+
+Both packages **bundle PortAudio**, so audio/voice works out of the box. If audio is
+unavailable on macOS, install the system library with **`brew install portaudio`**.
+**Building from source** needs PortAudio present: `brew install portaudio` on macOS, or
+install `portaudio` / `libportaudio2` from your Linux distro's package manager.
 
 📖 **Install & usage guide: [README-CrossPlatform.md](README-CrossPlatform.md)** · all [releases](https://github.com/mprattmd/HTCommander/releases)
 

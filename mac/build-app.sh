@@ -10,6 +10,9 @@ RID="${1:-osx-arm64}"
 APP="HTCommander"
 EXE="HTCommander.UI.Avalonia"               # AssemblyName of the Avalonia project
 PROJ="cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj"
+# Derive the version from the csproj so the bundle never drifts from the app version.
+VERSION="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$PROJ" | head -1)"
+VERSION="${VERSION:-0.0.0}"
 PUBDIR="cross/HTCommander.UI.Avalonia/bin/Release/net9.0/$RID/publish"
 BUNDLE="dist/mac/$APP.app"
 DOTNET="${DOTNET:-$HOME/.dotnet/dotnet}"
@@ -41,8 +44,8 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$APP</string>
   <key>CFBundleDisplayName</key><string>$APP</string>
   <key>CFBundleIdentifier</key><string>com.mprattmd.htcommander</string>
-  <key>CFBundleVersion</key><string>0.4.2</string>
-  <key>CFBundleShortVersionString</key><string>0.4.2</string>
+  <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>$EXE</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
