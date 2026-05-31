@@ -50,7 +50,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly DataBrokerClient broker = new DataBrokerClient();
     private IRadioTransport? transport;
     private RadioController? controller;
-    private RadioAudioChannelLinux? audioChannel;
+    private IRadioAudioChannel? audioChannel;
     private string? connectedMac;   // set on connect; used to open voice audio on demand
     private RadioVoiceReceiver? voiceReceiver;
     private IAudioPlayback? voicePlayback;
@@ -729,7 +729,7 @@ public sealed class MainViewModel : ViewModelBase
                 var rx = new RadioVoiceReceiver(playback);
                 rx.PcmDecoded += OnRxPcm;          // feed the soft-modem + waterfall
                 rx.Start();
-                var ch = new RadioAudioChannelLinux(mac, logger);
+                var ch = radioPlatform.CreateAudioChannel(mac, logger);
                 ch.DataReceived += (b, n) => rx.OnAudioBytes(b, n);
                 if (ch.Connect())
                 {

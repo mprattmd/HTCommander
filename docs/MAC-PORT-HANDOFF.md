@@ -277,6 +277,29 @@ doc; not committed.)
 Diagnostics live in the bridge behind `HTBT_DEBUG=1` (per-channel open status + probe
 bytes). The standalone `htbt-test` (see README) is the iteration tool.
 
+## 4c. Voice channel — wired, needs hardware verification
+
+The radio's voice audio is a SECOND RFCOMM stream (the SDP service named **"BS AOC"**, ch2
+in the macOS SDP dump — NOT the silent 0x1203 HFP gateway). It is now plumbed end-to-end,
+mirroring the Linux path:
+- **Bridge:** `libhtbt` gained `HtAudio` + exports `htbt_open_audio(addr, nameSubstr, …)` /
+  `htbt_audio_write` / `htbt_audio_close`. It opens the SDP-named channel (match "AOC") and
+  forwards RAW bytes both ways (no GAIA probe), same main-run-loop discipline as the command
+  channel.
+- **Seam:** new Core `IRadioAudioChannel` (Connect/Send/Disconnect/DataReceived); both
+  `RadioAudioChannelLinux` and the new `RadioAudioChannelMac` implement it; created via
+  `IRadioPlatform.CreateAudioChannel`. `MainViewModel.StartVoiceRx` now goes through the seam
+  instead of `new RadioAudioChannelLinux`.
+- **Reuses existing Core/audio:** `RadioVoiceReceiver`/`RadioVoiceTransmitter` (SBC) + PortAudio
+  playback/capture — already cross-platform.
+
+**Builds clean; NOT yet hardware-verified.** To test on the Mac: `brew install portaudio` (the
+PortAudio backend needs the native `libportaudio.dylib`), connect, toggle **Voice RX**, and key
+a nearby radio — you should hear it. Watch `HTBT_DEBUG=1` for `audio: opening 'AOC' on RFCOMM
+ch N` / `audio: channel open`. Caveat from Linux: the audio channel competes with the hardware
+TNC's TX audio, so it's opened on demand (Voice RX toggle), not on connect. TX (PTT) is
+implemented but keys the radio on the air — operator-gated.
+
 ## 5. Context you’ll want (gotchas already learned on Linux)
 
 - **GAIA RFCOMM channel moves between sessions** — never hard‑code it; discover + probe.

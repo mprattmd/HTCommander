@@ -37,7 +37,7 @@ namespace HTCommander.Platform.Linux;
 ///
 /// Receive only. Transmit keys the radio on the air and is intentionally omitted.
 /// </summary>
-public sealed class RadioAudioChannelLinux
+public sealed class RadioAudioChannelLinux : IRadioAudioChannel
 {
     private readonly string macAddress;
     private readonly ILogger? logger;

@@ -30,4 +30,7 @@ public sealed class MacRadioPlatform : IRadioPlatform
 
     public IRadioTransport CreateTransport(string address, ILogger? logger = null, Action<string>? onDisconnected = null)
         => new MacRadioTransport(address, logger, onDisconnected);
+
+    public IRadioAudioChannel CreateAudioChannel(string address, ILogger? logger = null)
+        => new RadioAudioChannelMac(address, logger);
 }

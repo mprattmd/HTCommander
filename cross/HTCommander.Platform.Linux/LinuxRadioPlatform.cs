@@ -30,4 +30,7 @@ public sealed class LinuxRadioPlatform : IRadioPlatform
 
     public IRadioTransport CreateTransport(string address, ILogger? logger = null, Action<string>? onDisconnected = null)
         => new RadioBluetoothLinux(address, logger, onDisconnected);
+
+    public IRadioAudioChannel CreateAudioChannel(string address, ILogger? logger = null)
+        => new RadioAudioChannelLinux(address, logger);
 }

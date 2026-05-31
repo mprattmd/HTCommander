@@ -346,3 +346,145 @@ public func htbt_list_radios(_ outBuf: UnsafeMutablePointer<CChar>, _ cap: Int32
     outBuf[bytes.count] = 0
     return Int32(bytes.count)
 }
+
+// ============================================================================
+// Voice-audio channel — the radio's SECOND RFCOMM stream (SBC voice). On this
+// radio that's the service named "BS AOC" (NOT the 0x1203 HFP gateway, which is
+// silent). Unlike the GAIA channel there's no probe/validation: we open the
+// SDP-named channel and forward RAW bytes both ways (RX → onData, TX → write).
+// Same main-run-loop discipline as HtRfcomm (IOBluetooth callbacks land on main).
+// ============================================================================
+private final class HtAudio: NSObject, IOBluetoothRFCOMMChannelDelegate {
+    private let address: String
+    private let nameMatch: String                 // SDP service-name substring, e.g. "AOC"
+    private let onData: DataCallback
+    private let onEvent: EventCallback
+
+    private var channel: IOBluetoothRFCOMMChannel?
+    private var openTimer: Timer?
+    private var resultSemaphore: DispatchSemaphore?
+    private var connected = false
+
+    init(address: String, nameMatch: String,
+         onData: @escaping DataCallback, onEvent: @escaping EventCallback) {
+        self.address = address
+        self.nameMatch = nameMatch
+        self.onData = onData
+        self.onEvent = onEvent
+    }
+
+    func start() -> Bool {
+        if Thread.isMainThread { dbg("audio: must be called off the main thread"); return false }
+        let done = DispatchSemaphore(value: 0)
+        resultSemaphore = done
+        DispatchQueue.main.async { self.begin() }
+        done.wait()
+        return connected
+    }
+
+    private func begin() {
+        guard let dev = IOBluetoothDevice(addressString: address) else { finish(false); return }
+        _ = dev.openConnection()
+        _ = dev.performSDPQuery(nil)
+        // Give SDP a moment, then find the audio service's RFCOMM channel by name.
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            var chId: BluetoothRFCOMMChannelID = 0
+            if let services = dev.services {
+                for case let rec as IOBluetoothSDPServiceRecord in services {
+                    let nm = (rec.getServiceName() ?? "").uppercased()
+                    var c: BluetoothRFCOMMChannelID = 0
+                    if nm.contains(self.nameMatch.uppercased()),
+                       rec.getRFCOMMChannelID(&c) == kIOReturnSuccess, c != 0 {
+                        chId = c; break
+                    }
+                }
+            }
+            if chId == 0 { dbg("audio: no SDP service matching '\(self.nameMatch)'"); self.finish(false); return }
+            dbg("audio: opening '\(self.nameMatch)' on RFCOMM ch \(chId)")
+            var ch: IOBluetoothRFCOMMChannel?
+            let rc = dev.openRFCOMMChannelAsync(&ch, withChannelID: chId, delegate: self)
+            if rc != kIOReturnSuccess || ch == nil { dbg("audio: openAsync rejected"); self.finish(false); return }
+            self.channel = ch
+            self.openTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
+                dbg("audio: open timed out"); self?.channel?.close(); self?.finish(false)
+            }
+        }
+    }
+
+    func write(_ ptr: UnsafePointer<UInt8>, _ len: Int32) {
+        let bytes = Array(UnsafeBufferPointer(start: ptr, count: Int(len)))
+        DispatchQueue.main.async { [weak self] in
+            guard let ch = self?.channel else { return }
+            var b = bytes
+            _ = b.withUnsafeMutableBytes { ch.writeSync($0.baseAddress, length: UInt16($0.count)) }
+        }
+    }
+
+    func close() {
+        DispatchQueue.main.async { [weak self] in
+            self?.openTimer?.invalidate(); self?.openTimer = nil
+            self?.channel?.close(); self?.channel = nil
+        }
+    }
+
+    // MARK: IOBluetoothRFCOMMChannelDelegate
+    func rfcommChannelOpenComplete(_ rfcommChannel: IOBluetoothRFCOMMChannel!, status error: IOReturn) {
+        guard rfcommChannel === channel else { return }
+        openTimer?.invalidate(); openTimer = nil
+        if error != kIOReturnSuccess {
+            dbg("audio: open failed status=\(String(format: "0x%08X", error))")
+            rfcommChannel?.close(); finish(false); return
+        }
+        dbg("audio: channel open")
+        finish(true)
+    }
+
+    func rfcommChannelData(_ rfcommChannel: IOBluetoothRFCOMMChannel!,
+                           data dataPointer: UnsafeMutableRawPointer!, length dataLength: Int) {
+        guard dataLength > 0, rfcommChannel === channel else { return }
+        onData(dataPointer.assumingMemoryBound(to: UInt8.self), Int32(dataLength))
+    }
+
+    func rfcommChannelClosed(_ rfcommChannel: IOBluetoothRFCOMMChannel!) {
+        if rfcommChannel === channel { channel = nil; onEvent(EVT_CLOSED) }
+    }
+
+    private func finish(_ ok: Bool) {
+        openTimer?.invalidate(); openTimer = nil
+        connected = ok
+        resultSemaphore?.signal(); resultSemaphore = nil
+    }
+}
+
+private var audioRegistry = [Int32: HtAudio]()
+
+/// Open the radio's voice-audio RFCOMM channel, found by SDP service-name substring
+/// (e.g. "AOC"). Returns a handle (>= 1) or -1. onData gets RAW audio bytes.
+@_cdecl("htbt_open_audio")
+public func htbt_open_audio(_ addr: UnsafePointer<CChar>, _ name: UnsafePointer<CChar>,
+                            _ onData: @escaping @convention(c) (UnsafePointer<UInt8>?, Int32) -> Void,
+                            _ onEvent: @escaping @convention(c) (Int32) -> Void) -> Int32 {
+    let conn = HtAudio(address: String(cString: addr), nameMatch: String(cString: name),
+                       onData: onData, onEvent: onEvent)
+    guard conn.start() else { return -1 }
+    registryLock.lock()
+    let h = nextHandle; nextHandle += 1
+    audioRegistry[h] = conn
+    registryLock.unlock()
+    return h
+}
+
+/// Write raw audio bytes to the voice channel (TX — keys the radio on the air).
+@_cdecl("htbt_audio_write")
+public func htbt_audio_write(_ handle: Int32, _ data: UnsafePointer<UInt8>, _ len: Int32) {
+    registryLock.lock(); let conn = audioRegistry[handle]; registryLock.unlock()
+    conn?.write(data, len)
+}
+
+/// Close and release the voice-audio channel.
+@_cdecl("htbt_audio_close")
+public func htbt_audio_close(_ handle: Int32) {
+    registryLock.lock(); let conn = audioRegistry.removeValue(forKey: handle); registryLock.unlock()
+    conn?.close()
+}

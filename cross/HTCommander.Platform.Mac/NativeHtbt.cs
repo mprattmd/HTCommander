@@ -53,4 +53,18 @@ internal static class NativeHtbt
     /// <summary>Fills <paramref name="outBuf"/> with "name\taddr\n" lines for paired devices.</summary>
     [DllImport(Lib, EntryPoint = "htbt_list_radios")]
     public static extern int ListRadios([Out] byte[] outBuf, int cap);
+
+    // --- Voice-audio channel (the radio's second RFCOMM stream, SBC voice) ---
+
+    /// <summary>Open the audio RFCOMM channel by SDP service-name substring (e.g. "AOC"). Returns a handle (>=1) or -1.</summary>
+    [DllImport(Lib, EntryPoint = "htbt_open_audio", CharSet = CharSet.Ansi)]
+    public static extern int OpenAudio(string addr, string name, DataCallback onData, EventCallback onEvent);
+
+    /// <summary>Write raw audio bytes to the voice channel (TX — keys the radio on the air).</summary>
+    [DllImport(Lib, EntryPoint = "htbt_audio_write")]
+    public static extern void AudioWrite(int handle, byte[] data, int len);
+
+    /// <summary>Close + release the voice-audio channel.</summary>
+    [DllImport(Lib, EntryPoint = "htbt_audio_close")]
+    public static extern void AudioClose(int handle);
 }

@@ -35,4 +35,9 @@ public interface IRadioPlatform
     /// <param name="logger">Optional transport debug logger.</param>
     /// <param name="onDisconnected">Optional callback invoked with a reason when the link drops.</param>
     IRadioTransport CreateTransport(string address, ILogger? logger = null, Action<string>? onDisconnected = null);
+
+    /// <summary>Creates the radio's voice-audio (second RFCOMM) channel for this platform.</summary>
+    /// <param name="address">Target radio BD_ADDR.</param>
+    /// <param name="logger">Optional debug logger.</param>
+    IRadioAudioChannel CreateAudioChannel(string address, ILogger? logger = null);
 }
