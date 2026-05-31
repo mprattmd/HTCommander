@@ -95,12 +95,17 @@ jobs:
 
       - name: Codesign (hardened runtime, all nested Mach-O)
         if: ${{ env.HAS_SIGNING == 'true' }}
-        env:
-          SIGN_ID: ${{ secrets.MACOS_SIGN_IDENTITY }}   # "Developer ID Application: Name (TEAMID)"
         run: |
           APP=dist/mac/HTCommander.app
           ENT=mac/HTCommander.entitlements
           EXE=HTCommander.UI.Avalonia
+          # Derive the identity from the keychain by its SHA-1 hash rather than trusting the
+          # MACOS_SIGN_IDENTITY string to match exactly — the cert imported fine but a name
+          # mismatch (whitespace/typo) made `codesign --sign "<name>"` fail "no identity found".
+          SIGN_ID=$(security find-identity -v -p codesigning /tmp/build.keychain \
+            | awk '/Developer ID Application/ {print $2; exit}')
+          [ -n "$SIGN_ID" ] || { echo "No Developer ID Application identity in the keychain"; exit 1; }
+          echo "Signing with identity $SIGN_ID"
           # The .NET self-contained layout puts the whole payload in Contents/MacOS, and
           # codesign treats EVERY file there as code that must be signed — not just Mach-O.
           # Drop debug symbols first (they break sealing and shouldn't ship)…
