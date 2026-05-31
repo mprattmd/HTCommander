@@ -29,10 +29,15 @@ chmod +x HTCommander-x86_64.AppImage
 **[HTCommander-macos-arm64.zip](https://github.com/mprattmd/HTCommander/releases/download/v0.4.3/HTCommander-macos-arm64.zip)** — a self-contained `HTCommander.app` (bundles the .NET runtime, the IOBluetooth bridge, PortAudio, SQLite, Skia). Unzip, then:
 
 ```bash
-# It's not notarized yet, so macOS quarantines downloaded apps. First launch:
-xattr -dr com.apple.quarantine HTCommander.app   # or: right-click the app → Open
+# It's not notarized yet, so macOS quarantines downloaded apps and reports the app as
+# "damaged". Clear the quarantine flag once, then open it:
+xattr -cr HTCommander.app
 open HTCommander.app
 ```
+
+> On Apple Silicon the `xattr -cr` step is required — the "damaged" message can't be
+> bypassed by right-clicking → Open. (Tip: type `xattr -cr ` and drag the app into Terminal
+> to fill in its path.)
 
 > Apple Silicon (M-series) only for now. Pair the radio in **System Settings → Bluetooth**
 > first. macOS will prompt for **Bluetooth** (and **Microphone**, for voice PTT) permission.
