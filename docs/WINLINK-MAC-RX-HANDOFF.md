@@ -1,6 +1,21 @@
 # Winlink connect fails on macOS — debugging handoff
 
-**Date:** 2026-06-05  •  **Build:** v0.4.6 (`4368a06`)  •  **Status:** root cause localized to the macOS Bluetooth **receive** path; not yet fixed.
+**Date:** 2026-06-05  •  **Build:** v0.4.6 (`4368a06`)  •  **Status:** **CONFIRMED** — root cause is the macOS IOBluetooth **receive** path. Option 1 test passed on Linux (see below). Not yet fixed.
+
+## ✅ Option 1 CONFIRMED (2026-06-05, Linux box)
+
+Ran a full Winlink connect+send on the working **Linux** box, same radio / 145.05 / WC4EOC-8.
+The fork is settled — it is **(A) the Mac IOBluetooth RX path**, not (B) TX/RF.
+
+- Linux **receives `EVENT_NOTIFICATION: type=2` (DATA_RXD) — 9× in one session**, including the
+  gateway's UA that completes the connect. Mac shows **0× type=2** on identical radio/RF/gateway.
+- Full session succeeded on Linux: SABM→**UA/CONNECTED**, auth challenge/response, proposal
+  accepted (`Y`), mail `X5395130IDYG` sent, FF turnover, **DISC received**, mail **moved to Sent**.
+  (Also re-confirms the FF-turnover / move-to-Sent fix works.)
+- Event-type tally (Linux): `9× type=2`, `51× type=1`, `6× type=6`, `1× type=13`.
+
+→ **Next session: go straight to fixing the IOBluetooth RFCOMM receive path** in `htbt.swift`
+(`rfcommChannelData`) vs the Linux BlueZ socket. No further A/B needed.
 
 ## One-line summary
 
