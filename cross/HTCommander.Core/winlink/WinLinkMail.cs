@@ -211,26 +211,34 @@ namespace HTCommander
             byte[] Between = { 0x0D, 0x0A };
             byte[] End = { 0x00 };
 
+            // Winlink B2F message headers MUST be CRLF-terminated: the CMS parses them as
+            // RFC-822 headers and the matching parser (FindFirstDoubleNewline / DeserializeMail)
+            // looks for "\r\n\r\n". Do NOT use StringBuilder.AppendLine here — it emits
+            // Environment.NewLine, which is "\n" on macOS/Linux, producing bare-LF headers that
+            // the CMS silently drops (message accepted over RF but never delivered). Always append
+            // an explicit CRLF. (On Windows AppendLine happened to be "\r\n", which is why the
+            // WinForms app delivers but this cross-platform port did not.)
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"MID: {mail.MID}");
-            sb.AppendLine($"Date: {mail.DateTime.ToString("yyyy/MM/dd HH:mm")}");
-            if ((mail.Flags & (int)MailFlags.Private) != 0) { sb.AppendLine($"Type: Private"); }
-            if (!string.IsNullOrEmpty(mail.From)) { sb.AppendLine($"From: {mail.From}"); }
-            if (!string.IsNullOrEmpty(mail.To)) { sb.AppendLine($"To: {mail.To}"); }
-            if (!string.IsNullOrEmpty(mail.Cc)) { sb.AppendLine($"Cc: {mail.Cc}"); }
-            if (!string.IsNullOrEmpty(mail.Subject)) { sb.AppendLine($"Subject: {mail.Subject}"); }
-            if (!string.IsNullOrEmpty(mail.Mbo)) { sb.AppendLine($"Mbo: {mail.Mbo}"); }
-            if ((mail.Flags & (int)MailFlags.P2P) != 0) { sb.AppendLine($"X-P2P: True"); }
-            if (!string.IsNullOrEmpty(mail.Location)) { sb.AppendLine($"X-Location: {mail.Location}"); }
-            if (!string.IsNullOrEmpty(mail.Body)) { sb.AppendLine($"Body: " + bodyData.Length); }
+            void H(string line) => sb.Append(line).Append("\r\n");
+            H($"MID: {mail.MID}");
+            H($"Date: {mail.DateTime.ToString("yyyy/MM/dd HH:mm")}");
+            if ((mail.Flags & (int)MailFlags.Private) != 0) { H("Type: Private"); }
+            if (!string.IsNullOrEmpty(mail.From)) { H($"From: {mail.From}"); }
+            if (!string.IsNullOrEmpty(mail.To)) { H($"To: {mail.To}"); }
+            if (!string.IsNullOrEmpty(mail.Cc)) { H($"Cc: {mail.Cc}"); }
+            if (!string.IsNullOrEmpty(mail.Subject)) { H($"Subject: {mail.Subject}"); }
+            if (!string.IsNullOrEmpty(mail.Mbo)) { H($"Mbo: {mail.Mbo}"); }
+            if ((mail.Flags & (int)MailFlags.P2P) != 0) { H("X-P2P: True"); }
+            if (!string.IsNullOrEmpty(mail.Location)) { H($"X-Location: {mail.Location}"); }
+            if (!string.IsNullOrEmpty(mail.Body)) { H("Body: " + bodyData.Length); }
             if (mail.Attachments != null)
             {
                 foreach (WinLinkMailAttachement attachement in mail.Attachments)
                 {
-                    sb.AppendLine("File: " + attachement.Data.Length + " " + attachement.Name);
+                    H("File: " + attachement.Data.Length + " " + attachement.Name);
                 }
             }
-            sb.AppendLine();
+            sb.Append("\r\n");
 
             // Assemble the binary email
             byte[] headerData = UTF8Encoding.UTF8.GetBytes(sb.ToString());
