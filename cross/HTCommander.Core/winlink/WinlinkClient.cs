@@ -42,6 +42,10 @@ namespace HTCommander
         private string remoteAddress = "";
         private ConnectionState currentState = ConnectionState.DISCONNECTED;
         private bool useTls = false;
+        // Set once we've sent all accepted outbound mail data + the closing FF. Lets us move
+        // the delivered mail Outbox->Sent on session close even when the CMS ends the link with
+        // an AX.25 DISC instead of the B2F FF/FQ turnover (e.g. WC4EOC).
+        private bool mailHandoffComplete = false;
         
         // Radio lock fields for X25 transport
         private int lockedRadioId = -1;
@@ -335,6 +339,11 @@ namespace HTCommander
                     break;
                 case AX25Session.ConnectionState.DISCONNECTED:
                     pendingDisconnect = false;
+                    // Some CMS gateways close the link with an AX.25 DISC instead of the B2F
+                    // FF/FQ turnover. If we completed the outbound handoff (sent all accepted
+                    // mail data + our FF), move the delivered mail Outbox->Sent now — BEFORE
+                    // SetConnectionState clears sessionState — else sent mail stays in the Outbox.
+                    if (mailHandoffComplete) { UpdateEmails(); mailHandoffComplete = false; }
                     SetConnectionState(ConnectionState.DISCONNECTED);
                     DisposeAX25Session();
                     break;
@@ -1146,6 +1155,7 @@ namespace HTCommander
                                     // the mail to Sent.
                                     broker.LogInfo("[WinlinkClient] Mail data sent, sending FF to complete turnover");
                                     TransportSend("FF\r");
+                                    mailHandoffComplete = true;   // move to Sent on close even if the CMS ends with a DISC
                                 }
                                 else
                                 {
