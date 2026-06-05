@@ -51,6 +51,14 @@ namespace HTCommander
         private AX25Session ax25Session = null;
         private bool pendingDisconnect = false;
 
+        // Reassembly buffer for the Winlink command/text phase. Inbound data arrives one
+        // AX.25 I-frame (or one TCP read) at a time, and FBB/B2F lines (;PQ:, F>, FS, FC,
+        // the "...>" prompt) can be split across frame boundaries. We accumulate here and
+        // only process complete CR-terminated lines, holding any partial line for the next
+        // frame. The bare FBB prompt has no trailing CR, so a remainder ending in '>' is
+        // flushed immediately. Cleared on each new connect.
+        private readonly StringBuilder _rxText = new StringBuilder();
+
         // Debug traffic history buffer (last 1000 entries)
         private const int MaxDebugHistorySize = 1000;
         private List<WinlinkDebugEntry> debugHistory = new List<WinlinkDebugEntry>();
@@ -186,17 +194,19 @@ namespace HTCommander
             
             StateMessage("Connecting to " + station.Callsign + " via radio...");
             
-            // Initialize the AX25Session and start the connection
-            InitializeAX25Session(radioId, station);
+            // Initialize the AX25Session and start the connection. Pass the locked
+            // region/channel so the connect can wait for the radio to actually land there.
+            InitializeAX25Session(radioId, station, regionId, channelId);
         }
-        
+
         /// <summary>
         /// Initializes an AX25Session and starts connecting to the station.
         /// </summary>
-        private void InitializeAX25Session(int radioId, StationInfoClass station)
+        private void InitializeAX25Session(int radioId, StationInfoClass station, int targetRegion, int targetChannel)
         {
             // Dispose any existing session
             DisposeAX25Session();
+            _rxText.Clear();
             
             // Get our callsign from settings
             string myCallsignWithId = broker.GetValue<string>(0, "CallSign", "N0CALL-0");   // key is "CallSign" everywhere else
@@ -234,14 +244,39 @@ namespace HTCommander
             addresses.Add(AX25Address.GetAddress(destCallsign, destStationId)); // Destination
             addresses.Add(AX25Address.GetAddress(myCallsign, myStationId)); // Source
             
-            // Start the connection — but give the radio time to finish switching region/
-            // channel from the SetLock first. Keying the SABM immediately can transmit on
-            // the old channel and miss the peer's UA (the APRS path waits similarly). Skip
-            // the wait if the lock didn't actually change channel.
+            // Start the connection — but first wait for the radio to actually REPORT it is
+            // on the locked region+channel. The SetLock switch is asynchronous; keying the
+            // SABM before the radio confirms the move transmits on the OLD channel (we have
+            // observed frames key the wrong memory, e.g. GMRS 462 MHz, mid-switch) and
+            // misses the peer's UA. Poll the radio's live HtStatus instead of a blind delay,
+            // with a timeout fallback so a status hiccup never deadlocks the connect.
             var session = ax25Session;
+            int wantRegion = targetRegion, wantChannel = targetChannel;
+            int lockRadio = radioId;
             Task.Run(async () =>
             {
-                try { await Task.Delay(1200); } catch { }
+                const int settleTimeoutMs = 5000;
+                const int pollMs = 150;
+                int waited = 0;
+                bool confirmed = false;
+                while (waited < settleTimeoutMs)
+                {
+                    if (_disposed || session != ax25Session) return;
+                    RadioHtStatus st = broker.GetValue<RadioHtStatus>(lockRadio, "HtStatus", null);
+                    if (st != null && st.curr_region == wantRegion && st.curr_ch_id == wantChannel)
+                    {
+                        confirmed = true;
+                        break;
+                    }
+                    try { await Task.Delay(pollMs); } catch { }
+                    waited += pollMs;
+                }
+                // Brief extra settle for the radio's PLL/squelch after the channel lands,
+                // then key. If we never confirmed, fall through and try anyway.
+                try { await Task.Delay(confirmed ? 300 : 0); } catch { }
+                broker.LogInfo(confirmed
+                    ? "[WinlinkClient] Radio confirmed on region " + wantRegion + " ch " + wantChannel + " after " + waited + "ms; sending SABM"
+                    : "[WinlinkClient] Radio did NOT confirm region " + wantRegion + " ch " + wantChannel + " within " + settleTimeoutMs + "ms; sending SABM anyway");
                 if (!_disposed && session == ax25Session) session.Connect(addresses);
             });
         }
@@ -622,6 +657,7 @@ namespace HTCommander
             try
             {
                 SetConnectionState(ConnectionState.CONNECTING);
+                _rxText.Clear();
                 remoteAddress = server + ":" + port;
                 this.useTls = useTls;
                 
@@ -941,8 +977,22 @@ namespace HTCommander
                 return;
             }
 
-            string dataStr = UTF8Encoding.UTF8.GetString(data);
-            string[] dataStrs = dataStr.Replace("\r\n", "\r").Replace("\n", "\r").Split('\r');
+            // Reassemble across frame boundaries: a single I-frame (or TCP read) may end
+            // mid-line, and the next one carries the rest. Accumulate, then consume only
+            // complete CR-terminated lines and hold the remainder. The FBB prompt ("...>")
+            // arrives without a trailing CR, so flush the remainder when it ends in '>'.
+            _rxText.Append(UTF8Encoding.UTF8.GetString(data));
+            string buf = _rxText.ToString().Replace("\r\n", "\r").Replace("\n", "\r");
+            int lastCr = buf.LastIndexOf('\r');
+            string complete = (lastCr >= 0) ? buf.Substring(0, lastCr + 1) : "";
+            string remainder = (lastCr >= 0) ? buf.Substring(lastCr + 1) : buf;
+            bool remainderIsPrompt = remainder.EndsWith(">");
+            _rxText.Clear();
+            if (!remainderIsPrompt) { _rxText.Append(remainder); }
+
+            string dataStr = remainderIsPrompt ? (complete + remainder) : complete;
+            if (dataStr.Length == 0) return;
+            string[] dataStrs = dataStr.Split('\r');
             foreach (string str in dataStrs)
             {
                 if (str.Length == 0) continue;

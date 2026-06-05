@@ -378,7 +378,10 @@ namespace HTCommander
         // Milliseconds required to transmit the largest possible packet
         private int GetMaxPacketTime()
         {
-            return (int)Math.Floor((double)((600 + (PacketLength * 8)) / HBaud) * 1000);
+            // Compute in floating point: the original integer division truncated
+            // (600 + 2048)/1200 to 2, yielding 2000ms instead of ~2206ms and making
+            // every derived timer (T1/T2/T3) ~10% short.
+            return (int)Math.Floor((double)(600 + (PacketLength * 8)) / HBaud * 1000);
         }
 
         // This isn't great, but we need to give the TNC time to

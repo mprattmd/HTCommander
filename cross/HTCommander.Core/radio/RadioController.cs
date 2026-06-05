@@ -224,11 +224,10 @@ public sealed class RadioController : IDisposable
     {
         connected = true;
         broker.Dispatch(deviceId, "State", "Connected", store: false);
-        // NOTE: do NOT register the DATA_RXD notification. The WinForms app never does,
-        // yet still receives unsolicited DATA_RXD events — and explicitly subscribing it
-        // appears to make the firmware stop delivering inbound packet data (TX still works,
-        // RX goes dead), which broke Winlink/BBS connected-mode. HT_STATUS_CHANGED (and
-        // POSITION_CHANGE) are registered after GET_DEV_INFO replies, matching WinForms.
+        // Notifications (incl. DATA_RXD for inbound packets) are registered after the
+        // GET_DEV_INFO reply — see HandleDevInfo. (An older comment here claimed DATA_RXD
+        // must NOT be registered; that was WinForms-era and is false on this firmware/BLE
+        // path — without it we get zero RX while the official app on the same radio works.)
         SendBasic(CmdGetDevInfo, new byte[] { 3 });
         RequestBatteryPercent();
         SendBasic(CmdGetHtStatus, null);
@@ -243,6 +242,9 @@ public sealed class RadioController : IDisposable
         if (error != null || v == null || v.Length < 4) return;
         int group = (v[0] << 8) | v[1];
         int cmd = ((v[2] << 8) | v[3]) & 0x7FFF;
+        // DIAG: log every raw inbound frame so we can prove what the radio actually pushes
+        // (esp. whether EVENT_NOTIFICATION/DATA_RXD ever arrive, or get dropped at the group filter).
+        logger?.Debug($"RX FRAME: group={group} cmd={cmd} len={v.Length}{(v.Length > 4 ? $" b4={v[4]}" : "")}");
         if (group != GroupBasic) return;
 
         switch (cmd)
@@ -256,9 +258,20 @@ public sealed class RadioController : IDisposable
             case CmdWriteBssSettings: if (v.Length > 4 && v[4] != 0) logger?.Debug($"WRITE_BSS_SETTINGS error: {v[4]}"); break;
             case CmdSendData: HandleSendDataResponse(v); break;
             case CmdGetPosition: HandlePosition(v); break;
+            case CmdRegisterNotification:
+                // Reply to our REGISTER_NOTIFICATION. Log the status so we can tell whether
+                // the radio actually ACCEPTED the subscription (benlink #6: only some event
+                // values get a success reply). v[4] is typically the status/echoed type.
+                logger?.Debug($"REGISTER_NOTIFICATION reply: {v.Length}B{(v.Length > 4 ? $", byte4={v[4]}" : "")}");
+                break;
             case CmdEventNotification:
                 if (v.Length > 4)
                 {
+                    // Unsolicited event channel. Logged so we can PROVE it is alive: HtStatus
+                    // also arrives via polling (GET_HT_STATUS), so only an EVENT_NOTIFICATION
+                    // line here confirms the radio pushes events. DATA_RXD (inbound packets)
+                    // arrives ONLY here — if we never see type=2, RX is dead regardless of TX.
+                    logger?.Debug($"EVENT_NOTIFICATION: type={v[4]}, {v.Length}B");
                     if (v[4] == NotifyHtStatusChanged) PublishHtStatus(v);
                     else if (v[4] == NotifyDataRxd) HandleDataReceived(v);
                     else if (v[4] == NotifyPositionChange) RequestPosition();   // re-fetch the authoritative GET_POSITION reply
@@ -363,7 +376,30 @@ public sealed class RadioController : IDisposable
         // after each burst would move it off-channel before the peer's reply arrives, so
         // the handshake would never complete. Only the one-shot APRS path switches+restores.
         bool isLocked = lockState != null && lockState.IsLocked;
-        logger?.Debug($"SendPacket: {data.Length}B, channel {channelId}, region {regionId}, locked={isLocked}, free={ChannelFree()}");
+        // Diagnose no-reply connects: show the TARGET region/channel vs. what the radio
+        // actually reports as its current region/channel. If they disagree, the lock's
+        // region switch didn't take and we're keying the wrong memory (e.g. the APRS
+        // channel). channelArray only holds the last-loaded bank (regionBeingRead) and
+        // channel ids repeat across banks, so its freq is only meaningful when that bank
+        // matches the radio's current region — label it honestly.
+        int curRegion = lastStatus?.curr_region ?? -1;
+        int curCh = lastStatus?.curr_ch_id ?? -1;
+        string chDetail = $", radio-now region={curRegion} ch={curCh}, loaded-bank={regionBeingRead}";
+        // channelArray holds only the last-loaded bank, and channel ids repeat across banks,
+        // so its freq is ONLY meaningful when that bank == the radio's current region.
+        if (regionBeingRead == curRegion && channelArray != null && curCh >= 0 && curCh < channelArray.Length && channelArray[curCh] is RadioChannelInfo ci)
+        {
+            string power = ci.tx_at_max_power ? "HIGH" : (ci.tx_at_med_power ? "MED" : "LOW");
+            chDetail += $", ch[{curCh}]='{ci.name_str}' tx={ci.tx_freq / 1e6:0.0000} rx={ci.rx_freq / 1e6:0.0000} mod={ci.tx_mod}/{ci.rx_mod} tone tx={ci.tx_sub_audio} rx={ci.rx_sub_audio} bw={ci.bandwidth} pwr={power}{(ci.tx_disable ? " TX-DISABLED" : "")}";
+        }
+        else
+        {
+            chDetail += $", (ch freq unknown: bank {regionBeingRead} loaded, radio on region {curRegion} — open the Channels tab on region {curRegion} to load it)";
+        }
+        logger?.Debug($"SendPacket: {data.Length}B, target region {regionId} ch {channelId}, locked={isLocked}, free={ChannelFree()}{chDetail}");
+        // Dump the exact AX.25 frame bytes (pre-FCS; the radio appends HDLC flags + FCS)
+        // so a no-reply connect can be verified byte-for-byte against the standard.
+        logger?.Debug($"  AX25 frame ({data.Length}B): {CoreUtils.BytesToHex(data)}");
         lock (txLock)
         {
             bool needSwitch = !isLocked && rawSettings != null && channelId >= 0 &&
@@ -525,8 +561,14 @@ public sealed class RadioController : IDisposable
         if (!notificationsRegistered)
         {
             notificationsRegistered = true;
+            logger?.Debug("HandleDevInfo: registering notifications (HtStatus, Position)");
             SendBasic(CmdRegisterNotification, new byte[] { NotifyHtStatusChanged });
             SendBasic(CmdRegisterNotification, new byte[] { NotifyPositionChange });
+            // Do NOT register DATA_RXD. The WinForms app never does, yet still receives
+            // unsolicited DATA_RXD events. On-air testing (2026-06-05) confirmed that
+            // explicitly subscribing DATA_RXD makes THIS firmware go silent on the entire
+            // event channel — no DATA_RXD AND no HT_STATUS_CHANGED (knob/volume changes
+            // produced zero cmd=9 events). Inbound packets flow automatically without it.
         }
 
         // The initial read is for the radio's current bank.
@@ -684,7 +726,10 @@ public sealed class RadioController : IDisposable
         logger?.Debug($"Radio locked for '{lockData.Usage}': region {targetRegion}, channel {targetChannel} (was region {savedLockRegionId}, channel {savedLockChannelId}).");
 
         if (targetRegion != savedLockRegionId) SetRegion(targetRegion);
-        WriteLockSettings(targetChannel, scan: false, doubleChannel: 0);   // scan + dual-watch off while locked
+        // scan + dual-watch off while locked; also force a real TNC preamble (~500ms delay,
+        // ~50ms tail) since the radio defaults kiss_tx_delay to 0 — without it the peer
+        // never decodes our SABM. Left set after unlock (harmless, benefits all packet TX).
+        WriteLockSettings(targetChannel, scan: false, doubleChannel: 0, tncTxDelay: 50, tncTxTail: 5);
     }
 
     private void OnSetUnlock(int dev, string name, object data)
@@ -710,7 +755,7 @@ public sealed class RadioController : IDisposable
     /// setting byte-for-byte. Used by the channel lock (mirrors WinForms ToByteArray):
     /// scan is bit 7 and double_channel is bits 5-4 of settings byte 1 (read-frame byte 6).
     /// </summary>
-    private bool WriteLockSettings(int channelId, bool scan, int doubleChannel)
+    private bool WriteLockSettings(int channelId, bool scan, int doubleChannel, int tncTxDelay = -1, int tncTxTail = -1)
     {
         if (rawSettings == null || rawSettings.Length <= 14 || channelId < 0) return false;
         int n = rawSettings.Length - 5;
@@ -719,6 +764,12 @@ public sealed class RadioController : IDisposable
         buf[0] = (byte)((buf[0] & 0x0F) | ((channelId & 0x0F) << 4));    // channel_a low nibble
         buf[9] = (byte)((buf[9] & 0x0F) | (channelId & 0xF0));           // channel_a high nibble
         buf[1] = (byte)((buf[1] & ~0xB0) | (scan ? 0x80 : 0) | ((doubleChannel & 0x03) << 4));  // scan + double_channel, keep aghfp/squelch
+        // Optional TNC preamble: kiss_tx_delay / kiss_tx_tail are settings bytes 12/13
+        // (10ms per count). The radio ships these at 0, leaving the hardware TNC with no
+        // preamble, so the far end's modem can't lock before our frame data → no decode →
+        // no UA. Connected-mode sessions force a sane value so the SABM is decodable.
+        if (tncTxDelay >= 0 && n > 12) buf[12] = (byte)Math.Min(255, tncTxDelay);
+        if (tncTxTail  >= 0 && n > 13) buf[13] = (byte)Math.Min(255, tncTxTail);
         SendBasic(CmdWriteSettings, buf);
         SendBasic(CmdReadSettings, null);
         return true;
@@ -760,6 +811,13 @@ public sealed class RadioController : IDisposable
                 PowerSavingMode: (v[9] & 0x01) != 0,
                 ImperialUnit: (v[13] & 0x01) != 0);
             broker.Dispatch(deviceId, "Settings", s, store: false);
+            // TNC preamble diagnostics: kiss_tx_delay / kiss_tx_tail live at settings
+            // bytes 12/13 (read-frame v[17]/v[18]); benlink's layout is confirmed here by
+            // vfo tx_power at v[15]/v[16] matching. Units are the KISS standard 10ms/count.
+            // If tx_delay is very low, the far end's modem can't lock before our SABM data
+            // arrives → frame undecodable → no UA, even though TX is accepted (err=0).
+            if (v.Length > 18)
+                logger?.Debug($"Radio TNC preamble: kiss_tx_delay={v[17]} (~{v[17] * 10}ms), kiss_tx_tail={v[18]} (~{v[18] * 10}ms) [settings bytes 12/13]");
         }
         catch (Exception) { }
     }

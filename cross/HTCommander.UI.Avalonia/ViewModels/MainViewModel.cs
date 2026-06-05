@@ -115,6 +115,13 @@ public sealed class MainViewModel : ViewModelBase
         });
         broker.Subscribe(0, "Stations", (_, _, data) => { if (data is System.Collections.Generic.List<StationInfoClass> list) ApplyContacts(list); });
 
+        // Bridge Core log events (AX25Session frame trace, WinlinkClient, etc.) to the
+        // logger so they reach the console (terminal debug) and the in-app log panel.
+        // These ride device 1 via DataBrokerClient.LogInfo/LogError; without this nobody
+        // consumed them and the frame-level trace was dropped.
+        broker.Subscribe(1, "LogInfo", (_, _, data) => { if (data is string s) logger.Info(s); });
+        broker.Subscribe(1, "LogError", (_, _, data) => { if (data is string s) logger.Error(s); });
+
         // Winlink mail: reflect store changes (e.g. mail received during a sync) and
         // surface the client's state messages. WinlinkStateMessage/Busy ride device 1.
         broker.Subscribe(1, "WinlinkStateMessage", (_, _, data) => { if (data is string s) dispatcher.Post(() => { WinlinkStatus = s; AppendWinlinkLog(s); }); });

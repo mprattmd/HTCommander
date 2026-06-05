@@ -76,7 +76,10 @@ namespace HTCommander
 
         public TncDataFragment Append(TncDataFragment frame)
         {
-            if ((frame.fragment_id == fragment_id + 1) && (final_fragment == false))
+            // fragment_id is only 6 bits on the wire (0..63), so it wraps at 64.
+            // Compare modulo 64 or reassembly of any packet >64 fragments (~3200 B,
+            // e.g. a large compressed B2F mail block) breaks at the wrap boundary.
+            if ((frame.fragment_id == ((fragment_id + 1) & 0x3F)) && (final_fragment == false))
             {
                 // Merge the data
                 byte[] mergedData = new byte[data.Length + frame.data.Length];
