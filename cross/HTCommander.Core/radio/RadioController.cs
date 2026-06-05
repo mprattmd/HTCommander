@@ -717,7 +717,11 @@ public sealed class RadioController : IDisposable
         if (rawSettings == null || rawSettings.Length <= 14) return;
 
         savedLockRegionId = lastStatus?.curr_region ?? 0;
-        savedLockChannelId = ActiveChannelA;
+        // Capture the LIVE active channel (HtStatus), not ActiveChannelA: the latter reads the
+        // cached READ_SETTINGS, which is NOT refreshed when the operator turns the channel knob,
+        // so it goes stale and the unlock would "restore" the radio to the wrong channel. Mirrors
+        // the curr_ch_id preference used elsewhere; falls back to the settings value if no status.
+        savedLockChannelId = lastStatus?.curr_ch_id ?? ActiveChannelA;
         savedLockScan = (rawSettings[6] & 0x80) != 0;
         savedLockDualWatch = (rawSettings[6] & 0x30) >> 4;
 
