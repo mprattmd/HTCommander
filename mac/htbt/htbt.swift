@@ -250,6 +250,13 @@ private final class HtRfcomm: NSObject, IOBluetoothRFCOMMChannelDelegate {
                            length dataLength: Int) {
         guard dataLength > 0 else { return }
         let p = dataPointer.assumingMemoryBound(to: UInt8.self)
+        // RAW RX diagnostics: log every inbound RFCOMM chunk BEFORE any GAIA decoding so we
+        // can prove, byte-for-byte, exactly what the radio pushes to the IOBluetooth link
+        // (esp. whether an inbound DATA_RXD/UA ever arrives at all vs. is lost in decode).
+        if htbtDebug {
+            let hex = UnsafeBufferPointer(start: p, count: dataLength).map { String(format: "%02X", $0) }.joined()
+            dbg("RX RFCOMM ch \(rfcommChannel?.getID() ?? 0) \(dataLength)B: \(hex)")
+        }
         if probing {
             guard rfcommChannel === activeChannel else { return }
             probeBytes.append(contentsOf: UnsafeBufferPointer(start: p, count: dataLength))
