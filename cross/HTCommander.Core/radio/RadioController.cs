@@ -726,10 +726,11 @@ public sealed class RadioController : IDisposable
         logger?.Debug($"Radio locked for '{lockData.Usage}': region {targetRegion}, channel {targetChannel} (was region {savedLockRegionId}, channel {savedLockChannelId}).");
 
         if (targetRegion != savedLockRegionId) SetRegion(targetRegion);
-        // scan + dual-watch off while locked; also force a real TNC preamble (~500ms delay,
-        // ~50ms tail) since the radio defaults kiss_tx_delay to 0 — without it the peer
-        // never decodes our SABM. Left set after unlock (harmless, benefits all packet TX).
-        WriteLockSettings(targetChannel, scan: false, doubleChannel: 0, tncTxDelay: 50, tncTxTail: 5);
+        // scan + dual-watch off while locked. (Earlier code also wrote settings bytes 12/13
+        // believing they were a KISS TXDELAY/TXTAIL — they are NOT: the radio exposes no
+        // such field and those bytes are vfo1_mod_freq_x calibration (see RadioSettings.cs).
+        // That write corrupted the VFO1 mod-freq cal and is removed.)
+        WriteLockSettings(targetChannel, scan: false, doubleChannel: 0);
     }
 
     private void OnSetUnlock(int dev, string name, object data)
@@ -755,7 +756,7 @@ public sealed class RadioController : IDisposable
     /// setting byte-for-byte. Used by the channel lock (mirrors WinForms ToByteArray):
     /// scan is bit 7 and double_channel is bits 5-4 of settings byte 1 (read-frame byte 6).
     /// </summary>
-    private bool WriteLockSettings(int channelId, bool scan, int doubleChannel, int tncTxDelay = -1, int tncTxTail = -1)
+    private bool WriteLockSettings(int channelId, bool scan, int doubleChannel)
     {
         if (rawSettings == null || rawSettings.Length <= 14 || channelId < 0) return false;
         int n = rawSettings.Length - 5;
@@ -764,12 +765,9 @@ public sealed class RadioController : IDisposable
         buf[0] = (byte)((buf[0] & 0x0F) | ((channelId & 0x0F) << 4));    // channel_a low nibble
         buf[9] = (byte)((buf[9] & 0x0F) | (channelId & 0xF0));           // channel_a high nibble
         buf[1] = (byte)((buf[1] & ~0xB0) | (scan ? 0x80 : 0) | ((doubleChannel & 0x03) << 4));  // scan + double_channel, keep aghfp/squelch
-        // Optional TNC preamble: kiss_tx_delay / kiss_tx_tail are settings bytes 12/13
-        // (10ms per count). The radio ships these at 0, leaving the hardware TNC with no
-        // preamble, so the far end's modem can't lock before our frame data → no decode →
-        // no UA. Connected-mode sessions force a sane value so the SABM is decodable.
-        if (tncTxDelay >= 0 && n > 12) buf[12] = (byte)Math.Min(255, tncTxDelay);
-        if (tncTxTail  >= 0 && n > 13) buf[13] = (byte)Math.Min(255, tncTxTail);
+        // NOTE: only bytes 0/1/9 (channels/scan/double_channel) are modified here, matching
+        // WinForms RadioSettings.ToByteArray. Do NOT write bytes 12/13 — they are not a KISS
+        // TXDELAY (no such setting exists on this radio); they hold vfo1_mod_freq_x calibration.
         SendBasic(CmdWriteSettings, buf);
         SendBasic(CmdReadSettings, null);
         return true;
@@ -811,13 +809,6 @@ public sealed class RadioController : IDisposable
                 PowerSavingMode: (v[9] & 0x01) != 0,
                 ImperialUnit: (v[13] & 0x01) != 0);
             broker.Dispatch(deviceId, "Settings", s, store: false);
-            // TNC preamble diagnostics: kiss_tx_delay / kiss_tx_tail live at settings
-            // bytes 12/13 (read-frame v[17]/v[18]); benlink's layout is confirmed here by
-            // vfo tx_power at v[15]/v[16] matching. Units are the KISS standard 10ms/count.
-            // If tx_delay is very low, the far end's modem can't lock before our SABM data
-            // arrives → frame undecodable → no UA, even though TX is accepted (err=0).
-            if (v.Length > 18)
-                logger?.Debug($"Radio TNC preamble: kiss_tx_delay={v[17]} (~{v[17] * 10}ms), kiss_tx_tail={v[18]} (~{v[18] * 10}ms) [settings bytes 12/13]");
         }
         catch (Exception) { }
     }

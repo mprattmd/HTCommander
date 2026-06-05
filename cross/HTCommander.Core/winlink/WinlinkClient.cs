@@ -1134,8 +1134,19 @@ namespace HTCommander
                                         foreach (byte[] block in proposedMailsBinary[j]) { TransportSend(block); totalSize += block.Length; }
                                     }
                                 }
-                                if (sentMails == 1) { StateMessage("Sending mail, " + totalSize + " bytes..."); }
-                                else if (sentMails > 1) { StateMessage("Sending " + sentMails + " mails, " + totalSize + " bytes..."); }
+                                if (sentMails > 0)
+                                {
+                                    if (sentMails == 1) { StateMessage("Sending mail, " + totalSize + " bytes..."); }
+                                    else { StateMessage("Sending " + sentMails + " mails, " + totalSize + " bytes..."); }
+                                    // End of our turn: after the message data we MUST tell the CMS we have
+                                    // nothing more to propose by sending FF. Without it the CMS waits, times
+                                    // out, and drops the AX.25 link with a DISC before the FF/FQ turnover, so
+                                    // UpdateEmails() never runs and the sent mail is stranded in the Outbox.
+                                    // The CMS replies FF (nothing for us) -> we send FQ -> UpdateEmails() moves
+                                    // the mail to Sent.
+                                    broker.LogInfo("[WinlinkClient] Mail data sent, sending FF to complete turnover");
+                                    TransportSend("FF\r");
+                                }
                                 else
                                 {
                                     // Winlink Session Close

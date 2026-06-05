@@ -666,6 +666,7 @@ public sealed class MainViewModel : ViewModelBase
         FrameCount = 0;
         autoSwept = false;
         Channels.Clear();
+        ClearChannelNames();   // drop stale picker entries from a previous radio/session
         Packets.Clear();
         Stations.Clear();
         Tracks.Clear();
@@ -932,6 +933,21 @@ public sealed class MainViewModel : ViewModelBase
                 ChannelNames.Add(ch.Name);
     }
 
+    /// <summary>
+    /// Reset the accumulated channel-name list (used by the Winlink/contact + APRS channel
+    /// pickers). UpdateChannelNames only ever ADDS — it accumulates names across banks so the
+    /// pickers can list every bank — but nothing ever removed stale entries, so reprogramming
+    /// the radio and re-reading left old channel names lingering in the pickers. Call this at
+    /// the start of any fresh full read (connect, bank switch, Load all banks) so the list
+    /// rebuilds from the current radio. The configured APRS channel name is re-seeded since it
+    /// may not correspond to a live radio channel.
+    /// </summary>
+    private void ClearChannelNames()
+    {
+        ChannelNames.Clear();
+        if (!string.IsNullOrWhiteSpace(aprsChannelName)) ChannelNames.Add(aprsChannelName);
+    }
+
     // ---- Channel builder ---------------------------------------------------
 
     private string builderStatus = "";
@@ -958,6 +974,7 @@ public sealed class MainViewModel : ViewModelBase
             {
                 controller.SetRegion(value);          // switch the radio to this bank
                 radioChannels.Clear();
+                ClearChannelNames();                  // rebuild picker list from the bank we're switching to
                 foreach (var s in Slots) { s.Name = ""; s.RxMHz = 0; }   // clear while the new bank loads
                 controller.RefreshChannels();         // re-read this bank's channels
                 BuilderStatus = $"Switched to bank {value}; reading its channels…";
@@ -1003,6 +1020,7 @@ public sealed class MainViewModel : ViewModelBase
         if (sweepingBanks) return;
         sweepingBanks = true;
         OnPropertyChanged(nameof(CanLoadAllBanks));
+        ClearChannelNames();   // reset before sweeping so the picker rebuilds from the radio's current banks (drops stale names)
         int start = SelectedBank;
         int banks = RegionCount;
         Task.Run(async () =>
