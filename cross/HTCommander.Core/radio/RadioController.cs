@@ -70,6 +70,7 @@ public sealed class RadioController : IDisposable
     private int restoreChannelAfterTx = -1;      // active channel to return to after a switched APRS send
     private RadioHtStatus? lastStatus;           // cached for channel-busy gating + default ch/region
     private bool notificationsRegistered;        // registered (after GET_DEV_INFO); reset on stop
+    private volatile bool eventChannelLive;      // any async EVENT_NOTIFICATION (or cmd=6 ACK) seen; stops the poll-loop re-register retry
     private int lastDeviceChannelCount;          // channels-per-region (from dev info), for RefreshChannels
     private RadioChannelInfo[] channelArray;      // indexed by channel_id; published as "Channels" for APRS/Winlink/BBS lookups
     private int regionBeingRead;                  // the bank whose channels are currently being read (for APRS-channel region)
@@ -211,6 +212,7 @@ public sealed class RadioController : IDisposable
         restoreRegionAfterTx = -1;
         restoreChannelAfterTx = -1;
         notificationsRegistered = false;
+        eventChannelLive = false;
         lock (txLock) { txQueue.Clear(); txInFlight = false; }   // drop any stale fragments
         StopPolling();
         transport.OnConnected -= OnConnected;
@@ -263,6 +265,7 @@ public sealed class RadioController : IDisposable
                 // the radio actually ACCEPTED the subscription (benlink #6: only some event
                 // values get a success reply). v[4] is typically the status/echoed type.
                 logger?.Debug($"REGISTER_NOTIFICATION reply: {v.Length}B{(v.Length > 4 ? $", byte4={v[4]}" : "")}");
+                eventChannelLive = true;   // some firmware ACKs the subscription → stop the re-register retry
                 break;
             case CmdEventNotification:
                 if (v.Length > 4)
@@ -272,6 +275,7 @@ public sealed class RadioController : IDisposable
                     // line here confirms the radio pushes events. DATA_RXD (inbound packets)
                     // arrives ONLY here — if we never see type=2, RX is dead regardless of TX.
                     logger?.Debug($"EVENT_NOTIFICATION: type={v[4]}, {v.Length}B");
+                    eventChannelLive = true;   // subscription confirmed working → stop re-registering
                     if (v[4] == NotifyHtStatusChanged) PublishHtStatus(v);
                     else if (v[4] == NotifyDataRxd) HandleDataReceived(v);
                     else if (v[4] == NotifyPositionChange) RequestPosition();   // re-fetch the authoritative GET_POSITION reply
@@ -981,6 +985,20 @@ public sealed class RadioController : IDisposable
         {
             while (!ct.IsCancellationRequested)
             {
+                // Re-send REGISTER_NOTIFICATION until an async EVENT_NOTIFICATION confirms the
+                // subscription took (eventChannelLive). The one-shot registration in HandleDevInfo
+                // reliably takes on Linux/BlueZ but SILENTLY DOES NOT on macOS/IOBluetooth — the
+                // radio pushes zero async events (HtStatus, Position, and crucially DATA_RXD
+                // packets), so connected-mode RX (Winlink/BBS) is dead. Re-sending until the first
+                // event arrives fixes Mac and is a no-op on Linux (an event arrives on the first
+                // cycle and we stop). NOTE: the radio does NOT cmd=6-ACK these subscriptions, so the
+                // stop signal is "we received an event", not the ACK. Registering HtStatus+Position
+                // is enough — DATA_RXD then flows implicitly (same as Linux); do NOT add DataRxd.
+                if (!eventChannelLive)
+                {
+                    SendBasic(CmdRegisterNotification, new byte[] { NotifyHtStatusChanged });
+                    SendBasic(CmdRegisterNotification, new byte[] { NotifyPositionChange });
+                }
                 SendBasic(CmdGetHtStatus, null);
                 try { await Task.Delay(1500, ct); } catch (Exception) { break; }
             }
