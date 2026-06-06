@@ -17,51 +17,58 @@
         <!-- Connection bar -->
         <Border DockPanel.Dock="Top" Padding="12,8" Background="{DynamicResource Surface1Brush}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <!-- Branding -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <Image Source="/Assets/Radio2.png" Height="30" VerticalAlignment="Center"/>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="HTCommander" FontWeight="Bold" FontSize="16"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="cross-platform" FontSize="10"
-                                   Foreground="{DynamicResource TextMutedBrush}"/>
-                    </StackPanel>
-                </StackPanel>
-
-                <!-- Connection controls -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                            VerticalAlignment="Center" HorizontalAlignment="Left" Margin="24,0,0,0">
-                    <TextBlock Text="Radio" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <ComboBox x:Name="RadioCombo" MinWidth="240"
-                              ItemsSource="{Binding Radios}"
-                              SelectedItem="{Binding SelectedRadio}">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="abs:RadioDeviceInfo">
-                                <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Address}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <Button x:Name="RefreshButton" Content="Refresh"/>
-                    <Button x:Name="ConnectButton" Classes="Accent" Content="Connect"
-                            IsEnabled="{Binding CanConnect}"/>
-                    <Button x:Name="DisconnectButton" Content="Disconnect"
-                            IsEnabled="{Binding CanDisconnect}"/>
-                </StackPanel>
-
-                <!-- Radio operating mode (mutually exclusive states made explicit) -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
-                            VerticalAlignment="Center" Margin="0,0,16,0">
-                    <TextBlock Text="Mode" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <ComboBox MinWidth="110" ItemsSource="{Binding RadioModes}" SelectedItem="{Binding RadioMode}"
-                              ToolTip.Tip="Voice opens the audio link (blocks packet); Packet keeps the TNC free for APRS/Winlink/BBS; Digital is the radio's own menu mode"/>
-                </StackPanel>
-
-                <!-- PTT -->
-                <Button Grid.Column="3" x:Name="PttButton" Classes="Ptt" Content="🎤  PTT (hold)"
-                        IsEnabled="{Binding CanTransmit}" VerticalAlignment="Center"
+            <!-- DockPanel keeps the nav toggle pinned left and PTT pinned right (so PTT
+                 stays far-right on desktop); the middle controls live in a WrapPanel that
+                 reflows onto extra rows when the window is too narrow (phones). -->
+            <DockPanel>
+                <Button x:Name="NavToggleButton" DockPanel.Dock="Left" Content="☰" FontSize="18"
+                        Padding="10,4" Margin="0,0,10,0" VerticalAlignment="Center"
+                        ToolTip.Tip="Show / hide the navigation rail"/>
+                <Button DockPanel.Dock="Right" x:Name="PttButton" Classes="Ptt" Content="🎤  PTT (hold)"
+                        IsEnabled="{Binding CanTransmit}" VerticalAlignment="Center" Margin="10,0,0,0"
                         ToolTip.Tip="Hold to transmit (keys the radio on the air)"/>
-            </Grid>
+                <WrapPanel VerticalAlignment="Center">
+                    <!-- Branding -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,2,18,2">
+                        <Image Source="/Assets/Radio2.png" Height="30" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="HTCommander" FontWeight="Bold" FontSize="16"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="cross-platform" FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Connection controls: radio picker and the connect buttons are two
+                         wrap groups so the buttons drop to their own row on a phone. -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,2,18,2">
+                        <TextBlock Text="Radio" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <ComboBox x:Name="RadioCombo" MinWidth="170"
+                                  ItemsSource="{Binding Radios}"
+                                  SelectedItem="{Binding SelectedRadio}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="abs:RadioDeviceInfo">
+                                    <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Address}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,2,18,2">
+                        <Button x:Name="RefreshButton" Content="Refresh"/>
+                        <Button x:Name="ConnectButton" Classes="Accent" Content="Connect"
+                                IsEnabled="{Binding CanConnect}"/>
+                        <Button x:Name="DisconnectButton" Content="Disconnect"
+                                IsEnabled="{Binding CanDisconnect}"/>
+                    </StackPanel>
+
+                    <!-- Radio operating mode (mutually exclusive states made explicit) -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,2,0,2">
+                        <TextBlock Text="Mode" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <ComboBox MinWidth="110" ItemsSource="{Binding RadioModes}" SelectedItem="{Binding RadioMode}"
+                                  ToolTip.Tip="Voice opens the audio link (blocks packet); Packet keeps the TNC free for APRS/Winlink/BBS; Digital is the radio's own menu mode"/>
+                    </StackPanel>
+                </WrapPanel>
+            </DockPanel>
         </Border>
 
         <!-- Mode advisory: one consolidated caution line, replacing warnings that used to
@@ -94,7 +101,7 @@
         <!-- Main area: left navigation rail (grouped) drives a chromeless TabControl.
              The rail groups the 14 destinations by task (Operate / Messaging /
              Configure / Diagnostics); the TabControl is just the content host. -->
-        <SplitView IsPaneOpen="True" DisplayMode="Inline" OpenPaneLength="186"
+        <SplitView x:Name="NavSplit" IsPaneOpen="True" DisplayMode="Inline" OpenPaneLength="186"
                    PaneBackground="{DynamicResource Surface1Brush}">
             <SplitView.Pane>
                 <ScrollViewer>
@@ -134,40 +141,41 @@
             <TabItem x:Name="RadioTab" Header="Radio">
                 <Grid RowDefinitions="Auto,*" Margin="12" RowSpacing="12">
 
-                    <!-- At-a-glance dashboard: the live state an operator wants on landing -->
-                    <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*,*" ColumnSpacing="10">
-                        <Border Grid.Column="0" Classes="Card" Padding="12,8">
+                    <!-- At-a-glance dashboard: fixed-width cards in a WrapPanel so they sit in
+                         one row on desktop and reflow to 2-3 per row on a phone (no truncation). -->
+                    <WrapPanel Grid.Row="0">
+                        <Border Classes="Card" Padding="12,8" Width="150" Margin="0,0,10,10">
                             <StackPanel Spacing="2">
                                 <TextBlock Text="Connection" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
                                 <TextBlock Text="{Binding Status}" FontWeight="SemiBold"
                                            Foreground="{DynamicResource InfoBrush}" TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="1" Classes="Card" Padding="12,8">
+                        <Border Classes="Card" Padding="12,8" Width="120" Margin="0,0,10,10">
                             <StackPanel Spacing="2">
                                 <TextBlock Text="Mode" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
                                 <TextBlock Text="{Binding RadioMode}" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="2" Classes="Card" Padding="12,8">
+                        <Border Classes="Card" Padding="12,8" Width="120" Margin="0,0,10,10">
                             <StackPanel Spacing="2">
                                 <TextBlock Text="Channel" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
                                 <TextBlock Text="{Binding ChannelId, StringFormat='CH {0}'}" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="3" Classes="Card" Padding="12,8">
+                        <Border Classes="Card" Padding="12,8" Width="120" Margin="0,0,10,10">
                             <StackPanel Spacing="2">
                                 <TextBlock Text="Battery" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
                                 <TextBlock Text="{Binding BatteryPercent, StringFormat='{}{0}%'}" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="4" Classes="Card" Padding="12,8">
+                        <Border Classes="Card" Padding="12,8" Width="150" Margin="0,0,10,10">
                             <StackPanel Spacing="2">
                                 <TextBlock Text="Mail (Inbox)" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
                                 <TextBlock Text="{Binding InboxUnreadText}" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
-                    </Grid>
+                    </WrapPanel>
 
                     <!-- Detail: radio image + status (left), recent APRS + transport log (right) -->
                     <Grid Grid.Row="1" ColumnDefinitions="*,300" ColumnSpacing="12">

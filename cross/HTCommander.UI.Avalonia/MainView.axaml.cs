@@ -144,6 +144,22 @@ public partial class MainView : UserControl
         foreach (var list in navLists)
             list.SelectionChanged += OnNavSelectionChanged;
         NavOperate.SelectedIndex = 0;   // start on Radio
+
+        // Responsive nav: hamburger toggles the rail; on narrow widths (phones) the
+        // rail becomes an overlay drawer so content gets the full width.
+        NavToggleButton.Click += (_, _) => NavSplit.IsPaneOpen = !NavSplit.IsPaneOpen;
+        SizeChanged += (_, _) => ApplyResponsiveNav();
+    }
+
+    private bool? wasNarrow;
+    private void ApplyResponsiveNav()
+    {
+        if (Bounds.Width <= 0) return;
+        bool narrow = Bounds.Width < 760;
+        if (narrow == wasNarrow) return;   // only act on a wide<->narrow transition
+        wasNarrow = narrow;
+        NavSplit.DisplayMode = narrow ? SplitViewDisplayMode.Overlay : SplitViewDisplayMode.Inline;
+        NavSplit.IsPaneOpen = !narrow;     // inline+open on desktop; closed drawer on phones
     }
 
     private void OnNavSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -156,6 +172,8 @@ public partial class MainView : UserControl
                 if (!ReferenceEquals(other, list)) other.SelectedItem = null;
             if (item.Tag is string tag && this.FindControl<TabItem>(tag) is { } tab)
                 MainTabs.SelectedItem = tab;
+            // In drawer mode, dismiss the rail after picking a destination.
+            if (NavSplit.DisplayMode == SplitViewDisplayMode.Overlay) NavSplit.IsPaneOpen = false;
         }
         finally { navSyncing = false; }
     }
