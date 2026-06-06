@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Classic Bluetooth RFCOMM to a bonded radio. CONNECT is the runtime permission
+       that matters on Android 12+ (we only use already-paired devices, no scanning,
+       but SCAN is declared neverForLocation in case it's needed). -->
+  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+  <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+  <application android:label="HTC RFCOMM Spike" android:allowBackup="true" />
+</manifest>

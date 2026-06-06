@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Phase 0 de-risk spike (ANDROID-PORT-PLAN.md §8). A minimal APK that drives the
+    REAL AndroidRadioTransport against a bonded radio and reports whether a GAIA
+    frame (0xFF 0x01) comes back — validating the single biggest Android unknown
+    before investing in the Avalonia head. Build needs:  dotnet workload install android
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- Keep the C# namespace off the "*.Android" path so it doesn't shadow the
+         Android SDK root namespace. -->
+    <RootNamespace>HtcSpike</RootNamespace>
+    <ApplicationId>com.htcommander.spike</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HTCommander.Platform.Android\HTCommander.Platform.Android.csproj" />
+  </ItemGroup>
+</Project>

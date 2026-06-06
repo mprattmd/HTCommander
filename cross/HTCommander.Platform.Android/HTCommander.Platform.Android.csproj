@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Android platform backend for HTCommander (round one: radio control + data only,
+    no audio). Implements the IRadioPlatform seam with Classic RFCOMM over
+    Android.Bluetooth. Requires the .NET Android workload:  dotnet workload install android
+    Not added to HTCommander.CrossPlatform.sln so the desktop build stays green
+    without the Android workload installed.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>HTCommander.Platform.Android</RootNamespace>
+    <!-- Disable the default Android.* using alias collision with our namespace -->
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HTCommander.Core\HTCommander.Core.csproj" />
+  </ItemGroup>
+</Project>
