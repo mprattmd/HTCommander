@@ -178,7 +178,7 @@
                     </WrapPanel>
 
                     <!-- Detail: radio image + status (left), recent APRS + transport log (right) -->
-                    <Grid Grid.Row="1" ColumnDefinitions="*,300" ColumnSpacing="12">
+                    <Grid x:Name="RadioDetailGrid" Grid.Row="1" ColumnDefinitions="*,300" ColumnSpacing="12">
 
                     <!-- Radio device panel: large image with a live status overlay, details below -->
                     <Grid Grid.Column="0" RowDefinitions="*,Auto" RowSpacing="12">
@@ -621,7 +621,7 @@
                 </Grid>
             </TabItem>
             <TabItem x:Name="ContactsTab" Header="Contacts">
-                <Grid ColumnDefinitions="*,300" Margin="8" ColumnSpacing="12">
+                <Grid x:Name="ContactsSplit" ColumnDefinitions="*,300" Margin="8" ColumnSpacing="12">
                     <!-- list -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
                         <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
@@ -690,7 +690,7 @@
                 </Grid>
             </TabItem>
             <TabItem x:Name="AprsTab" Header="APRS">
-                <Grid ColumnDefinitions="*,12,420" Margin="12" ColumnSpacing="12">
+                <Grid x:Name="AprsSplit" ColumnDefinitions="*,12,420" Margin="12" ColumnSpacing="12">
                     <!-- Stations heard -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
                         <TextBlock Grid.Row="0" Classes="Section"
@@ -798,7 +798,7 @@
                 </Grid>
             </TabItem>
             <TabItem x:Name="PacketsTab" Header="Packets">
-                <Grid ColumnDefinitions="*,12,360" Margin="8" ColumnSpacing="12">
+                <Grid x:Name="PacketsSplit" ColumnDefinitions="*,12,360" Margin="8" ColumnSpacing="12">
                     <!-- Live packet list (select a row for decoded detail) -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,6">
@@ -857,7 +857,7 @@
                 </Grid>
             </TabItem>
             <TabItem x:Name="MailTab" Header="Mail">
-                <Grid ColumnDefinitions="190,290,*" Margin="12" ColumnSpacing="12">
+                <Grid x:Name="MailSplit" ColumnDefinitions="190,290,*" Margin="12" ColumnSpacing="12">
                     <!-- Mailbox folders + sync + backup -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
                         <TextBlock Grid.Row="0" Text="Mailboxes" Classes="Section"/>
@@ -1091,7 +1091,7 @@
                 </StackPanel>
             </TabItem>
             <TabItem x:Name="ClipsTab" Header="Clips">
-                <Grid ColumnDefinitions="*,12,300" Margin="12" ColumnSpacing="12">
+                <Grid x:Name="ClipsSplit" ColumnDefinitions="*,12,300" Margin="12" ColumnSpacing="12">
                     <!-- Clip list -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" RowSpacing="8">
                         <TextBlock Grid.Row="0" Classes="Section"

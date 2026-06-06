@@ -48,6 +48,7 @@ public sealed class HtcAndroidApplication : AvaloniaAndroidApplication<App>
     Label = "HTCommander",
     Theme = "@style/Theme.AppCompat.Light.NoActionBar",   // AvaloniaMainActivity is an AppCompatActivity
     MainLauncher = true,
+    ScreenOrientation = ScreenOrientation.Portrait,        // phone UI is portrait-first
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
 public sealed class MainActivity : AvaloniaMainActivity
 {

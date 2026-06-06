@@ -50,6 +50,7 @@ public partial class MainView : UserControl
     public MainView()
     {
         InitializeComponent();
+        RegisterResponsiveSplits();   // snapshot desktop column layouts before any reflow
 
         // Actions are wired in code-behind (the shell uses no command framework);
         // display state is data-bound to the MainViewModel.
@@ -160,6 +161,64 @@ public partial class MainView : UserControl
         wasNarrow = narrow;
         NavSplit.DisplayMode = narrow ? SplitViewDisplayMode.Overlay : SplitViewDisplayMode.Inline;
         NavSplit.IsPaneOpen = !narrow;     // inline+open on desktop; closed drawer on phones
+        ApplySplitLayout(narrow);
+    }
+
+    // The master-detail tabs use side-by-side columns sized for a desktop window. On a
+    // phone those columns are unusable, so we reflow each into stacked equal rows when
+    // narrow, and restore the original column layout when wide. The desktop layout is
+    // snapshotted once (RegisterResponsiveSplits) so it can be restored exactly.
+    private Grid[] responsiveSplits = System.Array.Empty<Grid>();
+    private readonly Dictionary<Grid, (string cols, string rows, (int col, int span, int row)[] kids)> splitSnap = new();
+
+    private void RegisterResponsiveSplits()
+    {
+        responsiveSplits = new[] { RadioDetailGrid, ContactsSplit, AprsSplit, PacketsSplit, MailSplit, ClipsSplit };
+        foreach (var g in responsiveSplits)
+        {
+            var kids = g.Children.OfType<Control>().ToArray();
+            splitSnap[g] = (
+                string.Join(",", g.ColumnDefinitions.Select(c => c.Width.ToString())),
+                string.Join(",", g.RowDefinitions.Select(r => r.Height.ToString())),
+                kids.Select(k => (Grid.GetColumn(k), Grid.GetColumnSpan(k), Grid.GetRow(k))).ToArray());
+        }
+    }
+
+    private void ApplySplitLayout(bool narrow)
+    {
+        foreach (var g in responsiveSplits)
+        {
+            var snap = splitSnap[g];
+            var kids = g.Children.OfType<Control>().ToList();
+            if (narrow)
+            {
+                // Stack children top-to-bottom in their original left-to-right order,
+                // each in an equal-height row, with a little breathing room.
+                var ordered = kids.OrderBy(k => snap.kids[kids.IndexOf(k)].col).ToList();
+                g.ColumnDefinitions = new ColumnDefinitions("*");
+                g.RowDefinitions = new RowDefinitions(string.Join(",", ordered.Select(_ => "*")));
+                g.RowSpacing = 12;
+                foreach (var k in ordered)
+                {
+                    Grid.SetColumn(k, 0);
+                    Grid.SetColumnSpan(k, 1);
+                    Grid.SetRow(k, ordered.IndexOf(k));
+                }
+            }
+            else
+            {
+                g.ColumnDefinitions = new ColumnDefinitions(snap.cols);
+                g.RowDefinitions = string.IsNullOrEmpty(snap.rows) ? new RowDefinitions() : new RowDefinitions(snap.rows);
+                g.RowSpacing = 0;
+                for (int i = 0; i < kids.Count; i++)
+                {
+                    var s = snap.kids[i];
+                    Grid.SetColumn(kids[i], s.col);
+                    Grid.SetColumnSpan(kids[i], s.span);
+                    Grid.SetRow(kids[i], s.row);
+                }
+            }
+        }
     }
 
     private void OnNavSelectionChanged(object? sender, SelectionChangedEventArgs e)
