@@ -44,8 +44,20 @@ public sealed class MainActivity : Activity, ILogger
     {
         base.OnCreate(savedInstanceState);
 
+        // Android 15 (target SDK 35) enforces edge-to-edge: the content frame fills the
+        // whole window and the action bar overlays the top, so our views render behind
+        // the status bar + action bar. Hide the action bar and pad the top by the real
+        // status-bar height so content is fully visible. Deterministic (no reliance on
+        // inset-fitting behavior, which varies by theme on API 35).
+        ActionBar?.Hide();
+        int statusBar = 0;
+        int rid = Resources?.GetIdentifier("status_bar_height", "dimen", "android") ?? 0;
+        if (rid > 0) statusBar = Resources!.GetDimensionPixelSize(rid);
+
         var root = new LinearLayout(this) { Orientation = Orientation.Vertical };
-        root.SetPadding(24, 24, 24, 24);
+        root.SetPadding(24, 24 + statusBar, 24, 24);
+        root.LayoutParameters = new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent);
 
         var button = new Button(this) { Text = "Connect & probe radio" };
         button.Click += (_, _) => RunProbe();
