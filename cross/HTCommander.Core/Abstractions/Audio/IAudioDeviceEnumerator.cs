@@ -34,4 +34,12 @@ public interface IAudioDeviceEnumerator
 
     /// <summary>The system default input endpoint, or null if none.</summary>
     AudioDevice? GetDefaultCaptureDevice();
+
+    /// <summary>Creates a playback sink for this platform (PortAudio on desktop; a no-op
+    /// on Android round one, where audio is deferred). Lets shared view-model code create
+    /// audio without naming a platform-specific type.</summary>
+    IAudioPlayback CreatePlayback();
+
+    /// <summary>Creates a capture source for this platform (PortAudio on desktop; no-op on Android).</summary>
+    IAudioCapture CreateCapture();
 }

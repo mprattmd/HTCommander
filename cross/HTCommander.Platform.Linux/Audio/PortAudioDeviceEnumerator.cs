@@ -29,6 +29,9 @@ public sealed class PortAudioDeviceEnumerator : IAudioDeviceEnumerator
     public AudioDevice? GetDefaultRenderDevice() => GetDefault(output: true);
     public AudioDevice? GetDefaultCaptureDevice() => GetDefault(output: false);
 
+    public IAudioPlayback CreatePlayback() => new PortAudioPlayback();
+    public IAudioCapture CreateCapture() => new PortAudioCapture();
+
     private static List<AudioDevice> GetDevices(bool output)
     {
         PortAudioLifecycle.EnsureInitialized();

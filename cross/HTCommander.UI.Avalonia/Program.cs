@@ -1,4 +1,7 @@
-﻿using Avalonia;
+﻿// Desktop entry point only. The Android head launches via MainActivity
+// (AvaloniaMainActivity<App>), so this classic-desktop bootstrap is excluded there.
+#if !ANDROID
+using Avalonia;
 using System;
 
 namespace HTCommander.UI.Avalonia;
@@ -22,3 +25,4 @@ class Program
             .WithInterFont()
             .LogToTrace();
 }
+#endif

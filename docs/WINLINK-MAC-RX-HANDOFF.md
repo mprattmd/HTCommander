@@ -1,21 +1,48 @@
-# Winlink connect fails on macOS — debugging handoff
+# Winlink on macOS — RESOLVED (debugging handoff, kept for history)
 
-**Date:** 2026-06-05  •  **Build:** v0.4.6 (`4368a06`)  •  **Status:** **CONFIRMED** — root cause is the macOS IOBluetooth **receive** path. Option 1 test passed on Linux (see below). Not yet fixed.
+**Status: ✅ RESOLVED — shipped in v0.4.7 (2026-06-05).** Winlink on macOS now connects,
+receives, sends, and **delivers end-to-end** to a real inbox. Three fixes landed on `main`:
 
-## ✅ Option 1 CONFIRMED (2026-06-05, Linux box)
+1. **macOS connected-mode RX** — `1b26dde` (`RadioController.cs`). The one-shot
+   `REGISTER_NOTIFICATION` sent in `HandleDevInfo` silently doesn't take on IOBluetooth, so the
+   radio pushed **zero** async events (HtStatus, Position, and the DATA_RXD packets carrying the
+   peer's reply) → connect timed out. Fix: the poll loop re-sends `REGISTER_NOTIFICATION`
+   (HtStatus+Position) until an async `EVENT_NOTIFICATION` confirms it took (`eventChannelLive`),
+   then stops. The radio does **not** `cmd=6`-ACK these, so *receipt of an event* is the stop
+   signal. Registering HtStatus+Position is enough — DATA_RXD then flows implicitly (do NOT
+   register DataRxd). No-op on Linux (an event arrives on cycle 1). **The IOBluetooth-RFCOMM-receive
+   theory below was WRONG** — the transport was fine; the subscription just wasn't sticking.
+2. **Mail never delivered** — `dc6158c` (`WinLinkMail.cs` `SerializeMail`). Headers were built with
+   `StringBuilder.AppendLine` = `\n` on macOS/Linux, but Winlink B2F needs **CRLF** (its own
+   `FindFirstDoubleNewline` scans for `\r\n\r\n`). The CMS ACKed the proposal over RF then silently
+   dropped the unparseable message → "Sent but never arrives." **Cross-platform bug (Linux too);**
+   WinForms delivers only because `AppendLine` is `\r\n` on Windows. Fix: explicit `\r\n` per header.
+3. **Radio not returning to operator's channel after a session** — `55d8a56` (`RadioController.cs`
+   `OnSetLock`). Lock saved the return-to channel from stale `ActiveChannelA` (cached READ_SETTINGS,
+   not updated on knob-turn). Fix: capture live `lastStatus.curr_ch_id`, mirroring the region.
+
+**Key lesson:** the AX.25 "link instability" (CONNECTED↔CONNECTING flaps, DM resets, mail-body
+desync) was an **artifact of the `HTCOMMANDER_REREGISTER` diagnostic build** flooding the BT link
+every 1.5 s + firing the status-re-kick race — NOT a real AX.25 bug. The production build (stops
+re-registering after the first event) completes the multi-fragment B2F exchange cleanly. Don't debug
+AX.25 timing against a noisy diagnostic build.
+
+The original investigation below is **kept for history** — note its leading hypothesis (IOBluetooth
+RFCOMM receive gap) turned out to be wrong; the real cause was the missing notification subscription.
+
+---
+
+## Original investigation (HISTORICAL — hypothesis was wrong, see above)
 
 Ran a full Winlink connect+send on the working **Linux** box, same radio / 145.05 / WC4EOC-8.
-The fork is settled — it is **(A) the Mac IOBluetooth RX path**, not (B) TX/RF.
+At the time this looked like a Mac IOBluetooth RX-path bug:
 
 - Linux **receives `EVENT_NOTIFICATION: type=2` (DATA_RXD) — 9× in one session**, including the
-  gateway's UA that completes the connect. Mac shows **0× type=2** on identical radio/RF/gateway.
-- Full session succeeded on Linux: SABM→**UA/CONNECTED**, auth challenge/response, proposal
-  accepted (`Y`), mail `X5395130IDYG` sent, FF turnover, **DISC received**, mail **moved to Sent**.
-  (Also re-confirms the FF-turnover / move-to-Sent fix works.)
+  gateway's UA that completes the connect. Mac showed **0× type=2** on identical radio/RF/gateway.
 - Event-type tally (Linux): `9× type=2`, `51× type=1`, `6× type=6`, `1× type=13`.
 
-→ **Next session: go straight to fixing the IOBluetooth RFCOMM receive path** in `htbt.swift`
-(`rfcommChannelData`) vs the Linux BlueZ socket. No further A/B needed.
+The Mac got **0** async events of any type because its subscription never registered — fixed by
+re-registering until an event confirms it (fix #1 above), not by changing `htbt.swift`.
 
 ## One-line summary
 

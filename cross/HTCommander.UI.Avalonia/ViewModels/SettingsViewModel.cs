@@ -21,8 +21,6 @@ using System.Threading.Tasks;
 using HTCommander;                       // DataBroker
 using HTCommander.Core.Abstractions;
 using HTCommander.Core.Abstractions.Audio;
-using HTCommander.Platform.Linux;
-using HTCommander.Platform.Linux.Audio;
 
 namespace HTCommander.UI.Avalonia.ViewModels;
 
@@ -247,7 +245,8 @@ public sealed class SettingsViewModel : ViewModelBase
                 tone[i * 2 + 1] = (byte)((s >> 8) & 0xFF);
             }
 
-            var play = new PortAudioPlayback { Format = fmt, Volume = vol };
+            var play = enumerator.CreatePlayback();
+            play.Format = fmt; play.Volume = vol;
             play.SetDevice(string.IsNullOrEmpty(id) ? null : id);
             bool ok = play.Start();
             string result;

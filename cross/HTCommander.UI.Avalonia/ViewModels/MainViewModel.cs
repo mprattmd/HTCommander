@@ -25,8 +25,6 @@ using HTCommander;                       // RadioController, RadioHtStatus, Radi
 using HTCommander.Core.Abstractions;
 using HTCommander.Core.Abstractions.Audio;
 using HTCommander.Core.Audio;          // WavFileReader / WavFileWriter
-using HTCommander.Platform.Linux;
-using HTCommander.Platform.Linux.Audio;
 using HTCommander.UI.Avalonia.Platform;
 
 namespace HTCommander.UI.Avalonia.ViewModels;
@@ -48,6 +46,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IRadioTransportDiscovery discovery;
     private readonly ILogger logger;
     private readonly DataBrokerClient broker = new DataBrokerClient();
+    private readonly IAudioDeviceEnumerator audioDevices;   // platform audio factory (PortAudio desktop / no-op Android)
     private IRadioTransport? transport;
     private RadioController? controller;
     private IRadioAudioChannel? audioChannel;
@@ -81,6 +80,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         this.dispatcher = dispatcher;
         this.radioPlatform = radioPlatform;
+        this.audioDevices = audioDevices;
         discovery = radioPlatform.CreateDiscovery();
         logger = new CallbackLogger(AppendLog);
         Settings = new SettingsViewModel(dispatcher, audioDevices);
@@ -807,7 +807,8 @@ public sealed class MainViewModel : ViewModelBase
         {
             try
             {
-                var playback = new PortAudioPlayback { Volume = Settings.OutputVolume };
+                var playback = audioDevices.CreatePlayback();
+                playback.Volume = Settings.OutputVolume;
                 playback.SetDevice(Settings.OutputDeviceId);     // honor the Settings output pick
                 var rx = new RadioVoiceReceiver(playback);
                 rx.PcmDecoded += OnRxPcm;          // feed the soft-modem + waterfall
@@ -884,7 +885,7 @@ public sealed class MainViewModel : ViewModelBase
         if (!CanTransmit || Transmitting || audioChannel == null) return;
         try
         {
-            mic = new PortAudioCapture();
+            mic = audioDevices.CreateCapture();
             mic.SetDevice(Settings.InputDeviceId);              // honor the Settings input pick
             voiceTransmitter = new RadioVoiceTransmitter(mic, data => audioChannel?.Send(data)) { Gain = Settings.MicGain };
             if (voiceTransmitter.Start())
@@ -2350,7 +2351,8 @@ public sealed class MainViewModel : ViewModelBase
         if (recordingClip) { StopRecordClip(); return; }
         try
         {
-            var mic = new PortAudioCapture { Format = AudioFormat.RadioPcm };
+            var mic = audioDevices.CreateCapture();
+            mic.Format = AudioFormat.RadioPcm;
             mic.SetDevice(Settings.InputDeviceId);
             var buf = new System.IO.MemoryStream();
             mic.DataAvailable += (b, n) => { lock (clipLock) { buf.Write(b, 0, n); } };
@@ -2397,7 +2399,8 @@ public sealed class MainViewModel : ViewModelBase
                 using var r = new WavFileReader(clip.FullPath);
                 var data = new byte[r.TotalBytes];
                 int read = r.Read(data, 0, data.Length);
-                var play = new PortAudioPlayback { Format = r.Format, Volume = Settings.OutputVolume };
+                var play = audioDevices.CreatePlayback();
+                play.Format = r.Format; play.Volume = Settings.OutputVolume;
                 play.SetDevice(Settings.OutputDeviceId);
                 if (!play.Start()) { play.Dispose(); dispatcher.Post(() => AppendLog("Clip playback failed (no output device).")); return; }
                 clipPlayback = play;
@@ -2423,7 +2426,8 @@ public sealed class MainViewModel : ViewModelBase
         {
             try
             {
-                var play = new PortAudioPlayback { Format = AudioFormat.RadioPcm, Volume = Settings.OutputVolume };
+                var play = audioDevices.CreatePlayback();
+                play.Format = AudioFormat.RadioPcm; play.Volume = Settings.OutputVolume;
                 play.SetDevice(Settings.OutputDeviceId);
                 if (!play.Start()) { play.Dispose(); dispatcher.Post(() => AppendLog("Playback failed (no output device).")); return; }
                 clipPlayback = play;

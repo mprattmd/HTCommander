@@ -22,10 +22,17 @@ using Avalonia.Markup.Xaml;
 using HTCommander;
 using HTCommander.Core.Abstractions;
 using HTCommander.Core.Abstractions.Audio;
-using HTCommander.Platform.Linux;
-using HTCommander.Platform.Linux.Audio;
 using HTCommander.UI.Avalonia.Platform;
 using HTCommander.UI.Avalonia.ViewModels;
+#if !ANDROID
+using HTCommander.Platform.Linux;
+using HTCommander.Platform.Linux.Audio;
+#endif
+#if ANDROID
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+#endif
 
 namespace HTCommander.UI.Avalonia;
 
@@ -40,6 +47,23 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+#if ANDROID
+        // Android uses the single-view lifetime (no Window). Stage A: prove the
+        // Avalonia-on-Android pipeline renders; the real MainView + composition
+        // (AndroidRadioPlatform, config, handlers) are wired in Stage B/C.
+        if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+        {
+            singleView.MainView = new TextBlock
+            {
+                Text = "HTCommander Android\nAvalonia pipeline is up.",
+                Margin = new Thickness(24),
+                FontSize = 18,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+#else
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Composition root: pick the platform backends and wire the shared
@@ -85,6 +109,7 @@ public partial class App : Application
                 DataContext = new MainViewModel(dispatcher, audioDevices, radioPlatform)
             };
         }
+#endif
 
         base.OnFrameworkInitializationCompleted();
     }

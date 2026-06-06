@@ -1,11 +1,26 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <!-- net9.0 = desktop (Windows/Linux/macOS); net9.0-android = the Android head.
+         Per-TFM output type, deps and platform backends are selected below. -->
+    <TargetFrameworks>net9.0;net10.0-android</TargetFrameworks>
     <Version>0.5.0</Version>
     <Nullable>enable</Nullable>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <!-- Desktop-only properties -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <OutputType>WinExe</OutputType>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!-- Android-only properties -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+    <OutputType>Exe</OutputType>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <ApplicationId>com.htcommander.app</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.5.0</ApplicationDisplayVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,27 +28,44 @@
     <AvaloniaResource Include="Assets/**" />
   </ItemGroup>
 
+  <!-- Shared Avalonia packages (both heads) -->
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.0.4" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.0" />
     <PackageReference Include="Mapsui.Avalonia12" Version="5.1.0" />
     <PackageReference Include="Mapsui.Tiling" Version="5.1.0" />
     <PackageReference Include="Mapsui.Nts" Version="5.1.0" />
+  </ItemGroup>
+
+  <!-- Desktop-only packages -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
   </ItemGroup>
 
+  <!-- Android-only packages -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+    <PackageReference Include="Avalonia.Android" Version="12.0.4" />
+  </ItemGroup>
+
+  <!-- Shared project reference -->
   <ItemGroup>
     <ProjectReference Include="..\HTCommander.Core\HTCommander.Core.csproj" />
-    <!-- Both platform backends are referenced; the composition root (App.axaml.cs)
-         picks one at runtime via the IRadioPlatform seam (OperatingSystem.IsMacOS()).
-         Platform.Linux also provides the portable PortAudio/SQLite/JSON services. -->
+  </ItemGroup>
+
+  <!-- Desktop platform backends (BlueZ / IOBluetooth + portable PortAudio/SQLite/JSON) -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
     <ProjectReference Include="..\HTCommander.Platform.Linux\HTCommander.Platform.Linux.csproj" />
     <ProjectReference Include="..\HTCommander.Platform.Mac\HTCommander.Platform.Mac.csproj" />
+  </ItemGroup>
+
+  <!-- Android platform backend (RFCOMM over Android.Bluetooth, file config, audio stub) -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+    <ProjectReference Include="..\HTCommander.Platform.Android\HTCommander.Platform.Android.csproj" />
   </ItemGroup>
 </Project>
