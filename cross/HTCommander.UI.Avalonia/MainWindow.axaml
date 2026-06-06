@@ -20,7 +20,7 @@
         <!-- Connection bar -->
         <Border DockPanel.Dock="Top" Padding="12,8" Background="{DynamicResource Surface1Brush}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                 <!-- Branding -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                     <Image Source="/Assets/Radio2.png" Height="30" VerticalAlignment="Center"/>
@@ -52,11 +52,26 @@
                             IsEnabled="{Binding CanDisconnect}"/>
                 </StackPanel>
 
+                <!-- Radio operating mode (mutually exclusive states made explicit) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="Mode" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <ComboBox MinWidth="110" ItemsSource="{Binding RadioModes}" SelectedItem="{Binding RadioMode}"
+                              ToolTip.Tip="Voice opens the audio link (blocks packet); Packet keeps the TNC free for APRS/Winlink/BBS; Digital is the radio's own menu mode"/>
+                </StackPanel>
+
                 <!-- PTT -->
-                <Button Grid.Column="2" x:Name="PttButton" Classes="Ptt" Content="🎤  PTT (hold)"
+                <Button Grid.Column="3" x:Name="PttButton" Classes="Ptt" Content="🎤  PTT (hold)"
                         IsEnabled="{Binding CanTransmit}" VerticalAlignment="Center"
                         ToolTip.Tip="Hold to transmit (keys the radio on the air)"/>
             </Grid>
+        </Border>
+
+        <!-- Mode advisory: one consolidated caution line, replacing warnings that used to
+             be repeated on the Voice and Station tabs. Hidden in Packet (the normal state). -->
+        <Border DockPanel.Dock="Top" IsVisible="{Binding HasModeAdvisory}"
+                Background="#3A2E12" BorderBrush="#E0A030" BorderThickness="0,0,0,1" Padding="12,6">
+            <TextBlock Text="{Binding ModeAdvisory}" Foreground="#E0A030" TextWrapping="Wrap" FontSize="12"/>
         </Border>
 
         <!-- Status bar -->
@@ -73,16 +88,92 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                     <Button x:Name="AboutButton" Content="About" Padding="10,3"/>
-                    <Button x:Name="ScreenshotButton" Content="📷 Screenshot" Padding="10,3"
-                            ToolTip.Tip="Save a PNG of the window to ~/htcommander-screenshot.png"/>
+                    <!-- Screenshot is now F12 only (operator status bar stays state-only;
+                         the PNG still saves to ~/htcommander-screenshot.png for docs). -->
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Main tabbed area -->
-        <TabControl>
-            <TabItem Header="Radio">
-                <Grid ColumnDefinitions="*,300" Margin="12" ColumnSpacing="12">
+        <!-- Main area: left navigation rail (grouped) drives a chromeless TabControl.
+             The rail groups the 14 destinations by task (Operate / Messaging /
+             Configure / Diagnostics); the TabControl is just the content host. -->
+        <SplitView IsPaneOpen="True" DisplayMode="Inline" OpenPaneLength="186"
+                   PaneBackground="{DynamicResource Surface1Brush}">
+            <SplitView.Pane>
+                <ScrollViewer>
+                    <StackPanel Spacing="2">
+                        <TextBlock Classes="NavGroup" Text="OPERATE"/>
+                        <ListBox x:Name="NavOperate" Classes="nav">
+                            <ListBoxItem Tag="RadioTab">Radio</ListBoxItem>
+                            <ListBoxItem Tag="VoiceTab">Voice</ListBoxItem>
+                            <ListBoxItem Tag="AprsTab">APRS</ListBoxItem>
+                            <ListBoxItem Tag="MapTab">Map</ListBoxItem>
+                        </ListBox>
+                        <TextBlock Classes="NavGroup" Text="MESSAGING"/>
+                        <ListBox x:Name="NavMessaging" Classes="nav">
+                            <ListBoxItem Tag="MailTab">Mail</ListBoxItem>
+                            <ListBoxItem Tag="BbsTab">BBS</ListBoxItem>
+                            <ListBoxItem Tag="TerminalTab">Terminal</ListBoxItem>
+                        </ListBox>
+                        <TextBlock Classes="NavGroup" Text="CONFIGURE"/>
+                        <ListBox x:Name="NavConfigure" Classes="nav">
+                            <ListBoxItem Tag="StationTab">Station</ListBoxItem>
+                            <ListBoxItem Tag="ChannelsTab">Channels</ListBoxItem>
+                            <ListBoxItem Tag="ContactsTab">Contacts</ListBoxItem>
+                            <ListBoxItem Tag="SettingsTab">Settings</ListBoxItem>
+                        </ListBox>
+                        <TextBlock Classes="NavGroup" Text="DIAGNOSTICS"/>
+                        <ListBox x:Name="NavDiagnostics" Classes="nav">
+                            <ListBoxItem Tag="PacketsTab">Packets</ListBoxItem>
+                            <ListBoxItem Tag="ModemTab">Modem</ListBoxItem>
+                            <ListBoxItem Tag="ClipsTab">Clips</ListBoxItem>
+                        </ListBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </SplitView.Pane>
+
+            <!-- Main tabbed area (strip hidden; nav rail selects) -->
+            <TabControl x:Name="MainTabs" Classes="chromeless">
+            <TabItem x:Name="RadioTab" Header="Radio">
+                <Grid RowDefinitions="Auto,*" Margin="12" RowSpacing="12">
+
+                    <!-- At-a-glance dashboard: the live state an operator wants on landing -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*,*" ColumnSpacing="10">
+                        <Border Grid.Column="0" Classes="Card" Padding="12,8">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Connection" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                                <TextBlock Text="{Binding Status}" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource InfoBrush}" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Classes="Card" Padding="12,8">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Mode" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                                <TextBlock Text="{Binding RadioMode}" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="Card" Padding="12,8">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Channel" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                                <TextBlock Text="{Binding ChannelId, StringFormat='CH {0}'}" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="3" Classes="Card" Padding="12,8">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Battery" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                                <TextBlock Text="{Binding BatteryPercent, StringFormat='{}{0}%'}" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="4" Classes="Card" Padding="12,8">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Mail (Inbox)" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                                <TextBlock Text="{Binding InboxUnreadText}" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Detail: radio image + status (left), recent APRS + transport log (right) -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*,300" ColumnSpacing="12">
 
                     <!-- Radio device panel: large image with a live status overlay, details below -->
                     <Grid Grid.Column="0" RowDefinitions="*,Auto" RowSpacing="12">
@@ -169,17 +260,31 @@
                         </Border>
                     </Grid>
 
-                    <!-- Live transport log (compact, to the side) -->
-                    <Grid Grid.Column="1" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Classes="Section" Text="Transport log"
-                                   ToolTip.Tip="BlueZ RFCOMM / GAIA frames"/>
+                    <!-- Side column: recent APRS (glanceable) over the transport log -->
+                    <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,160">
+                        <TextBlock Grid.Row="0" Classes="Section" Text="Recent APRS messages"/>
                         <Border Grid.Row="1" Classes="ListCard">
+                            <ListBox ItemsSource="{Binding AprsMessages}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:AprsMessageRow">
+                                        <StackPanel Spacing="1" Margin="2">
+                                            <TextBlock Text="{Binding Header}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                        <TextBlock Grid.Row="2" Classes="Section" Margin="0,10,0,8" Text="Transport log"
+                                   ToolTip.Tip="BlueZ RFCOMM / GAIA frames"/>
+                        <Border Grid.Row="3" Classes="ListCard">
                             <ListBox ItemsSource="{Binding Log}" FontFamily="monospace" FontSize="11"/>
                         </Border>
                     </Grid>
+                    </Grid>
                 </Grid>
             </TabItem>
-            <TabItem Header="Station">
+            <TabItem x:Name="StationTab" Header="Station">
                 <ScrollViewer>
                     <StackPanel Margin="16" Spacing="12" MaxWidth="520" HorizontalAlignment="Left">
                         <TextBlock Text="Station identity" FontWeight="Bold" FontSize="16"/>
@@ -305,7 +410,7 @@
                                 <TextBlock Classes="Hint" TextWrapping="Wrap"
                                            Text="The RADIO beacons on its own using the settings above. Click Write to apply (also writes Ident) — this points the radio's beacon at your APRS channel (above), so you don't have to be tuned to it."/>
                                 <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="#E0A030"
-                                           Text="⚠ Requires Digital mode ON in the radio's own menu (the app can't toggle it), and a memory channel named to match your APRS channel above. NOTE: Digital mode ON disables the radio's TNC — so Winlink, BBS, and the App beacon below will NOT work while it's on. Use this OR the App/TNC methods, not both."/>
+                                           Text="⚠ Requires Digital mode ON in the radio's menu (set Mode = Digital in the top bar) and a memory channel named to match your APRS channel above. Digital disables the TNC, so use this OR the App/TNC methods, not both."/>
                                 <Button x:Name="WriteBssButton" Classes="Accent" Content="⬆ Write beacon/ident to radio"
                                         IsEnabled="{Binding CanWriteBss}" HorizontalAlignment="Left"/>
                             </StackPanel>
@@ -317,7 +422,7 @@
                                 <TextBlock Classes="Hint" TextWrapping="Wrap"
                                            Text="The APP sends a position report on your APRS channel (above) via the radio's hardware TNC, regardless of the tuned channel (it briefly locks to the APRS channel, then restores). Needs callsign + Allow-transmit and a position (fixed or GPS)."/>
                                 <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="#E0A030"
-                                           Text="⚠ Requires Digital mode OFF in the radio's menu. Digital mode is only for the radio's built-in beacon and it DISABLES the TNC — with it on, the radio keys but transmits nothing. The same applies to Winlink and BBS: Digital mode must be OFF for any app/TNC packet to go out."/>
+                                           Text="⚠ Requires Digital mode OFF in the radio's menu (Mode = Packet in the top bar). The same applies to Winlink and BBS — Digital must be OFF for any app/TNC packet to go out."/>
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button x:Name="BeaconNowButton" Classes="Accent" Content="Beacon now" IsEnabled="{Binding CanBeacon}"/>
                                     <CheckBox Content="Auto-beacon" IsChecked="{Binding AutoBeacon}" IsEnabled="{Binding CanBeacon}" VerticalAlignment="Center"/>
@@ -360,7 +465,7 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-            <TabItem Header="Channels">
+            <TabItem x:Name="ChannelsTab" Header="Channels">
                 <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="12" x:Name="ChannelBuilderRoot">
                     <!-- Toolbar -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
@@ -510,7 +615,7 @@
                                Text="{Binding BuilderStatus}"/>
                 </Grid>
             </TabItem>
-            <TabItem Header="Contacts">
+            <TabItem x:Name="ContactsTab" Header="Contacts">
                 <Grid ColumnDefinitions="*,300" Margin="8" ColumnSpacing="12">
                     <!-- list -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
@@ -552,7 +657,7 @@
                             <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding AprsRoutes}"
                                       SelectedItem="{Binding SelectedContactRoute}"
                                       PlaceholderText="Use a saved route…"
-                                      ToolTip.Tip="Pick a saved APRS route (Config tab) to fill the path below, or type a custom path">
+                                      ToolTip.Tip="Pick a saved APRS route (Station tab) to fill the path below, or type a custom path">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:AprsRoute">
                                         <TextBlock Text="{Binding Display}"/>
@@ -579,7 +684,7 @@
                     </ScrollViewer>
                 </Grid>
             </TabItem>
-            <TabItem Header="APRS">
+            <TabItem x:Name="AprsTab" Header="APRS">
                 <Grid ColumnDefinitions="*,12,420" Margin="12" ColumnSpacing="12">
                     <!-- Stations heard -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
@@ -624,7 +729,7 @@
                                 <TextBlock Grid.Column="0" Text="Route" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
                                 <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
                                           ItemsSource="{Binding AprsRoutes}" SelectedItem="{Binding SelectedSendRoute}"
-                                          ToolTip.Tip="Named digipeater path (manage routes in the Config tab)">
+                                          ToolTip.Tip="Named digipeater path (manage routes in the Station tab)">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:AprsRoute">
                                             <TextBlock Text="{Binding Name}"/>
@@ -659,7 +764,7 @@
                     </Grid>
                 </Grid>
             </TabItem>
-            <TabItem Header="Map">
+            <TabItem x:Name="MapTab" Header="Map">
                 <Grid RowDefinitions="Auto,Auto,*">
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="8,6,8,2">
                         <TextBlock FontWeight="Bold" VerticalAlignment="Center"
@@ -687,7 +792,7 @@
                     <mapsui:MapControl Grid.Row="2" x:Name="MapControl"/>
                 </Grid>
             </TabItem>
-            <TabItem Header="Packets">
+            <TabItem x:Name="PacketsTab" Header="Packets">
                 <Grid ColumnDefinitions="*,12,360" Margin="8" ColumnSpacing="12">
                     <!-- Live packet list (select a row for decoded detail) -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
@@ -746,7 +851,7 @@
                     </Grid>
                 </Grid>
             </TabItem>
-            <TabItem Header="Mail">
+            <TabItem x:Name="MailTab" Header="Mail">
                 <Grid ColumnDefinitions="190,290,*" Margin="12" ColumnSpacing="12">
                     <!-- Mailbox folders + sync + backup -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
@@ -878,7 +983,7 @@
                     </Grid>
                 </Grid>
             </TabItem>
-            <TabItem Header="Terminal">
+            <TabItem x:Name="TerminalTab" Header="Terminal">
                 <Grid RowDefinitions="Auto,*,Auto" Margin="8" RowSpacing="8">
                     <!-- Connect (connected-mode AX.25 session) -->
                     <Border Grid.Row="0" Classes="Card">
@@ -907,7 +1012,7 @@
                     </StackPanel>
                 </Grid>
             </TabItem>
-            <TabItem Header="BBS">
+            <TabItem x:Name="BbsTab" Header="BBS">
                 <Grid RowDefinitions="Auto,*,180" Margin="12" RowSpacing="10">
                     <!-- Toolbar -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
@@ -943,7 +1048,7 @@
                     </Grid>
                 </Grid>
             </TabItem>
-            <TabItem Header="Voice">
+            <TabItem x:Name="VoiceTab" Header="Voice">
                 <StackPanel Margin="16" Spacing="14" MaxWidth="460" HorizontalAlignment="Left">
                     <TextBlock Text="Voice" FontWeight="Bold" FontSize="16"/>
                     <StackPanel Orientation="Horizontal" Spacing="14">
@@ -953,13 +1058,13 @@
                     </StackPanel>
                     <Button x:Name="VoiceRxToggleButton" Content="🔊 Start / Stop Voice RX (audio)"
                             IsEnabled="{Binding Connected}" HorizontalAlignment="Left"/>
-                    <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="#E0A030"
-                               Text="⚠ Voice audio is OFF by default. Turning it on opens the radio's Bluetooth audio link, which stops packet (APRS / Winlink / BBS) from transmitting — leave it OFF while doing packet, and turn it on only for voice."/>
+                    <TextBlock Classes="Hint" TextWrapping="Wrap"
+                               Text="Tip: the Mode selector in the top bar switches Voice ⇄ Packet and opens/closes this audio link for you. Voice audio blocks packet (APRS / Winlink / BBS)."/>
                     <Button x:Name="PttButton2" Content="🎤  PTT — hold to talk"
                             IsEnabled="{Binding CanTransmit}" Background="#5A1F1F" Foreground="White"
                             Height="56" FontSize="16" HorizontalAlignment="Stretch"/>
                     <TextBlock Classes="Hint" IsVisible="{Binding !TxAuthorized}" Foreground="{DynamicResource DangerActiveBrush}"
-                               Text="Transmit is disabled. Set your callsign and enable 'Allow transmit' on the Config tab to key the radio."/>
+                               Text="Transmit is disabled. Set your callsign and enable 'Allow transmit' on the Station tab to key the radio."/>
                     <StackPanel Spacing="4" DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
                         <TextBlock Text="{Binding MicGainPercent, StringFormat='Microphone gain (TX, max boost): {0}%'}"/>
                         <Slider Minimum="100" Maximum="4000" Value="{Binding MicGainPercent}"/>
@@ -980,7 +1085,7 @@
                                Text="Generates Morse/DTMF audio and plays it locally for preview. On-air transmit of tone modes is coming in a follow-up."/>
                 </StackPanel>
             </TabItem>
-            <TabItem Header="Clips">
+            <TabItem x:Name="ClipsTab" Header="Clips">
                 <Grid ColumnDefinitions="*,12,300" Margin="12" ColumnSpacing="12">
                     <!-- Clip list -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" RowSpacing="8">
@@ -1021,7 +1126,7 @@
                     </StackPanel>
                 </Grid>
             </TabItem>
-            <TabItem Header="Modem">
+            <TabItem x:Name="ModemTab" Header="Modem">
                 <Grid RowDefinitions="Auto,Auto,*" Margin="12" RowSpacing="10">
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
                         <TextBlock Text="Software modem" Classes="Section" VerticalAlignment="Center"/>
@@ -1035,7 +1140,7 @@
                     </Border>
                 </Grid>
             </TabItem>
-            <TabItem Header="Settings">
+            <TabItem x:Name="SettingsTab" Header="Settings">
                 <ScrollViewer>
                     <StackPanel Margin="16" Spacing="12" DataContext="{Binding Settings}"
                                 x:DataType="vm:SettingsViewModel" MaxWidth="520" HorizontalAlignment="Left">
@@ -1119,6 +1224,7 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-        </TabControl>
+            </TabControl>
+        </SplitView>
     </DockPanel>
 </Window>

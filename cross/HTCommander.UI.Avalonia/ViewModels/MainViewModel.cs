@@ -159,6 +159,7 @@ public sealed class MainViewModel : ViewModelBase
         LoadAprsFiSettings();
         LoadAprsChannelName();
         LoadBeaconMode();
+        LoadRadioMode();
     }
 
     private RadioDeviceInfo? selectedRadio;
@@ -218,7 +219,74 @@ public sealed class MainViewModel : ViewModelBase
     public bool VoiceRxActive
     {
         get => voiceRxActive;
-        private set { if (SetField(ref voiceRxActive, value)) OnPropertyChanged(nameof(CanTransmit)); }
+        private set
+        {
+            if (!SetField(ref voiceRxActive, value)) return;
+            OnPropertyChanged(nameof(CanTransmit));
+            // Keep the mode selector honest no matter how voice audio was toggled:
+            // opening the audio link IS Voice mode; closing it returns to Packet.
+            if (value && radioMode != "Voice") RadioMode = "Voice";
+            else if (!value && radioMode == "Voice") RadioMode = "Packet";
+        }
+    }
+
+    // ---- Radio operating mode: a single, visible control for the radio's mutually
+    // exclusive states. Voice opens the BT audio link (blocks the TNC); Packet keeps the
+    // TNC free for APRS/Winlink/BBS; Digital is the radio's own menu mode (app can't toggle
+    // it — advisory only). Replaces warnings that were scattered across several tabs. ----
+    public string[] RadioModes { get; } = { "Packet", "Voice", "Digital" };
+    private bool loadingRadioMode;
+    private string radioMode = "Packet";
+    public string RadioMode
+    {
+        get => radioMode;
+        set
+        {
+            if (!SetField(ref radioMode, value)) return;
+            OnPropertyChanged(nameof(IsVoiceMode));
+            OnPropertyChanged(nameof(IsPacketMode));
+            OnPropertyChanged(nameof(IsDigitalMode));
+            OnPropertyChanged(nameof(ModeAdvisory));
+            OnPropertyChanged(nameof(HasModeAdvisory));
+            ApplyRadioMode();
+            if (!loadingRadioMode) DataBroker.Dispatch(0, "RadioMode", value, store: true);
+        }
+    }
+
+    // Two-way friendly flags so a segmented RadioButton group can drive the mode.
+    public bool IsVoiceMode { get => radioMode == "Voice"; set { if (value) RadioMode = "Voice"; } }
+    public bool IsPacketMode { get => radioMode == "Packet"; set { if (value) RadioMode = "Packet"; } }
+    public bool IsDigitalMode { get => radioMode == "Digital"; set { if (value) RadioMode = "Digital"; } }
+
+    /// <summary>One consolidated, mode-aware caution line (empty in Packet, the normal data state).</summary>
+    public string ModeAdvisory => radioMode switch
+    {
+        "Voice" => "Voice audio link is open — packet modes (APRS, Winlink, BBS) can't transmit while in Voice. Switch to Packet for data.",
+        "Digital" => "Digital is a setting in the radio's own menu (the app can't toggle it). It feeds the radio's built-in beacon but DISABLES the TNC — Winlink, BBS, and the app beacon won't work until Digital is OFF on the radio.",
+        _ => ""
+    };
+    public bool HasModeAdvisory => ModeAdvisory.Length > 0;
+
+    /// <summary>Opens or closes the BT audio link to match the chosen mode (Voice = open).</summary>
+    private void ApplyRadioMode()
+    {
+        if (!Connected || connectedMac == null) return;
+        if (radioMode == "Voice") { if (!VoiceRxActive) StartVoiceRx(connectedMac); }
+        else { if (VoiceRxActive) StopVoiceRx(); }
+    }
+
+    private void LoadRadioMode()
+    {
+        loadingRadioMode = true;
+        string m = DataBroker.GetValue<string>(0, "RadioMode", "Packet") ?? "Packet";
+        radioMode = Array.IndexOf(RadioModes, m) >= 0 ? m : "Packet";
+        OnPropertyChanged(nameof(RadioMode));
+        OnPropertyChanged(nameof(IsVoiceMode));
+        OnPropertyChanged(nameof(IsPacketMode));
+        OnPropertyChanged(nameof(IsDigitalMode));
+        OnPropertyChanged(nameof(ModeAdvisory));
+        OnPropertyChanged(nameof(HasModeAdvisory));
+        loadingRadioMode = false;
     }
 
     private bool transmitting;
@@ -1327,9 +1395,15 @@ public sealed class MainViewModel : ViewModelBase
             f.Total = all.Count(m => string.Equals(m.Mailbox, f.Name, StringComparison.OrdinalIgnoreCase));
             f.Unread = all.Count(m => string.Equals(m.Mailbox, f.Name, StringComparison.OrdinalIgnoreCase) && (m.Flags & (int)WinLinkMail.MailFlags.Unread) != 0);
         }
+        OnPropertyChanged(nameof(InboxUnread));
+        OnPropertyChanged(nameof(InboxUnreadText));
     }
 
     public string MailCountText => $"{selectedMailbox} ({Mails.Count})";
+
+    /// <summary>Unread Inbox count, surfaced on the Radio dashboard.</summary>
+    public int InboxUnread => Folders.FirstOrDefault(f => f.Name == "Inbox")?.Unread ?? 0;
+    public string InboxUnreadText => InboxUnread > 0 ? $"{InboxUnread} unread" : "No unread";
 
     // Reading a message clears its Unread flag and refreshes the folder badges.
     private void MarkSelectedRead()
