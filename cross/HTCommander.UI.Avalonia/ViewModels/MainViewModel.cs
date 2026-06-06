@@ -171,6 +171,13 @@ public sealed class MainViewModel : ViewModelBase
     private string status = "Disconnected";
     public string Status { get => status; private set => SetField(ref status, value); }
 
+    // Shown as a prominent "please wait" banner while the radio's banks/channels are being
+    // read after connect (a multi-bank sweep can take a while). Driven by LoadAllBanks.
+    private bool isSyncing;
+    public bool IsSyncing { get => isSyncing; private set => SetField(ref isSyncing, value); }
+    private string syncMessage = "";
+    public string SyncMessage { get => syncMessage; private set => SetField(ref syncMessage, value); }
+
     private bool bluetoothAvailable;
     public bool BluetoothAvailable { get => bluetoothAvailable; private set => SetField(ref bluetoothAvailable, value); }
 
@@ -1023,6 +1030,9 @@ public sealed class MainViewModel : ViewModelBase
         ClearChannelNames();   // reset before sweeping so the picker rebuilds from the radio's current banks (drops stale names)
         int start = SelectedBank;
         int banks = RegionCount;
+        IsSyncing = true;      // show the "please wait" banner until every bank has been read
+        SyncMessage = $"⏳ Syncing channels — reading {banks} banks, please wait…";
+        logger?.Debug($"LoadAllBanks: sweep start, IsSyncing=true ({banks} banks)");
         Task.Run(async () =>
         {
             try
@@ -1032,7 +1042,11 @@ public sealed class MainViewModel : ViewModelBase
                     controller.SetRegion(b);
                     controller.RefreshChannels();
                     int shown = b;
-                    dispatcher.Post(() => BuilderStatus = $"Reading bank {shown} of {banks - 1}…");
+                    dispatcher.Post(() =>
+                    {
+                        BuilderStatus = $"Reading bank {shown} of {banks - 1}…";
+                        SyncMessage = $"Syncing channels — reading bank {shown + 1} of {banks}, please wait…";
+                    });
                     await DrainBankReplies();          // wait for THIS bank's replies before the next SetRegion
                 }
                 // Restore the bank the operator was on and re-read it cleanly.
@@ -1042,7 +1056,7 @@ public sealed class MainViewModel : ViewModelBase
                 dispatcher.Post(() => BuilderStatus = $"Loaded all {banks} banks — the channel picker now lists every bank.");
             }
             catch (Exception ex) { dispatcher.Post(() => BuilderStatus = "Load all banks failed: " + ex.Message); }
-            finally { dispatcher.Post(() => { sweepingBanks = false; OnPropertyChanged(nameof(CanLoadAllBanks)); }); }
+            finally { dispatcher.Post(() => { sweepingBanks = false; IsSyncing = false; SyncMessage = ""; OnPropertyChanged(nameof(CanLoadAllBanks)); }); }
         });
     }
 

@@ -69,6 +69,7 @@
                     <TextBlock Foreground="{DynamicResource TextMutedBrush}" Text="{Binding BluetoothAvailable, StringFormat='Bluetooth: {0}'}"/>
                     <TextBlock Foreground="{DynamicResource InfoBrush}" Text="🔊 Voice RX" IsVisible="{Binding VoiceRxActive}"/>
                     <TextBlock Foreground="{DynamicResource DangerActiveBrush}" FontWeight="Bold" Text="● TRANSMITTING" IsVisible="{Binding Transmitting}"/>
+                    <TextBlock Foreground="{DynamicResource InfoBrush}" FontWeight="Bold" Text="{Binding SyncMessage}" IsVisible="{Binding IsSyncing}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                     <Button x:Name="AboutButton" Content="About" Padding="10,3"/>
@@ -119,6 +120,18 @@
                                 <!-- Connection state + battery bar below the image -->
                                 <TextBlock Text="{Binding Status}" HorizontalAlignment="Center"
                                            FontWeight="SemiBold" Foreground="{DynamicResource InfoBrush}"/>
+
+                                <!-- "Please wait" banner while the radio's banks/channels are syncing -->
+                                <Border IsVisible="{Binding IsSyncing}" Background="#1E2A44" CornerRadius="6"
+                                        Padding="12,8" Margin="0,8,0,0" HorizontalAlignment="Center" MaxWidth="240">
+                                    <StackPanel Spacing="6">
+                                        <ProgressBar IsIndeterminate="True" Height="6"
+                                                     Foreground="{DynamicResource InfoBrush}"/>
+                                        <TextBlock Text="{Binding SyncMessage}" TextWrapping="Wrap"
+                                                   HorizontalAlignment="Center" TextAlignment="Center"
+                                                   FontSize="12" Foreground="{DynamicResource InfoBrush}"/>
+                                    </StackPanel>
+                                </Border>
                                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasStatus}" MaxWidth="222">
                                     <ProgressBar Grid.Column="0" Minimum="0" Maximum="100"
                                                  Value="{Binding BatteryPercent}" Height="10"
