@@ -46,7 +46,7 @@ public sealed class HtcAndroidApplication : AvaloniaAndroidApplication<App>
 /// </summary>
 [Activity(
     Label = "HTCommander",
-    Theme = "@android:style/Theme.Material.Light.NoActionBar",
+    Theme = "@style/Theme.AppCompat.Light.NoActionBar",   // AvaloniaMainActivity is an AppCompatActivity
     MainLauncher = true,
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
 public sealed class MainActivity : AvaloniaMainActivity
