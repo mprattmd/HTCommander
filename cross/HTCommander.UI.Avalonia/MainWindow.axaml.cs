@@ -42,6 +42,9 @@ public partial class MainWindow : Window
     private bool mapCentered;
     private MainViewModel? subscribedVm;
 
+    private ListBox[] navLists = System.Array.Empty<ListBox>();
+    private bool navSyncing;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -70,6 +73,7 @@ public partial class MainWindow : Window
         PacketLoadButton.Click += async (_, _) => await LoadPacketsAsync();
 
         WireChannelBuilder();
+        WireNav();
 
         // Mail (Winlink)
         MailSyncButton.Click += (_, _) => Vm?.SyncWinlinkInternet();
@@ -117,9 +121,6 @@ public partial class MainWindow : Window
         // About dialog
         AboutButton.Click += (_, _) => new AboutWindow().ShowDialog(this);
 
-        // Screenshot (button + F12)
-        ScreenshotButton.Click += (_, _) => SaveScreenshot();
-
         // F12 saves a PNG of the whole window (compositor-independent) — handy for
         // docs/screenshots. Written to ~/htcommander-screenshot.png.
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
@@ -131,6 +132,31 @@ public partial class MainWindow : Window
     }
 
     private MainViewModel? Vm => DataContext as MainViewModel;
+
+    // The left rail is four grouped ListBoxes acting as one logical selector: picking an
+    // item in any group clears the others and shows the matching tab (by Tag = TabItem name)
+    // in the chromeless TabControl. Mirrors a NavigationView without a custom control.
+    private void WireNav()
+    {
+        navLists = new[] { NavOperate, NavMessaging, NavConfigure, NavDiagnostics };
+        foreach (var list in navLists)
+            list.SelectionChanged += OnNavSelectionChanged;
+        NavOperate.SelectedIndex = 0;   // start on Radio
+    }
+
+    private void OnNavSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (navSyncing || sender is not ListBox list || list.SelectedItem is not ListBoxItem item) return;
+        navSyncing = true;
+        try
+        {
+            foreach (var other in navLists)
+                if (!ReferenceEquals(other, list)) other.SelectedItem = null;
+            if (item.Tag is string tag && this.FindControl<TabItem>(tag) is { } tab)
+                MainTabs.SelectedItem = tab;
+        }
+        finally { navSyncing = false; }
+    }
 
     // PTT is press-and-hold (fail-safe): transmit only while held; release or any
     // loss of pointer capture un-keys the radio.
