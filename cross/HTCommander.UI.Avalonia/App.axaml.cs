@@ -29,9 +29,7 @@ using HTCommander.Platform.Linux;
 using HTCommander.Platform.Linux.Audio;
 #endif
 #if ANDROID
-using Avalonia.Controls;
-using Avalonia.Layout;
-using Avalonia.Media;
+using HTCommander.Platform.Android;
 #endif
 
 namespace HTCommander.UI.Avalonia;
@@ -47,68 +45,52 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Composition root: pick the platform backends via the seams, wire the shared
+        // DataBroker + portable handlers, then host the shared MainView — a Window on
+        // desktop, the single-view lifetime on Android.
+        IUiDispatcher dispatcher = new AvaloniaUiDispatcher();
+
 #if ANDROID
-        // Android uses the single-view lifetime (no Window). Stage A: prove the
-        // Avalonia-on-Android pipeline renders; the real MainView + composition
-        // (AndroidRadioPlatform, config, handlers) are wired in Stage B/C.
+        // Android backends (RFCOMM over Android.Bluetooth; file config; no audio in v1).
+        IConfigStore configStore = new AndroidConfigStore();
+        IAudioDeviceEnumerator audioDevices = new AndroidAudioDeviceEnumerator();
+        IRadioPlatform radioPlatform = new AndroidRadioPlatform();
+#else
+        // Desktop: JSON config + PortAudio; radio transport is macOS IOBluetooth or Linux BlueZ.
+        IConfigStore configStore = new JsonConfigStore("HTCommander");
+        IAudioDeviceEnumerator audioDevices = new PortAudioDeviceEnumerator();
+        IRadioPlatform radioPlatform = OperatingSystem.IsMacOS()
+            ? new HTCommander.Platform.Mac.MacRadioPlatform()
+            : new LinuxRadioPlatform();
+#endif
+
+        DataBroker.Initialize(configStore, dispatcher);
+
+        // Portable data handlers (Core) — shared by every platform.
+        DataBroker.AddDataHandler("BbsHandler", new BbsHandler());
+        DataBroker.AddDataHandler("AprsHandler", new AprsHandler());
+        DataBroker.AddDataHandler("SoftwareModem", new SoftwareModem());
+        // Winlink B2F client (CMS over internet/radio); held alive by its subscriptions.
+        winlinkClient = new WinlinkClient();
+
+#if !ANDROID
+        // Desktop-only services: SQLite mail store + serial GPS. Both are deferred on
+        // Android round one (mail persistence and serial GPS have no Android backend yet).
+        string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (string.IsNullOrEmpty(baseDir))
+            baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+        DataBroker.AddDataHandler("MailStore", new SqliteMailStore(Path.Combine(baseDir, "HTCommander")));
+        DataBroker.AddDataHandler("GpsSerialHandler", new HTCommander.Gps.GpsSerialHandler());
+#endif
+
+        var viewModel = new MainViewModel(dispatcher, audioDevices, radioPlatform);
+
+#if ANDROID
         if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
-        {
-            singleView.MainView = new TextBlock
-            {
-                Text = "HTCommander Android\nAvalonia pipeline is up.",
-                Margin = new Thickness(24),
-                FontSize = 18,
-                TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-        }
+            singleView.MainView = new MainView { DataContext = viewModel };
 #else
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            // Composition root: pick the platform backends and wire the shared
-            // DataBroker, then hand the view model to the main window.
-            IUiDispatcher dispatcher = new AvaloniaUiDispatcher();
-            IConfigStore configStore = new JsonConfigStore("HTCommander");
-            DataBroker.Initialize(configStore, dispatcher);
-            IAudioDeviceEnumerator audioDevices = new PortAudioDeviceEnumerator();
-
-            // Pick the radio transport backend for this OS via the IRadioPlatform seam:
-            // macOS IOBluetooth (libhtbt) or Linux BlueZ. The rest of Platform.Linux
-            // (PortAudio→CoreAudio, SQLite mail, JSON config) is portable and reused.
-            IRadioPlatform radioPlatform = OperatingSystem.IsMacOS()
-                ? new HTCommander.Platform.Mac.MacRadioPlatform()
-                : new LinuxRadioPlatform();
-
-            // Data services keyed in the DataBroker, shared with the WinForms app's
-            // contracts: the Winlink mail store (SQLite) and the connected-mode BBS
-            // manager (listens for the "CreateBbs"/"RemoveBbs" events from the UI).
-            string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            if (string.IsNullOrEmpty(baseDir))
-                baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-            string dataDir = Path.Combine(baseDir, "HTCommander");
-
-            DataBroker.AddDataHandler("MailStore", new SqliteMailStore(dataDir));
-            DataBroker.AddDataHandler("BbsHandler", new BbsHandler());
-            // APRS message send/receive handler (builds frames, tracks history, applies auth).
-            DataBroker.AddDataHandler("AprsHandler", new AprsHandler());
-            // GPS serial reader: reacts to GpsSerialPort/GpsBaudRate (device 0), parses
-            // NMEA and publishes GpsData (device 1). Cross-platform (System.IO.Ports).
-            DataBroker.AddDataHandler("GpsSerialHandler", new HTCommander.Gps.GpsSerialHandler());
-            // Software modem (AFSK1200/PSK/G3RUH): demodulates the received audio fed as
-            // "AudioDataAvailable" and publishes decoded frames as "DataFrame".
-            DataBroker.AddDataHandler("SoftwareModem", new SoftwareModem());
-
-            // Winlink B2F client: listens for "WinlinkSync"/"WinlinkDisconnect" and
-            // drives CMS sessions (over the internet or via the radio). Held alive by
-            // its DataBroker subscriptions; kept here too to be explicit.
-            winlinkClient = new WinlinkClient();
-
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = new MainViewModel(dispatcher, audioDevices, radioPlatform)
-            };
-        }
+            desktop.MainWindow = new MainWindow { DataContext = viewModel };
 #endif
 
         base.OnFrameworkInitializationCompleted();
