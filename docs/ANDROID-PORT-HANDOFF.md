@@ -106,6 +106,47 @@ dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj -c Deb
 # screenshots are 1080x2400 (> read limit) -> downscale: sips -Z 1400 in.png --out out.png
 ```
 
+## Beta release — Firebase App Distribution (working)
+First beta shipped this session (release `0.5.0 (1)` → mprattmd@gmail.com).
+
+**Signing keystore (KEEP SAFE — needed for every future update):**
+- `~/.htcommander/htcommander.keystore`, alias `htcommander`; password in `~/.htcommander/signing.txt`. Outside the repo; not committed.
+
+**Firebase:** project `htcommander`, Android app `com.htcommander.app`,
+App ID `1:769680009109:android:4621253e7183fb8159f89c`.
+
+**Cut a beta (repeatable):**
+```sh
+export PATH="$HOME/.dotnet:$PATH"; export DOTNET_ROOT="$HOME/.dotnet"
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+PW=$(grep 'password:' ~/.htcommander/signing.txt | sed 's/.*password: //')
+
+# 1) CLEAN first — mixing Debug/Release in obj/ causes a Mono "class-init.c:2474
+#    instance_size" crash at launch. Always rm obj/bin before a Release build.
+rm -rf cross/HTCommander.UI.Avalonia/obj cross/HTCommander.UI.Avalonia/bin
+
+# 2) Signed Release APK (default link/trim ~38MB; do NOT use AndroidLinkMode=None — 80MB)
+dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj -c Release -f net10.0-android \
+  -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" \
+  -p:AndroidKeyStore=true -p:AndroidSigningKeyStore="$HOME/.htcommander/htcommander.keystore" \
+  -p:AndroidSigningStorePass="$PW" -p:AndroidSigningKeyAlias=htcommander -p:AndroidSigningKeyPass="$PW"
+# -> cross/HTCommander.UI.Avalonia/bin/Release/net10.0-android/com.htcommander.app-Signed.apk
+
+# 3) Distribute (firebase login must be done ONCE in a real terminal — the CLI refuses
+#    non-TTY login; after that the cached token works from any shell/agent).
+firebase appdistribution:distribute \
+  cross/HTCommander.UI.Avalonia/bin/Release/net10.0-android/com.htcommander.app-Signed.apk \
+  --app 1:769680009109:android:4621253e7183fb8159f89c \
+  --release-notes "..." --testers "mprattmd@gmail.com"
+```
+**New version label:** bump `ApplicationVersion` (integer build, shows as `(2)`, `(3)`…)
+and/or `ApplicationDisplayVersion` in HTCommander.UI.Avalonia.csproj (android PropertyGroup).
+Testers get the update in Google's **App Tester** app.
+
+NOTE: TestFlight/iOS is NOT viable — iOS can't do Classic Bluetooth RFCOMM to a non-MFi
+radio (same wall as Web Bluetooth). Android only.
+
 ## Deferred / next steps
 - **Mail persistence on Android** — `SqliteMailStore` is still Linux-only (Mail tab works
   but won't persist on the phone). Port it to Core (Microsoft.Data.Sqlite has Android
