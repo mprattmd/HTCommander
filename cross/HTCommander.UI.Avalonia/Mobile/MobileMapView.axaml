@@ -7,10 +7,10 @@
   <Grid RowDefinitions="Auto,*">
     <Border Grid.Row="0" Background="{StaticResource MS1}" BorderBrush="{StaticResource MLine}" BorderThickness="0,0,0,1" Padding="10,8">
       <StackPanel Spacing="8">
-        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-          <Button Grid.Column="0" x:Name="CenterGpsButton" Classes="mGhost" Content="📍 GPS" Padding="14,0" IsEnabled="{Binding CanCenterGps}"/>
-          <TextBox Grid.Column="1" Classes="mInput" Text="{Binding AprsFiCallsigns}" Watermark="aprs.fi callsigns (comma-sep)"/>
-          <Button Grid.Column="2" x:Name="LookUpButton" Classes="mGhost" Content="Look up" Padding="14,0"/>
+        <TextBox Classes="mInput" Text="{Binding AprsFiCallsigns}" Watermark="aprs.fi callsigns (comma-separated)"/>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+          <Button Grid.Column="0" x:Name="LookUpButton" Classes="mGhost" Content="Look up (aprs.fi)" VerticalAlignment="Center"/>
+          <Button Grid.Column="1" x:Name="CenterGpsButton" Classes="mGhost" Content="📍 Center on GPS" VerticalAlignment="Center" IsEnabled="{Binding CanCenterGps}"/>
         </Grid>
         <TextBlock Text="{Binding AprsFiStatus}" Classes="mKey" Foreground="{StaticResource MAccent}" IsVisible="{Binding AprsFiStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
       </StackPanel>
