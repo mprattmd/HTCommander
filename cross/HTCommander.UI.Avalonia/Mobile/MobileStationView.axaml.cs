@@ -10,6 +10,7 @@ public partial class MobileStationView : UserControl
     {
         InitializeComponent();
         SetFixedButton.Click += (_, _) => Vm?.SetManualPosition();
+        RequestPosButton.Click += (_, _) => Vm?.RequestPosition();
         BeaconNowButton.Click += (_, _) => Vm?.BeaconNow();          // App (TNC) beacon
         WriteBssButton.Click += (_, _) => Vm?.WriteBssSettings();    // Radio built-in beacon
     }

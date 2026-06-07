@@ -11,6 +11,7 @@ public partial class MobileAprsView : UserControl
     {
         InitializeComponent();
         SendButton.Click += (_, _) => Vm?.SendAprsMessage();
+        CreateChannelButton.Click += (_, _) => Vm?.CreateAprsChannel();
         StationsButton.Click += (_, _) =>
             this.FindAncestorOfType<MobileView>()?.Push(new MobileAprsStationsView(), "Stations heard");
     }

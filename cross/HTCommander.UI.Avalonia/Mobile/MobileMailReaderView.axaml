@@ -1,11 +1,39 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             xmlns:core="using:HTCommander"
              x:Class="HTCommander.UI.Avalonia.Mobile.MobileMailReaderView"
              x:DataType="vm:MainViewModel">
-  <ScrollViewer Margin="14,12">
-    <Border Classes="mCard">
-      <SelectableTextBlock Text="{Binding MailPreview}" FontFamily="{StaticResource MMono}" FontSize="13" TextWrapping="Wrap"/>
-    </Border>
-  </ScrollViewer>
+  <Grid RowDefinitions="Auto,*" Margin="14,12">
+    <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,10">
+      <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+        <Button Grid.Column="0" x:Name="ReplyButton" Classes="mGhost" Content="Reply"/>
+        <Button Grid.Column="1" x:Name="ReplyAllButton" Classes="mGhost" Content="Reply all"/>
+        <Button Grid.Column="2" x:Name="ForwardButton" Classes="mGhost" Content="Forward"/>
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <ComboBox Grid.Column="0" Classes="mInput" ItemsSource="{Binding MoveTargets}" SelectedItem="{Binding MoveTarget}"/>
+        <Button Grid.Column="1" x:Name="MoveButton" Classes="mGhost" Content="Move" Padding="16,0"/>
+        <Button Grid.Column="2" x:Name="DeleteButton" Classes="mGhost" Content="Delete" Padding="16,0" IsEnabled="{Binding CanDeleteMail}"/>
+      </Grid>
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Spacing="12">
+        <Border Classes="mCard">
+          <SelectableTextBlock Text="{Binding MailPreview}" FontFamily="{StaticResource MMono}" FontSize="13" TextWrapping="Wrap"/>
+        </Border>
+        <StackPanel Spacing="8" IsVisible="{Binding HasMailAttachments}">
+          <TextBlock Classes="mSection" Text="ATTACHMENTS"/>
+          <ListBox Classes="mInput" MaxHeight="160" ItemsSource="{Binding MailAttachments}" SelectedItem="{Binding SelectedAttachment}">
+            <ListBox.ItemTemplate><DataTemplate x:DataType="core:WinLinkMailAttachement"><TextBlock Text="{Binding Name}"/></DataTemplate></ListBox.ItemTemplate>
+          </ListBox>
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Grid.Column="0" x:Name="AttOpenButton" Classes="mGhost" Content="Open"/>
+            <Button Grid.Column="1" x:Name="AttSaveButton" Classes="mGhost" Content="Save…"/>
+          </Grid>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
 </UserControl>

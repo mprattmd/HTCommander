@@ -35,6 +35,18 @@
         <ComboBox Classes="mInput" ItemsSource="{Binding ChannelNames}" SelectedItem="{Binding AprsChannelName}"/>
       </StackPanel>
 
+      <TextBlock Classes="mSection" Text="GPS POSITION" Margin="2,8,0,8"/>
+      <Button x:Name="RequestPosButton" Classes="mGhost" Content="Request fresh from radio" IsEnabled="{Binding CanRequestPosition}"/>
+      <Border Classes="mCard" IsVisible="{Binding HasMyPosition}">
+        <StackPanel Spacing="3">
+          <TextBlock Text="{Binding MyPosition.PositionText}" FontFamily="{StaticResource MMono}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding MyPosition.DetailText}" FontSize="12.5" Foreground="{StaticResource MMut}"/>
+          <TextBlock Text="{Binding MyPosition.TimeText}" FontSize="12" Foreground="{StaticResource MDim}"/>
+        </StackPanel>
+      </Border>
+      <TextBlock Classes="mKey" IsVisible="{Binding !HasMyPosition}" TextWrapping="Wrap"
+                 Text="No GPS fix — request fresh, enable GPS on the radio, or set a fixed position below."/>
+
       <TextBlock Classes="mSection" Text="FIXED POSITION (NO GPS)" Margin="2,8,0,8"/>
       <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
         <StackPanel Grid.Column="0" Spacing="6"><TextBlock Classes="mKey" Text="LATITUDE"/>
@@ -91,6 +103,25 @@
                      Text="⚠ Requires Digital mode ON in the radio's menu, which disables the TNC — Winlink, BBS and APRS messages will stop working until it's OFF again."/>
         </Border>
         <Button x:Name="WriteBssButton" Classes="mPri" Content="⬆ Write beacon to radio" IsEnabled="{Binding CanWriteBss}"/>
+      </StackPanel>
+
+      <!-- Ident (PTT-release station ID) -->
+      <StackPanel Spacing="10" IsVisible="{Binding HasBss}">
+        <TextBlock Classes="mSection" Text="IDENT (PTT-RELEASE ID)" Margin="2,8,0,0"/>
+        <Border Classes="mCard">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="Send ID on PTT release" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding IdentOnPttRelease}" OnContent="" OffContent=""/>
+          </Grid>
+        </Border>
+        <StackPanel Spacing="6"><TextBlock Classes="mKey" Text="ID TEXT"/>
+          <TextBox Classes="mInput" Text="{Binding IdentText}" MaxLength="12"/></StackPanel>
+        <Border Classes="mCard">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="Send position on PTT release" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding BeaconOnPttRelease}" OnContent="" OffContent=""/>
+          </Grid>
+        </Border>
       </StackPanel>
 
       <TextBlock Classes="mKey" TextWrapping="Wrap" Margin="0,4,0,0"

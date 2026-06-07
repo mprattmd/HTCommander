@@ -26,14 +26,38 @@
       </ItemsControl>
     </ScrollViewer>
 
-    <Border Grid.Row="2" Classes="mCard" Margin="0,10,0,0">
-      <StackPanel Spacing="8">
-        <TextBox Classes="mInput" Text="{Binding AprsDestination}" Watermark="To (callsign, e.g. KE4AXW-7)"/>
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <TextBox Grid.Column="0" Classes="mInput" Text="{Binding AprsMessageText}" Watermark="Message" FontFamily="{StaticResource MMono}"/>
-          <Button Grid.Column="1" x:Name="SendButton" Classes="mPri" Content="Send" Width="92" IsEnabled="{Binding CanSendAprs}"/>
-        </Grid>
-      </StackPanel>
-    </Border>
+    <StackPanel Grid.Row="2" Spacing="10" Margin="0,10,0,0">
+      <!-- Create the standard APRS channel if the radio doesn't have one yet -->
+      <Border Classes="mCard" IsVisible="{Binding CanCreateAprsChannel}">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="mKey" Text="NO APRS CHANNEL — CREATE ONE (144.39 FM)"/>
+          <Grid ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="8">
+            <TextBlock Grid.Column="0" Text="Slot" VerticalAlignment="Center" Foreground="{StaticResource MMut}"/>
+            <ComboBox Grid.Column="1" Classes="mInput" ItemsSource="{Binding ChannelSlotIds}" SelectedItem="{Binding AprsChannelSlot}"/>
+            <TextBlock Grid.Column="2" Text="MHz" VerticalAlignment="Center" Foreground="{StaticResource MMut}"/>
+            <TextBox Grid.Column="3" Classes="mInput" Text="{Binding AprsChannelFreq}"/>
+          </Grid>
+          <Button x:Name="CreateChannelButton" Classes="mGhost" Content="Write APRS channel"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Compose -->
+      <Border Classes="mCard">
+        <StackPanel Spacing="8">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <TextBlock Grid.Column="0" Text="Route" VerticalAlignment="Center" Foreground="{StaticResource MMut}"/>
+            <ComboBox Grid.Column="1" Classes="mInput" ItemsSource="{Binding AprsRoutes}" SelectedItem="{Binding SelectedSendRoute}"
+                      PlaceholderText="Digipeater path (optional)">
+              <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AprsRoute"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+          </Grid>
+          <TextBox Classes="mInput" Text="{Binding AprsDestination}" Watermark="To (callsign, e.g. KE4AXW-7)"/>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Grid.Column="0" Classes="mInput" Text="{Binding AprsMessageText}" Watermark="Message" FontFamily="{StaticResource MMono}"/>
+            <Button Grid.Column="1" x:Name="SendButton" Classes="mPri" Content="Send" Width="92" IsEnabled="{Binding CanSendAprs}"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </StackPanel>
   </Grid>
 </UserControl>

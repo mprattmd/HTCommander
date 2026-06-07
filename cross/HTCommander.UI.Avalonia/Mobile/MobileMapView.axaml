@@ -1,6 +1,20 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
              xmlns:mapsui="clr-namespace:Mapsui.UI.Avalonia;assembly=Mapsui.UI.Avalonia"
-             x:Class="HTCommander.UI.Avalonia.Mobile.MobileMapView">
-  <mapsui:MapControl x:Name="MapControl"/>
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileMapView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*">
+    <Border Grid.Row="0" Background="{StaticResource MS1}" BorderBrush="{StaticResource MLine}" BorderThickness="0,0,0,1" Padding="10,8">
+      <StackPanel Spacing="8">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+          <Button Grid.Column="0" x:Name="CenterGpsButton" Classes="mGhost" Content="📍 GPS" Padding="14,0" IsEnabled="{Binding CanCenterGps}"/>
+          <TextBox Grid.Column="1" Classes="mInput" Text="{Binding AprsFiCallsigns}" Watermark="aprs.fi callsigns (comma-sep)"/>
+          <Button Grid.Column="2" x:Name="LookUpButton" Classes="mGhost" Content="Look up" Padding="14,0"/>
+        </Grid>
+        <TextBlock Text="{Binding AprsFiStatus}" Classes="mKey" Foreground="{StaticResource MAccent}" IsVisible="{Binding AprsFiStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+      </StackPanel>
+    </Border>
+    <mapsui:MapControl Grid.Row="1" x:Name="MapControl"/>
+  </Grid>
 </UserControl>
