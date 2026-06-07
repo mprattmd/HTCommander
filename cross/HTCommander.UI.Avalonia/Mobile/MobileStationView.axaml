@@ -44,9 +44,19 @@
       </Grid>
       <Button x:Name="SetFixedButton" Classes="mGhost" Content="Set fixed position on radio" IsEnabled="{Binding CanRequestPosition}"/>
 
-      <!-- Beacon (only meaningful once a radio is connected) -->
-      <StackPanel IsVisible="{Binding HasBss}" Spacing="14">
-        <TextBlock Classes="mSection" Text="BEACON" Margin="2,8,0,0"/>
+      <!-- APRS beacon: choose how your position is transmitted -->
+      <TextBlock Classes="mSection" Text="APRS BEACON" Margin="2,8,0,0"/>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="BEACON METHOD"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding BeaconModes}" SelectedItem="{Binding BeaconMode}"/>
+      </StackPanel>
+      <Border Classes="mCard">
+        <TextBlock Classes="mKey" TextWrapping="Wrap"
+                   Text="App (TNC): the app sends your position via the radio's data TNC — works alongside Winlink / BBS / APRS messages (radio Digital mode OFF). Radio (built-in): the radio beacons on its own, but needs Digital mode ON, which DISABLES the TNC (Winlink/BBS/messages stop)."/>
+      </Border>
+
+      <!-- Shared beacon details -->
+      <StackPanel Spacing="14">
         <Border Classes="mCard">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Grid.Column="0" Text="Share my location" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -63,8 +73,28 @@
           <TextBox Classes="mInput" Text="{Binding BeaconMessageText}" MaxLength="18"/></StackPanel>
       </StackPanel>
 
+      <!-- App (TNC) beacon controls -->
+      <StackPanel Spacing="10" IsVisible="{Binding IsAppBeacon}">
+        <Button x:Name="BeaconNowButton" Classes="mPri" Content="📍 Beacon now" IsEnabled="{Binding CanBeacon}"/>
+        <Border Classes="mCard">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="Auto-beacon (every interval)" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoBeacon}" IsEnabled="{Binding CanBeacon}" OnContent="" OffContent=""/>
+          </Grid>
+        </Border>
+      </StackPanel>
+
+      <!-- Radio (built-in) beacon controls -->
+      <StackPanel Spacing="10" IsVisible="{Binding IsRadioBeacon}">
+        <Border Classes="mCard">
+          <TextBlock Classes="mKey" TextWrapping="Wrap" Foreground="#7a5a16"
+                     Text="⚠ Requires Digital mode ON in the radio's menu, which disables the TNC — Winlink, BBS and APRS messages will stop working until it's OFF again."/>
+        </Border>
+        <Button x:Name="WriteBssButton" Classes="mPri" Content="⬆ Write beacon to radio" IsEnabled="{Binding CanWriteBss}"/>
+      </StackPanel>
+
       <TextBlock Classes="mKey" TextWrapping="Wrap" Margin="0,4,0,0"
-                 Text="Settings save automatically. APRS routes &amp; beacon method are on the desktop app."/>
+                 Text="Settings save automatically. Named APRS digipeater routes are configured on the desktop app."/>
     </StackPanel>
   </ScrollViewer>
 </UserControl>
