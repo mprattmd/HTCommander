@@ -27,10 +27,15 @@
         </StackPanel>
       </Border>
 
-      <!-- Mode advisory -->
-      <Border IsVisible="{Binding HasModeAdvisory}" Background="#f4ecd6" BorderBrush="#cbab5e"
+      <!-- Mode explainer: always describes the current mode (Packet / Voice / Digital) in
+           plain language. Neutral for Packet (normal data mode); amber when packet is blocked. -->
+      <Border IsVisible="{Binding IsPacketMode}" Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}"
               BorderThickness="1" CornerRadius="12" Padding="12">
-        <TextBlock Text="{Binding ModeAdvisory}" Foreground="#7a5a16" TextWrapping="Wrap" FontSize="12.5"/>
+        <TextBlock Text="{Binding ModeSummary}" Foreground="{StaticResource MAccent2}" TextWrapping="Wrap" FontSize="12.5"/>
+      </Border>
+      <Border IsVisible="{Binding IsModeCaution}" Background="#f4ecd6" BorderBrush="#cbab5e"
+              BorderThickness="1" CornerRadius="12" Padding="12">
+        <TextBlock Text="{Binding ModeSummary}" Foreground="#7a5a16" TextWrapping="Wrap" FontSize="12.5"/>
       </Border>
 
       <!-- Status cards -->

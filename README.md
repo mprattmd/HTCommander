@@ -10,7 +10,7 @@
 > natively on Linux and macOS. Licensed under **Apache 2.0**, same as upstream.
 
 <p align="center">
-  <img src="docs/images/screenshot.png" alt="HTCommander on Linux" width="820">
+  <img src="docs/images/screenshot.png" alt="HTCommander (Avalonia) connected to a UV-PRO" width="820">
 </p>
 
 ## ⬇ Download

@@ -9,7 +9,7 @@
          switches to the plural multi-TFM form (then build with -f net10.0-android). -->
     <TargetFramework Condition="'$(BuildAndroid)' != 'true'">net9.0</TargetFramework>
     <TargetFrameworks Condition="'$(BuildAndroid)' == 'true'">net9.0;net10.0-android</TargetFrameworks>
-    <Version>0.5.2</Version>
+    <Version>0.5.3</Version>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
@@ -25,8 +25,8 @@
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <ApplicationId>com.htcommander.app</ApplicationId>
-    <ApplicationVersion>5</ApplicationVersion>
-    <ApplicationDisplayVersion>0.5.2</ApplicationDisplayVersion>
+    <ApplicationVersion>6</ApplicationVersion>
+    <ApplicationDisplayVersion>0.5.3</ApplicationDisplayVersion>
   </PropertyGroup>
 
   <ItemGroup>

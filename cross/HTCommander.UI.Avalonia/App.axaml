@@ -2,29 +2,36 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="using:HTCommander.UI.Avalonia.Converters"
              x:Class="HTCommander.UI.Avalonia.App"
-             RequestedThemeVariant="Dark">
+             RequestedThemeVariant="Light">
 
     <Application.Resources>
         <!-- Show 0-based radio indices (channel/bank) as 1-based for humans; wire stays 0-based. -->
         <conv:PlusOneConverter x:Key="PlusOne"/>
-        <!-- Centralized palette. Surfaces go dark->light by tier; accent is a
-             ham-radio blue. Referenced via DynamicResource in AppStyles + markup. -->
-        <Color x:Key="SystemAccentColor">#2F80ED</Color>
-        <Color x:Key="SystemAccentColorDark1">#2A75D6</Color>
+        <!-- Centralized palette. Desktop and mobile now share one light "beige +
+             denim" look: the desktop brush keys below are mapped onto the same
+             M* tokens the Android pages use, so both heads render identically.
+             Referenced via DynamicResource in AppStyles + markup. -->
+        <Color x:Key="SystemAccentColor">#42648f</Color>
+        <Color x:Key="SystemAccentColorDark1">#33506f</Color>
 
-        <SolidColorBrush x:Key="Surface0Brush" Color="#1B1B1F"/>
-        <SolidColorBrush x:Key="Surface1Brush" Color="#232327"/>
-        <SolidColorBrush x:Key="Surface2Brush" Color="#2A2A30"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="#3A3A42"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F2F2F4"/>
-        <SolidColorBrush x:Key="TextMutedBrush" Color="#9A9AA6"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#2F80ED"/>
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="#3A8BF5"/>
-        <SolidColorBrush x:Key="DangerBrush" Color="#C0392B"/>
-        <SolidColorBrush x:Key="DangerHoverBrush" Color="#D14333"/>
-        <SolidColorBrush x:Key="DangerActiveBrush" Color="#E74C3C"/>
-        <SolidColorBrush x:Key="GoodBrush" Color="#27AE60"/>
-        <SolidColorBrush x:Key="InfoBrush" Color="#9CDCFE"/>
+        <!-- Desktop keys re-pointed onto the beige+denim palette (was a dark theme). -->
+        <SolidColorBrush x:Key="Surface0Brush" Color="#f1e9d8"/>   <!-- MBg: window -->
+        <SolidColorBrush x:Key="Surface1Brush" Color="#e8ddc6"/>   <!-- MS1: bars / nav rail -->
+        <SolidColorBrush x:Key="Surface2Brush" Color="#fdfbf3"/>   <!-- MCard: cards -->
+        <SolidColorBrush x:Key="BorderBrush" Color="#d9ccb0"/>     <!-- MLine -->
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#2e2a1f"/><!-- MTxt -->
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#7d745d"/>  <!-- MMut -->
+        <SolidColorBrush x:Key="AccentBrush" Color="#42648f"/>     <!-- MAccent: denim -->
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#33506f"/><!-- MAccent2 -->
+        <SolidColorBrush x:Key="DangerBrush" Color="#cf5046"/>     <!-- MDanger -->
+        <SolidColorBrush x:Key="DangerHoverBrush" Color="#d65b51"/>
+        <SolidColorBrush x:Key="DangerActiveBrush" Color="#e0655b"/>
+        <SolidColorBrush x:Key="GoodBrush" Color="#3a8f63"/>       <!-- MGood -->
+        <SolidColorBrush x:Key="InfoBrush" Color="#42648f"/>       <!-- denim (was light blue) -->
+        <!-- Warning (caution banners / hints): readable amber on beige. -->
+        <SolidColorBrush x:Key="WarnBrush" Color="#8a6a16"/>
+        <SolidColorBrush x:Key="WarnBgBrush" Color="#f6e8c8"/>
+        <SolidColorBrush x:Key="WarnBorderBrush" Color="#d8b25a"/>
 
         <!-- Mobile (Android) palette: light "beige + denim". Global so every mobile
              page resolves them at load time (pages aren't in the tree when parsed). -->

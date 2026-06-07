@@ -85,6 +85,10 @@ public sealed class MainViewModel : ViewModelBase
         logger = new CallbackLogger(AppendLog);
         Settings = new SettingsViewModel(dispatcher, audioDevices);
 
+        // Track unsaved channel-builder edits (imported/edited rows not yet written to the radio)
+        // so the UI can flag them and avoid silently clobbering them on "Load from radio".
+        BuilderChannels.CollectionChanged += OnBuilderChannelsChanged;
+
         // Consume the controller's published telemetry (device 0). DataBroker
         // marshals these callbacks onto the UI thread for us.
         broker.Subscribe(0, "HtStatus", (_, _, data) => { if (data is RadioHtStatus s) ApplyHtStatus(s); });
@@ -225,6 +229,7 @@ public sealed class MainViewModel : ViewModelBase
         {
             if (!SetField(ref voiceRxActive, value)) return;
             OnPropertyChanged(nameof(CanTransmit));
+            OnPropertyChanged(nameof(VoiceClosedIdle));
             // Keep the mode selector honest no matter how voice audio was toggled:
             // opening the audio link IS Voice mode; closing it returns to Packet.
             if (value && radioMode != "Voice") RadioMode = "Voice";
@@ -232,11 +237,12 @@ public sealed class MainViewModel : ViewModelBase
         }
     }
 
-    // ---- Radio operating mode: a single, visible control for the radio's mutually
-    // exclusive states. Voice opens the BT audio link (blocks the TNC); Packet keeps the
-    // TNC free for APRS/Winlink/BBS; Digital is the radio's own menu mode (app can't toggle
-    // it — advisory only). Replaces warnings that were scattered across several tabs. ----
-    public string[] RadioModes { get; } = { "Packet", "Voice", "Digital" };
+    // ---- Radio operating mode: a single, visible control for the two states the APP
+    // actually controls. Packet keeps the TNC free for APRS/Winlink/BBS (the normal data
+    // mode); Voice opens the BT audio link (blocks the TNC). "Digital" is NOT here: it's a
+    // knob in the radio's own menu the app can neither read nor set, so it surfaces only as
+    // an advisory tied to the radio's built-in beacon (see RadioBeaconNeedsDigital). ----
+    public string[] RadioModes { get; } = { "Packet", "Voice" };
     private bool loadingRadioMode;
     private string radioMode = "Packet";
     public string RadioMode
@@ -247,9 +253,8 @@ public sealed class MainViewModel : ViewModelBase
             if (!SetField(ref radioMode, value)) return;
             OnPropertyChanged(nameof(IsVoiceMode));
             OnPropertyChanged(nameof(IsPacketMode));
-            OnPropertyChanged(nameof(IsDigitalMode));
-            OnPropertyChanged(nameof(ModeAdvisory));
-            OnPropertyChanged(nameof(HasModeAdvisory));
+            OnPropertyChanged(nameof(ModeSummary));
+            OnPropertyChanged(nameof(IsModeCaution));
             ApplyRadioMode();
             if (!loadingRadioMode) DataBroker.Dispatch(0, "RadioMode", value, store: true);
         }
@@ -258,16 +263,15 @@ public sealed class MainViewModel : ViewModelBase
     // Two-way friendly flags so a segmented RadioButton group can drive the mode.
     public bool IsVoiceMode { get => radioMode == "Voice"; set { if (value) RadioMode = "Voice"; } }
     public bool IsPacketMode { get => radioMode == "Packet"; set { if (value) RadioMode = "Packet"; } }
-    public bool IsDigitalMode { get => radioMode == "Digital"; set { if (value) RadioMode = "Digital"; } }
 
-    /// <summary>One consolidated, mode-aware caution line (empty in Packet, the normal data state).</summary>
-    public string ModeAdvisory => radioMode switch
-    {
-        "Voice" => "Voice audio link is open — packet modes (APRS, Winlink, BBS) can't transmit while in Voice. Switch to Packet for data.",
-        "Digital" => "Digital is a setting in the radio's own menu (the app can't toggle it). It feeds the radio's built-in beacon but DISABLES the TNC — Winlink, BBS, and the app beacon won't work until Digital is OFF on the radio.",
-        _ => ""
-    };
-    public bool HasModeAdvisory => ModeAdvisory.Length > 0;
+    /// <summary>Plain-language, always-present one-liner explaining the CURRENT mode, so
+    /// Packet and Voice read consistently on both desktop and mobile.</summary>
+    public string ModeSummary => radioMode == "Voice"
+        ? "Voice — audio link open so you can listen and talk. All packet data (APRS, Winlink, BBS) is paused until you switch back to Packet."
+        : "Packet — the normal data mode. APRS, Winlink, BBS and the app beacon all transmit through the radio's TNC. Use this unless you're talking by voice.";
+    /// <summary>True for Voice, which blocks packet data — drives the caution styling on the
+    /// mode banner; Packet shows the same banner in a neutral style.</summary>
+    public bool IsModeCaution => radioMode == "Voice";
 
     /// <summary>Opens or closes the BT audio link to match the chosen mode (Voice = open).</summary>
     private void ApplyRadioMode()
@@ -285,9 +289,8 @@ public sealed class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(RadioMode));
         OnPropertyChanged(nameof(IsVoiceMode));
         OnPropertyChanged(nameof(IsPacketMode));
-        OnPropertyChanged(nameof(IsDigitalMode));
-        OnPropertyChanged(nameof(ModeAdvisory));
-        OnPropertyChanged(nameof(HasModeAdvisory));
+        OnPropertyChanged(nameof(ModeSummary));
+        OnPropertyChanged(nameof(IsModeCaution));
         loadingRadioMode = false;
     }
 
@@ -570,7 +573,26 @@ public sealed class MainViewModel : ViewModelBase
     public string SquelchText { get => squelchText; private set => SetField(ref squelchText, value); }
 
     private int channelId;
-    public int ChannelId { get => channelId; private set => SetField(ref channelId, value); }
+    public int ChannelId
+    {
+        get => channelId;
+        private set { if (SetField(ref channelId, value)) { OnPropertyChanged(nameof(CurrentChannelName)); OnPropertyChanged(nameof(HasCurrentChannelName)); } }
+    }
+
+    /// <summary>Name the radio shows for the current channel (looked up from the loaded
+    /// channels), so the on-image HUD mirrors the radio's own screen. Empty if unknown
+    /// (e.g. the current channel's bank hasn't been read yet).</summary>
+    public string CurrentChannelName
+    {
+        get
+        {
+            foreach (var ch in Channels)
+                if (ch.ChannelId == channelId && !string.IsNullOrWhiteSpace(ch.Name))
+                    return ch.Name;
+            return "";
+        }
+    }
+    public bool HasCurrentChannelName => CurrentChannelName.Length > 0;
 
     private int rssi;
     public int Rssi { get => rssi; private set => SetField(ref rssi, value); }
@@ -666,7 +688,7 @@ public sealed class MainViewModel : ViewModelBase
     private string editAprsRoute = "";
     public string EditAprsRoute { get => editAprsRoute; set => SetField(ref editAprsRoute, value); }
 
-    // Picking one of the saved APRS routes (Config tab) fills the contact's path.
+    // Picking one of the saved APRS routes (Station tab) fills the contact's path.
     private AprsRoute? selectedContactRoute;
     public AprsRoute? SelectedContactRoute
     {
@@ -743,6 +765,17 @@ public sealed class MainViewModel : ViewModelBase
         SaveContacts();
     }
 
+    /// <summary>Clear the editor to enter a brand-new contact (deselects the list so saving
+    /// adds a new entry rather than editing the highlighted one).</summary>
+    public void NewContact()
+    {
+        SelectedContact = null;
+        EditCallsign = ""; EditName = ""; EditDescription = "";
+        EditType = StationInfoClass.StationTypes.Generic;
+        EditChannel = ""; EditAprsRoute = ""; EditAx25Destination = "";
+        EditWaitForConnection = false; EditAuthPassword = "";
+    }
+
     /// <summary>Re-scans BlueZ for adapter availability and compatible radios.</summary>
     public void Refresh()
     {
@@ -791,6 +824,7 @@ public sealed class MainViewModel : ViewModelBase
             connectedMac = radio.Address;  // voice audio is opened on demand: holding the BT audio
                                            // (AOC) link open re-routes the radio's TX audio and stops
                                            // the hardware TNC's AFSK reaching the air (packet goes silent).
+            ApplyRadioMode();              // if we're already on the Voice tab, open audio now that we're connected
             // If a fixed position is configured, re-apply it once the connect settles.
             _ = Task.Run(async () => { await Task.Delay(1500); dispatcher.Post(PushFixedPositionIfSet); });
         });
@@ -848,12 +882,12 @@ public sealed class MainViewModel : ViewModelBase
                 if (ch.Connect())
                 {
                     audioChannel = ch; voiceReceiver = rx; voicePlayback = playback;
-                    dispatcher.Post(() => { VoiceRxActive = true; AppendLog("Voice RX active (audio channel open)."); });
+                    dispatcher.Post(() => { VoiceUnavailable = false; VoiceRxActive = true; AppendLog("Voice RX active (audio channel open)."); });
                 }
                 else
                 {
                     rx.Stop(); playback.Dispose();
-                    dispatcher.Post(() => AppendLog("Voice RX unavailable (audio channel not found)."));
+                    dispatcher.Post(() => { VoiceUnavailable = true; AppendLog("Voice RX unavailable — the radio's voice (AOC) audio service was not found over Bluetooth."); });
                 }
             }
             catch (Exception ex) { logger.Debug("Voice RX start failed: " + ex.Message); }
@@ -868,7 +902,19 @@ public sealed class MainViewModel : ViewModelBase
         try { voicePlayback?.Dispose(); } catch (Exception) { }
         audioChannel = null; voiceReceiver = null; voicePlayback = null;
         VoiceRxActive = false;
+        VoiceUnavailable = false;   // a clean close isn't a failure
     }
+
+    // True when we tried to open the voice audio link but the radio's AOC service wasn't
+    // found (lets the Voice tab explain *why* it's closed rather than just "closed").
+    private bool voiceUnavailable;
+    public bool VoiceUnavailable
+    {
+        get => voiceUnavailable;
+        private set { if (SetField(ref voiceUnavailable, value)) OnPropertyChanged(nameof(VoiceClosedIdle)); }
+    }
+    /// <summary>Voice audio is off and it's NOT because of a failed open (so show the neutral hint).</summary>
+    public bool VoiceClosedIdle => !VoiceRxActive && !VoiceUnavailable;
 
     // --- Software modem (demodulate RX audio) + waterfall feed ---------------
     public string[] SoftModemModes { get; } = { "None", "AFSK1200", "PSK2400", "PSK4800", "G3RUH9600" };
@@ -972,15 +1018,29 @@ public sealed class MainViewModel : ViewModelBase
     private void ApplyHtStatus(RadioHtStatus s)
     {
         HasStatus = true;
+        lastStatusChannel = s.curr_ch_id;   // the radio's knob channel (used to detect a real knob turn after Make-live)
         PowerText = s.is_power_on ? "On" : "Off";
         TxRxState = s.is_in_tx ? "Transmitting" : s.is_in_rx ? "Receiving" : "Idle";
         SquelchText = s.is_sq ? "Open" : "Closed";
-        ChannelId = s.channel_id;
         Rssi = s.rssi;
         Region = s.curr_region;
         GpsText = s.is_gps_locked ? "Locked" : "No lock";
-        currentChannelId = s.curr_ch_id;
-        RefreshActiveSlots();
+        // curr_ch_id is the live tuned channel; the radio never fills the separate channel_id
+        // field, so use curr_ch_id for the HUD/dashboard AND the channel grid. Two radio quirks:
+        //  • While OUR voice audio link is open, the radio ZEROES the channel field, so gate on the
+        //    app's own VoiceRxActive (not the radio's is_aoc bit, which can stick after a close).
+        //  • A channel set via the app ("Make live") is NOT echoed in HtStatus (curr_ch_id keeps
+        //    reporting the front-panel knob). So after a Make-live we hold the green on our chosen
+        //    channel and ignore the radio's stale (unchanged) value; a DIFFERENT value means the
+        //    operator turned the knob, so we follow that and end the hold.
+        bool staleAfterMakeLive = makeLiveChannel >= 0 && s.curr_ch_id == makeLiveIgnoreStatus;
+        if (!VoiceRxActive && !staleAfterMakeLive)
+        {
+            if (makeLiveChannel >= 0) makeLiveChannel = -1;   // a real knob change ends the make-live hold
+            ChannelId = s.curr_ch_id;
+            currentChannelId = s.curr_ch_id;
+            RefreshActiveSlots();
+        }
     }
 
     private void ApplyDeviceInfo(RadioDeviceSummary d)
@@ -1034,6 +1094,9 @@ public sealed class MainViewModel : ViewModelBase
 
     private void UpdateChannelNames()
     {
+        // The current channel's name may have just arrived — refresh the HUD label.
+        OnPropertyChanged(nameof(CurrentChannelName));
+        OnPropertyChanged(nameof(HasCurrentChannelName));
         foreach (var ch in Channels)
             if (!string.IsNullOrWhiteSpace(ch.Name) && !ChannelNames.Contains(ch.Name))
                 ChannelNames.Add(ch.Name);
@@ -1060,6 +1123,23 @@ public sealed class MainViewModel : ViewModelBase
 
     private string builderStatus = "";
     public string BuilderStatus { get => builderStatus; set => SetField(ref builderStatus, value); }
+
+    // True when BuilderChannels (imported / hand-edited rows) differ from what's on the radio —
+    // i.e. there are channels you've imported or edited but not yet "Write ALL"-ed to the radio.
+    private bool builderDirty;
+    public bool BuilderDirty { get => builderDirty; private set { if (SetField(ref builderDirty, value)) OnPropertyChanged(nameof(ShowBuilderDirty)); } }
+    private bool suppressBuilderDirty;   // set while we (re)load rows FROM the radio, so loading isn't "dirty"
+
+    private void OnBuilderChannelsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null) foreach (EditableChannel ec in e.OldItems) ec.PropertyChanged -= OnBuilderItemChanged;
+        if (e.NewItems != null) foreach (EditableChannel ec in e.NewItems) ec.PropertyChanged += OnBuilderItemChanged;
+        if (!suppressBuilderDirty) BuilderDirty = true;
+    }
+    private void OnBuilderItemChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!suppressBuilderDirty) BuilderDirty = true;
+    }
 
     public bool CanWriteChannels => Connected && controller != null;
 
@@ -1165,6 +1245,11 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<ChannelSlot> Slots { get; } = new();
     private int channelCount = 32;
     private int currentChannelId = -1;
+    private int lastStatusChannel = -1;     // the radio's most recent HtStatus channel (the knob position)
+    // After an app "Make live", the radio keeps reporting its old knob channel; hold our chosen
+    // channel until the operator physically turns the knob (status reports a different value).
+    private int makeLiveChannel = -1;        // the channel we made live via the app (-1 = none active)
+    private int makeLiveIgnoreStatus = -1;   // the knob value at make-live time, which the radio keeps echoing
 
     private void EnsureSlots()
     {
@@ -1198,7 +1283,12 @@ public sealed class MainViewModel : ViewModelBase
         if (HasBanks) controller.SetRegion(SelectedBank);     // tune within the selected bank
         if (controller.WriteActiveChannel(slotId))
         {
-            currentChannelId = slotId;                          // optimistic; HtStatus will confirm
+            // This radio doesn't echo an app-set channel in HtStatus, so hold the green on the
+            // chosen slot and ignore the radio's stale (unchanged) knob value until it really moves.
+            makeLiveChannel = slotId;
+            makeLiveIgnoreStatus = lastStatusChannel;
+            currentChannelId = slotId;
+            ChannelId = slotId;
             RefreshActiveSlots();
             var name = slotId < Slots.Count ? Slots[slotId].Name : "";
             BuilderStatus = string.IsNullOrEmpty(name)
@@ -1229,10 +1319,13 @@ public sealed class MainViewModel : ViewModelBase
     public void LoadChannelsFromRadio()
     {
         if (radioChannels.Count == 0) { BuilderStatus = "No channels read from the radio yet (connect first)."; return; }
+        suppressBuilderDirty = true;   // loading FROM the radio leaves the builder in sync, not "dirty"
         BuilderChannels.Clear();
         foreach (var kv in radioChannels)
             if (kv.Value.rx_freq != 0 || kv.Value.tx_freq != 0)
                 BuilderChannels.Add(new EditableChannel(kv.Value));
+        suppressBuilderDirty = false;
+        BuilderDirty = false;
         BuilderStatus = $"Loaded {BuilderChannels.Count} channel(s) from the radio.";
     }
 
@@ -1339,7 +1432,12 @@ public sealed class MainViewModel : ViewModelBase
             ? $"Wrote {written} channel(s){where}; skipped {skipped} with out-of-range frequency."
             : $"Wrote {written} channel(s){where}.";
         AppendLog($"Channel builder: wrote {written} channel(s){where}" + (skipped > 0 ? $", skipped {skipped} invalid." : "."));
+        BuilderDirty = false;   // builder is now in sync with the radio
     }
+
+    /// <summary>True when there are imported/edited channels that haven't been written to the
+    /// radio AND it's safe to do so — drives the "unsaved changes" banner on the Channels page.</summary>
+    public bool ShowBuilderDirty => BuilderDirty && BuilderChannels.Count > 0;
 
     private static bool FreqInRange(int hz) => hz >= 1_000_000 && hz <= 1_300_000_000;
 
@@ -2064,7 +2162,10 @@ public sealed class MainViewModel : ViewModelBase
         get => aprsChannelName;
         set
         {
-            if (!SetField(ref aprsChannelName, value) || value == null) return;
+            // Ignore the picker momentarily clearing to null/blank (e.g. when the saved name
+            // isn't in the freshly-loaded channel list yet) so the APRS channel never blanks.
+            if (string.IsNullOrWhiteSpace(value)) return;
+            if (!SetField(ref aprsChannelName, value)) return;
             if (loadingAprsChannel) return;
             DataBroker.Dispatch(0, "AprsChannelName", value, store: true);
             // Re-read channels so RadioController records the chosen channel's bank+id.
@@ -2074,7 +2175,8 @@ public sealed class MainViewModel : ViewModelBase
     private void LoadAprsChannelName()
     {
         loadingAprsChannel = true;
-        aprsChannelName = DataBroker.GetValue<string>(0, "AprsChannelName", "APRS") ?? "APRS";
+        var storedAprsName = DataBroker.GetValue<string>(0, "AprsChannelName", "APRS");
+        aprsChannelName = string.IsNullOrWhiteSpace(storedAprsName) ? "APRS" : storedAprsName;
         // Seed the channel list with the saved name so the picker shows it before connecting
         // (the live channel list fills in once a radio connects).
         if (!string.IsNullOrWhiteSpace(aprsChannelName) && !ChannelNames.Contains(aprsChannelName))
@@ -2336,9 +2438,14 @@ public sealed class MainViewModel : ViewModelBase
             var loc = DataBroker.GetValue<AprsChannelLocation>(0, "AprsChannel", null);
             if (loc == null)
                 return $"No '{AprsChannelName}' channel on the radio — APRS will go out on whatever channel you're tuned to. Create one below, or set the APRS channel name on the Station page.";
-            string freq = loc.ChannelId >= 0 && loc.ChannelId < Slots.Count && Slots[loc.ChannelId].RxMHz > 0
+            bool haveSlot = loc.ChannelId >= 0 && loc.ChannelId < Slots.Count;
+            string freq = haveSlot && Slots[loc.ChannelId].RxMHz > 0
                 ? $" · {Slots[loc.ChannelId].RxMHz:0.0000} MHz" : "";
-            return $"Sending on the '{AprsChannelName}' channel (CH {loc.ChannelId + 1}{freq}).";
+            // Prefer the radio's actual channel name at that slot; fall back to the configured
+            // APRS channel name so the label is never blank.
+            string name = haveSlot && !string.IsNullOrWhiteSpace(Slots[loc.ChannelId].Name)
+                ? Slots[loc.ChannelId].Name : AprsChannelName;
+            return $"Sending on the '{name}' channel (CH {loc.ChannelId + 1}{freq}).";
         }
     }
 

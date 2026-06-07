@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/screenshot.png" alt="Handi-Talky Commander running on Linux" width="900">
+  <img src="docs/images/screenshot.png" alt="Handi-Talky Commander (Avalonia) connected to a UV-PRO" width="900">
 </p>
 
 <p align="center">

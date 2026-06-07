@@ -63,12 +63,14 @@ public partial class MainView : UserControl
 
         // PTT is press-and-hold (fail-safe): transmit only while held; any release
         // or loss of pointer capture un-keys the radio.
-        WirePtt(PttButton);
-        WirePtt(PttButton2);   // PTT on the Voice tab too
-        VoiceRxToggleButton.Click += (_, _) => Vm?.ToggleVoiceRx();   // voice audio is on-demand (off by default)
+        WirePtt(PttButton2);   // PTT lives on the Voice tab (where voice audio is open)
+        CloseVoiceButton.Click += (_, _) => Vm?.ToggleVoiceRx();   // explicit close (voice stays open otherwise)
+        // Voice audio is no longer a button: it opens/closes automatically with the Voice tab
+        // (see OnMainTabChanged). Nothing to wire here.
 
         AddContactButton.Click += (_, _) => Vm?.AddOrUpdateContact();
         RemoveContactButton.Click += (_, _) => Vm?.RemoveSelectedContact();
+        NewContactButton.Click += (_, _) => Vm?.NewContact();
         SendTerminalButton.Click += (_, _) => Vm?.SendTerminal();
         SessionConnectButton.Click += (_, _) => Vm?.ConnectSession();
         SessionDisconnectButton.Click += (_, _) => Vm?.DisconnectSession();
@@ -77,6 +79,10 @@ public partial class MainView : UserControl
 
         WireChannelBuilder();
         WireNav();
+
+        // Voice/PTT is explicit opt-in: the operator presses "Go on air" on the Voice tab to open
+        // the audio link (it stays open until closed or disconnect — this radio can't reopen it).
+        OpenVoiceButton.Click += (_, _) => Vm?.ToggleVoiceRx();   // opens when the link is closed
 
         // Mail (Winlink)
         MailSyncButton.Click += (_, _) => Vm?.SyncWinlinkInternet();
@@ -237,6 +243,10 @@ public partial class MainView : UserControl
         finally { navSyncing = false; }
     }
 
+    // Mode is driven entirely by which tab you're on: the Voice tab opens the BT audio link
+    // (Voice mode); every other tab returns to Packet so the TNC is free for APRS/Winlink/BBS.
+    // Guard on e.Source so inner ListBox/ComboBox selection changes (which bubble up the tree)
+    // don't get mistaken for a tab switch.
     // PTT is press-and-hold (fail-safe): transmit only while held; release or any
     // loss of pointer capture un-keys the radio.
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)

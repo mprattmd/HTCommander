@@ -52,15 +52,22 @@ namespace HTCommander
             is_hfp_connected = (msg[6] & 0x04) != 0;
             is_aoc_connected = (msg[6] & 0x02) != 0;
 
-            // Next two bytes
+            // Next two bytes. Verified against live UV-PRO status frames: the bits that
+            // actually change when the operator turns the channel knob are msg[7]'s low nibble
+            // (high bits) + msg[8]'s top two bits (low bits) — a 0-based channel id. The earlier
+            // port had channel and region SWAPPED (it read those bits as "region" and pulled the
+            // channel from msg[6], which is constant), so the green tile collapsed to CH 1.
             if (msg.Length == 9)
             {
                 rssi = (msg[7] >> 4); // 0 to 16
-                curr_region = ((msg[7] & 0x0F) << 2) + (msg[8] >> 6);
-                curr_channel_id_upper = ((msg[8] & 0x3C) >> 2);
+                curr_ch_id = ((msg[7] & 0x0F) << 2) + (msg[8] >> 6);
+                curr_region = (msg[8] & 0x3C) >> 2;
+                curr_channel_id_upper = curr_region;
             }
-
-            curr_ch_id = (curr_channel_id_upper << 4) + curr_ch_id_lower;
+            else
+            {
+                curr_ch_id = (curr_channel_id_upper << 4) + curr_ch_id_lower;
+            }
         }
 
         public RadioHtStatus(RadioHtStatus other)

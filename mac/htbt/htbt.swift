@@ -397,17 +397,41 @@ private final class HtAudio: NSObject, IOBluetoothRFCOMMChannelDelegate {
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
             guard let self = self else { return }
             var chId: BluetoothRFCOMMChannelID = 0
-            if let services = dev.services {
+            // Manual override for testing a specific RFCOMM channel: HTBT_AUDIO_CH=<n>.
+            if let v = ProcessInfo.processInfo.environment["HTBT_AUDIO_CH"], let n = UInt8(v), n != 0 {
+                chId = n
+                dbg("audio: HTBT_AUDIO_CH override -> ch \(chId)")
+            }
+            if chId == 0, let services = dev.services {
+                // 1) Preferred: a service whose name matches (e.g. "AOC" / "BS AOC").
                 for case let rec as IOBluetoothSDPServiceRecord in services {
                     let nm = (rec.getServiceName() ?? "").uppercased()
                     var c: BluetoothRFCOMMChannelID = 0
                     if nm.contains(self.nameMatch.uppercased()),
                        rec.getRFCOMMChannelID(&c) == kIOReturnSuccess, c != 0 {
-                        chId = c; break
+                        chId = c; dbg("audio: matched '\(rec.getServiceName() ?? "?")' -> ch \(c)"); break
+                    }
+                }
+                // 2) Fallback: some firmwares advertise the SBC voice stream with NO SDP name
+                //    (it shows up as an unnamed RFCOMM service). Take the first RFCOMM service
+                //    that is neither the SPP/GAIA data channel nor the HFP/headset gateway.
+                if chId == 0 {
+                    for case let rec as IOBluetoothSDPServiceRecord in services {
+                        let nm = (rec.getServiceName() ?? "").uppercased()
+                        var c: BluetoothRFCOMMChannelID = 0
+                        guard rec.getRFCOMMChannelID(&c) == kIOReturnSuccess, c != 0 else { continue }
+                        if nm.contains("SPP") || nm.contains("GAIA")
+                            || nm.contains("VOICE GATEWAY") || nm.contains("HANDSFREE")
+                            || nm.contains("HEADSET") || nm.contains("PHONE") {
+                            dbg("audio: skip '\(rec.getServiceName() ?? "?")' ch \(c)"); continue
+                        }
+                        chId = c
+                        dbg("audio: fallback to '\(rec.getServiceName() ?? "(unnamed)")' -> ch \(c)")
+                        break
                     }
                 }
             }
-            if chId == 0 { dbg("audio: no SDP service matching '\(self.nameMatch)'"); self.finish(false); return }
+            if chId == 0 { dbg("audio: no usable SDP service (name '\(self.nameMatch)' + fallback)"); self.finish(false); return }
             dbg("audio: opening '\(self.nameMatch)' on RFCOMM ch \(chId)")
             var ch: IOBluetoothRFCOMMChannel?
             let rc = dev.openRFCOMMChannelAsync(&ch, withChannelID: chId, delegate: self)
