@@ -1,10 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- net9.0 = desktop (Windows/Linux/macOS); net10.0-android = the Android head.
-         Desktop-only by DEFAULT so the cross-platform solution + packaging scripts build
-         with just the .NET 9 SDK (no Android workload — that's what CI runs). Opt into the
-         Android head with -p:BuildAndroid=true (see the Android build/deploy commands). -->
-    <TargetFrameworks>net9.0</TargetFrameworks>
+         Desktop-only by DEFAULT, and as a SINGLE-targeted project (singular TargetFramework)
+         so the cross-platform solution, the AppImage/macOS packaging scripts and CI all build
+         with just the .NET 9 SDK — and `dotnet publish` works WITHOUT -f (a plural
+         TargetFrameworks, even with one value, is treated as cross-targeting and breaks
+         publish with NETSDK1129). Opt into the Android head with -p:BuildAndroid=true, which
+         switches to the plural multi-TFM form (then build with -f net10.0-android). -->
+    <TargetFramework Condition="'$(BuildAndroid)' != 'true'">net9.0</TargetFramework>
     <TargetFrameworks Condition="'$(BuildAndroid)' == 'true'">net9.0;net10.0-android</TargetFrameworks>
     <Version>0.5.1</Version>
     <Nullable>enable</Nullable>
