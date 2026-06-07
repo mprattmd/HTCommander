@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             xmlns:core="using:HTCommander"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobilePacketsView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*" Margin="14,12">
+    <TextBlock Grid.Row="0" Classes="mSection" Text="{Binding Packets.Count, StringFormat='RECEIVED PACKETS ({0})'}"/>
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl ItemsSource="{Binding Packets}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="core:ReceivedPacketSummary">
+            <Border Classes="mRow">
+              <StackPanel Spacing="3">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                  <TextBlock Grid.Column="0" Text="{Binding Source}" FontFamily="{StaticResource MMono}" FontWeight="Bold" FontSize="14"/>
+                  <TextBlock Grid.Column="1" Text="{Binding Destination, StringFormat='→ {0}'}" FontFamily="{StaticResource MMono}" FontSize="12.5" Foreground="{StaticResource MMut}" Margin="8,0,0,0"/>
+                  <Border Grid.Column="3" IsVisible="{Binding IsAprs}" Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}" BorderThickness="1" CornerRadius="6" Padding="6,1">
+                    <TextBlock Text="APRS" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource MAccent}"/>
+                  </Border>
+                </Grid>
+                <TextBlock Text="{Binding Info}" FontSize="13" Foreground="{StaticResource MMut}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding TimeText}" FontSize="11" Foreground="{StaticResource MDim}" FontFamily="{StaticResource MMono}"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

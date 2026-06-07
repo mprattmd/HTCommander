@@ -99,8 +99,14 @@ public partial class MobileView : UserControl
     private Control PageFor(string key) => key switch
     {
         "Radio" => new MobileRadioView(),
+        "APRS" => new MobileAprsView(),
+        "Mail" => new MobileMailView(),
         "Contacts" => new MobileContactsView(),
-        _ => Placeholder(key),
+        "Channels" => new MobileChannelsView(),
+        "Station" => new MobileStationView(),
+        "Settings" => new MobileSettingsView(),
+        "Packets" => new MobilePacketsView(),
+        _ => Placeholder(key),   // Map (Mapsui-on-Android pending), About
     };
 
     private static string TitleFor(string key) => key;

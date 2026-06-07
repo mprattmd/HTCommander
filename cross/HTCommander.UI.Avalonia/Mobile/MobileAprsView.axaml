@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileAprsView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="14,12">
+    <Button Grid.Row="0" x:Name="StationsButton" Classes="rowBtn" Margin="0,0,0,10">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding Stations.Count, StringFormat='Stations heard ({0})'}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <TextBlock Grid.Column="1" Classes="chev" Text="›"/>
+      </Grid>
+    </Button>
+
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl ItemsSource="{Binding AprsMessages}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:AprsMessageRow">
+            <Border Classes="mRow">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Header}" FontFamily="{StaticResource MMono}" FontSize="12" Foreground="{StaticResource MMut}"/>
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Border Grid.Row="2" Classes="mCard" Margin="0,10,0,0">
+      <StackPanel Spacing="8">
+        <TextBox Classes="mInput" Text="{Binding AprsDestination}" Watermark="To (callsign, e.g. KE4AXW-7)"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox Grid.Column="0" Classes="mInput" Text="{Binding AprsMessageText}" Watermark="Message" FontFamily="{StaticResource MMono}"/>
+          <Button Grid.Column="1" x:Name="SendButton" Classes="mPri" Content="Send" Width="92" IsEnabled="{Binding CanSendAprs}"/>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

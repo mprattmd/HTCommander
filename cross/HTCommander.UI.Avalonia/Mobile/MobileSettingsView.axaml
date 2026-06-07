@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileSettingsView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="14" Spacing="14">
+      <TextBlock Classes="mSection" Text="APRS.FI (INTERNET STATION LOOKUP)"/>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="API KEY"/>
+        <TextBox Classes="mInput" Text="{Binding Settings.AprsFiApiKey}" PasswordChar="•"
+                 Watermark="free key from aprs.fi → My account"/>
+      </StackPanel>
+      <TextBlock Classes="mKey" TextWrapping="Wrap"
+                 Text="Used on the Map to plot stations by callsign over the internet (confirms your beacon reached the network). Viewing needs no licence."/>
+      <Border Classes="mCard" Margin="0,8,0,0">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Audio &amp; GPS" FontWeight="SemiBold"/>
+          <TextBlock Classes="mKey" TextWrapping="Wrap"
+                     Text="Audio device and serial-GPS settings are desktop-only. Voice/audio on Android arrives in round two. Settings save automatically."/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

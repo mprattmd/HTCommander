@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileMailReaderView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer Margin="14,12">
+    <Border Classes="mCard">
+      <SelectableTextBlock Text="{Binding MailPreview}" FontFamily="{StaticResource MMono}" FontSize="13" TextWrapping="Wrap"/>
+    </Border>
+  </ScrollViewer>
+</UserControl>

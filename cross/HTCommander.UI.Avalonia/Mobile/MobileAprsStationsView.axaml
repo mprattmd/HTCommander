@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             xmlns:core="using:HTCommander"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileAprsStationsView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer Margin="14,12">
+    <ItemsControl ItemsSource="{Binding Stations}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="core:AprsStationSummary">
+          <Border Classes="mRow">
+            <StackPanel Spacing="3">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="{Binding Callsign}" FontFamily="{StaticResource MMono}" FontWeight="Bold" FontSize="15"/>
+                <TextBlock Grid.Column="1" FontFamily="{StaticResource MMono}" FontSize="12" Foreground="{StaticResource MAccent}"
+                           Text="{Binding Latitude, StringFormat='{}{0:0.000}'}"/>
+              </Grid>
+              <TextBlock Text="{Binding Comment}" FontSize="13" Foreground="{StaticResource MMut}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+</UserControl>

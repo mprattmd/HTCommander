@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileStationView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="14" Spacing="14">
+      <TextBlock Classes="mSection" Text="IDENTITY"/>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="CALLSIGN"/>
+        <TextBox Classes="mInput" Text="{Binding MyCallsign}" Watermark="e.g. KE4AXW"/>
+      </StackPanel>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="STATION ID (SSID)"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding StationIdOptions}" SelectedItem="{Binding MyStationId}"/>
+      </StackPanel>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="WINLINK PASSWORD"/>
+        <TextBox Classes="mInput" Text="{Binding WinlinkPassword}" PasswordChar="•"/>
+      </StackPanel>
+      <Border Classes="mCard">
+        <StackPanel Spacing="6">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="Allow transmit" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding AllowTransmit}" OnContent="" OffContent=""/>
+          </Grid>
+          <TextBlock Classes="mKey" TextWrapping="Wrap"
+                     Text="I am licensed and authorized to transmit. Required (with a callsign) before any on-air TX — APRS, Winlink, beacons."/>
+        </StackPanel>
+      </Border>
+      <TextBlock Classes="mKey" TextWrapping="Wrap" Margin="0,4,0,0"
+                 Text="Beacon, APRS routes and fixed position are configured on the desktop app for now."/>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

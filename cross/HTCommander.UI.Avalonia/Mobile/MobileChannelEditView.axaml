@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileChannelEditView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="14" Spacing="12">
+      <StackPanel Spacing="6"><TextBlock Classes="mKey" Text="NAME"/>
+        <TextBox Classes="mInput" Text="{Binding EditingChannel.Name}" MaxLength="10"/></StackPanel>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <StackPanel Grid.Column="0" Spacing="6"><TextBlock Classes="mKey" Text="RX MHz"/>
+          <TextBox Classes="mInput" Text="{Binding EditingChannel.RxMHzText}"/></StackPanel>
+        <StackPanel Grid.Column="1" Spacing="6"><TextBlock Classes="mKey" Text="TX MHz"/>
+          <TextBox Classes="mInput" Text="{Binding EditingChannel.TxMHzText}"/></StackPanel>
+      </Grid>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <StackPanel Grid.Column="0" Spacing="6"><TextBlock Classes="mKey" Text="TONE RX"/>
+          <TextBox Classes="mInput" Text="{Binding EditingChannel.RxToneText}"/></StackPanel>
+        <StackPanel Grid.Column="1" Spacing="6"><TextBlock Classes="mKey" Text="TONE TX"/>
+          <TextBox Classes="mInput" Text="{Binding EditingChannel.TxToneText}"/></StackPanel>
+      </Grid>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <StackPanel Grid.Column="0" Spacing="6"><TextBlock Classes="mKey" Text="MODE"/>
+          <ComboBox Classes="mInput" ItemsSource="{Binding ChannelModes}" SelectedItem="{Binding EditingChannel.Mode}"/></StackPanel>
+        <StackPanel Grid.Column="1" Spacing="6"><TextBlock Classes="mKey" Text="POWER"/>
+          <ComboBox Classes="mInput" ItemsSource="{Binding ChannelPowers}" SelectedItem="{Binding EditingChannel.Power}"/></StackPanel>
+      </Grid>
+      <Border Classes="mCard">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Text="Include in scan" VerticalAlignment="Center"/>
+          <ToggleSwitch Grid.Column="1" IsChecked="{Binding EditingChannel.Scan}" OnContent="" OffContent=""/>
+        </Grid>
+      </Border>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,4,0,0">
+        <Button Grid.Column="0" x:Name="SaveButton" Classes="mPri" Content="⬆ Save to radio"/>
+        <Button Grid.Column="1" x:Name="CancelButton" Classes="mGhost" Content="Cancel"/>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
