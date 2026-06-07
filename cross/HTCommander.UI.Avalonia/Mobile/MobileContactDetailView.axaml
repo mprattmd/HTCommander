@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileContactDetailView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="14" Spacing="14">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="CALLSIGN"/>
+        <TextBox Classes="mInput" Text="{Binding EditCallsign}"/>
+      </StackPanel>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="NAME"/>
+        <TextBox Classes="mInput" Text="{Binding EditName}"/>
+      </StackPanel>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="TYPE"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding StationTypeOptions}" SelectedItem="{Binding EditType}"/>
+      </StackPanel>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="CONNECT ON CHANNEL (WINLINK / BBS)"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding ChannelNames}" SelectedItem="{Binding EditChannel}"/>
+      </StackPanel>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="AX.25 DESTINATION"/>
+        <TextBox Classes="mInput" Text="{Binding EditAx25Destination}" Watermark="callsign-SSID"/>
+      </StackPanel>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="AUTH PASSWORD (WINLINK)"/>
+        <TextBox Classes="mInput" Text="{Binding EditAuthPassword}" PasswordChar="•"/>
+      </StackPanel>
+      <Border Classes="mCard">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Text="Wait for incoming connection" VerticalAlignment="Center"/>
+          <ToggleSwitch Grid.Column="1" IsChecked="{Binding EditWaitForConnection}" OnContent="" OffContent=""/>
+        </Grid>
+      </Border>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="DESCRIPTION"/>
+        <TextBox Classes="mInput" Text="{Binding EditDescription}" AcceptsReturn="True" Height="80"/>
+      </StackPanel>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,4,0,0">
+        <Button Grid.Column="0" x:Name="SaveButton" Classes="mPri" Content="Save"/>
+        <Button Grid.Column="1" x:Name="RemoveButton" Classes="mGhost" Content="Remove"/>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

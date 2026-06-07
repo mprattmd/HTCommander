@@ -82,7 +82,7 @@ public partial class MobileView : UserControl
         SetContent(page, title);
     }
 
-    private void Back()
+    public void Back()
     {
         if (stack.Count == 0) return;
         var (page, title) = stack.Pop();
@@ -99,6 +99,7 @@ public partial class MobileView : UserControl
     private Control PageFor(string key) => key switch
     {
         "Radio" => new MobileRadioView(),
+        "Contacts" => new MobileContactsView(),
         _ => Placeholder(key),
     };
 

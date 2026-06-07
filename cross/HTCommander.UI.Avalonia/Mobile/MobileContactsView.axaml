@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             xmlns:core="using:HTCommander"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileContactsView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*" Margin="14,12">
+    <Button Grid.Row="0" x:Name="NewButton" Classes="mPri" Content="＋  New contact" Margin="0,0,0,12"/>
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl x:Name="ContactsList" ItemsSource="{Binding Contacts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="core:StationInfoClass">
+            <Button Classes="rowBtn">
+              <Grid ColumnDefinitions="44,*,Auto,Auto" >
+                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="11" Background="{StaticResource MTint}"
+                        BorderBrush="{StaticResource MTintLine}" BorderThickness="1" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Callsign}" FontFamily="{StaticResource MMono}" FontWeight="Bold" FontSize="12"
+                             Foreground="{StaticResource MAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0" Spacing="2">
+                  <TextBlock Text="{Binding Callsign}" FontFamily="{StaticResource MMono}" FontWeight="SemiBold" FontSize="15.5"/>
+                  <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource MMut}" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+                <Border Grid.Column="2" Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}" BorderThickness="1"
+                        CornerRadius="6" Padding="7,2" VerticalAlignment="Center" Margin="0,0,8,0">
+                  <TextBlock Text="{Binding StationType}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MAccent}"/>
+                </Border>
+                <TextBlock Grid.Column="3" Classes="chev" Text="›"/>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

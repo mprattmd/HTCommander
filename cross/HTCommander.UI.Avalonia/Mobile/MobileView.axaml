@@ -140,6 +140,22 @@
       <Setter Property="Background" Value="{StaticResource MAccent}"/>
     </Style>
 
+    <!-- tappable list row (button) -->
+    <Style Selector="Button.rowBtn">
+      <Setter Property="Background" Value="{StaticResource MCard}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource MLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="Padding" Value="14,12"/>
+      <Setter Property="MinHeight" Value="60"/>
+      <Setter Property="Margin" Value="0,0,0,9"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Button.rowBtn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource MS2}"/>
+    </Style>
+
     <!-- More-sheet tile -->
     <Style Selector="Button.tile">
       <Setter Property="Background" Value="{StaticResource MCard}"/>
