@@ -107,7 +107,8 @@ public partial class MobileView : UserControl
         "Settings" => new MobileSettingsView(),
         "Packets" => new MobilePacketsView(),
         "Map" => new MobileMapView(),
-        _ => Placeholder(key),   // About
+        "About" => new MobileAboutView(),
+        _ => Placeholder(key),
     };
 
     private static string TitleFor(string key) => key;

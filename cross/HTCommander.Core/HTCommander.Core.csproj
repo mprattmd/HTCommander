@@ -11,6 +11,9 @@
   <ItemGroup>
     <!-- Cross-platform serial port access for the GPS NMEA reader (libc termios on Linux). -->
     <PackageReference Include="System.IO.Ports" Version="9.0.0" />
+    <!-- Winlink mail store (SqliteMailStore): bundles its own native SQLite, runs on
+         every head including Android. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
   </ItemGroup>
 
 </Project>

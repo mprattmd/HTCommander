@@ -16,8 +16,10 @@ limitations under the License.
 
 #if ANDROID
 using System;
+using System.Linq;
 using Android.App;
 using Android.Content.PM;
+using Android.OS;
 using Android.Runtime;
 using Avalonia;
 using Avalonia.Android;
@@ -52,5 +54,23 @@ public sealed class HtcAndroidApplication : AvaloniaAndroidApplication<App>
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
 public sealed class MainActivity : AvaloniaMainActivity
 {
+    protected override void OnCreate(Bundle? savedInstanceState)
+    {
+        base.OnCreate(savedInstanceState);
+        RequestBluetoothPermissions();
+    }
+
+    // Android 12+ requires runtime consent for "Nearby devices" before the app can
+    // read bonded devices / open RFCOMM — without this the radio never appears.
+    private void RequestBluetoothPermissions()
+    {
+        if (Build.VERSION.SdkInt < BuildVersionCodes.S) return;   // pre-12 grants at install
+        var needed = new[]
+        {
+            global::Android.Manifest.Permission.BluetoothConnect,
+            global::Android.Manifest.Permission.BluetoothScan,
+        }.Where(p => CheckSelfPermission(p) != Permission.Granted).ToArray();
+        if (needed.Length > 0) RequestPermissions(needed, 1001);
+    }
 }
 #endif

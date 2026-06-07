@@ -73,13 +73,16 @@ public partial class App : Application
         // Winlink B2F client (CMS over internet/radio); held alive by its subscriptions.
         winlinkClient = new WinlinkClient();
 
-#if !ANDROID
-        // Desktop-only services: SQLite mail store + serial GPS. Both are deferred on
-        // Android round one (mail persistence and serial GPS have no Android backend yet).
+        // Winlink SQLite mail store — works on every head (Microsoft.Data.Sqlite bundles
+        // its own native SQLite, including an Android build). Without this, composing a
+        // message has nowhere to save (Outbox/Draft stay empty).
         string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         if (string.IsNullOrEmpty(baseDir))
             baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
         DataBroker.AddDataHandler("MailStore", new SqliteMailStore(Path.Combine(baseDir, "HTCommander")));
+
+#if !ANDROID
+        // Desktop-only: serial GPS (no Android backend yet).
         DataBroker.AddDataHandler("GpsSerialHandler", new HTCommander.Gps.GpsSerialHandler());
 #endif
 

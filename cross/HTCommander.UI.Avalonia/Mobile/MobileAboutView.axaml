@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileAboutView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="14">
+      <StackPanel Orientation="Horizontal" Spacing="14">
+        <Image Source="/Assets/Radio2.png" Height="46" VerticalAlignment="Center"/>
+        <StackPanel VerticalAlignment="Center" Spacing="1">
+          <TextBlock Text="HTCommander" FontWeight="Bold" FontSize="20"/>
+          <TextBlock Text="Android port by Mark Pratt, KE4AXW" Foreground="{StaticResource MMut}"/>
+          <TextBlock x:Name="VersionText" Foreground="{StaticResource MMut}" FontFamily="{StaticResource MMono}" FontSize="12.5"/>
+        </StackPanel>
+      </StackPanel>
+
+      <Border Classes="mCard">
+        <StackPanel Spacing="10">
+          <TextBlock TextWrapping="Wrap"
+                     Text="A cross-platform (Avalonia / .NET) port of Ylian Saint-Hilaire's HTCommander, controlling Benshi-protocol HTs over Bluetooth. Licensed under Apache 2.0."/>
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource MMut}" FontSize="13"
+                     Text="Credits — original application by Ylian Saint-Hilaire. Bluetooth command decoding by the BenLink project (Kyle Husmann, KC3SLD). APRS parsing by aprs-parser (Lee, K0QED). Map data © OpenStreetMap contributors."/>
+          <StackPanel Spacing="1">
+            <TextBlock Classes="mKey" Text="SOURCE"/>
+            <TextBlock Text="github.com/mprattmd/HTCommander" Foreground="{StaticResource MAccent}" FontFamily="{StaticResource MMono}" FontSize="12.5"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

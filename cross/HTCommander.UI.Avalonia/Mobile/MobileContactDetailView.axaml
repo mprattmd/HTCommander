@@ -17,19 +17,38 @@
         <TextBlock Classes="mKey" Text="TYPE"/>
         <ComboBox Classes="mInput" ItemsSource="{Binding StationTypeOptions}" SelectedItem="{Binding EditType}"/>
       </StackPanel>
-      <StackPanel Spacing="6">
-        <TextBlock Classes="mKey" Text="CONNECT ON CHANNEL (WINLINK / BBS)"/>
+      <!-- APRS contacts: a digipeater PATH, not a connect channel. -->
+      <StackPanel Spacing="6" IsVisible="{Binding ShowAprsContactFields}">
+        <TextBlock Classes="mKey" Text="APRS PATH (DIGIPEATERS)"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding AprsRoutes}" SelectedItem="{Binding SelectedContactRoute}"
+                  PlaceholderText="Pick a route">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AprsRoute"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBox Classes="mInput" Text="{Binding EditAprsRoute}" Watermark="e.g. WIDE1-1,WIDE2-2"/>
+      </StackPanel>
+
+      <!-- Winlink / BBS / Terminal contacts: AX.25 connect (channel + destination + wait). -->
+      <StackPanel Spacing="6" IsVisible="{Binding ShowConnectContactFields}">
+        <TextBlock Classes="mKey" Text="CONNECT ON CHANNEL"/>
         <ComboBox Classes="mInput" ItemsSource="{Binding ChannelNames}" SelectedItem="{Binding EditChannel}"/>
       </StackPanel>
-      <StackPanel Spacing="6">
+      <StackPanel Spacing="6" IsVisible="{Binding ShowConnectContactFields}">
         <TextBlock Classes="mKey" Text="AX.25 DESTINATION"/>
         <TextBox Classes="mInput" Text="{Binding EditAx25Destination}" Watermark="callsign-SSID"/>
       </StackPanel>
-      <StackPanel Spacing="6">
-        <TextBlock Classes="mKey" Text="AUTH PASSWORD (WINLINK)"/>
+      <!-- Per-contact password = APRS message signing only (see AprsAuth). Shown for APRS contacts. -->
+      <StackPanel Spacing="6" IsVisible="{Binding ShowContactAuthPassword}">
+        <TextBlock Classes="mKey" Text="APRS AUTH PASSWORD (OPTIONAL)"/>
         <TextBox Classes="mInput" Text="{Binding EditAuthPassword}" PasswordChar="•"/>
+        <TextBlock Classes="mKey" TextWrapping="Wrap" Foreground="{StaticResource MMut}"
+                   Text="Used to sign authenticated APRS messages with this station. Not your Winlink login."/>
       </StackPanel>
-      <Border Classes="mCard">
+      <!-- Winlink/BBS contacts authenticate with the operator's single Winlink password on the Station page. -->
+      <Border Classes="mCard" IsVisible="{Binding ShowWinlinkPasswordHint}">
+        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource MMut}"
+                   Text="Winlink/BBS login uses your Winlink password set once on the Station page — no per-contact password is needed here."/>
+      </Border>
+      <Border Classes="mCard" IsVisible="{Binding ShowConnectContactFields}">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Grid.Column="0" Text="Wait for incoming connection" VerticalAlignment="Center"/>
           <ToggleSwitch Grid.Column="1" IsChecked="{Binding EditWaitForConnection}" OnContent="" OffContent=""/>

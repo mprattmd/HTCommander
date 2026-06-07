@@ -35,6 +35,12 @@ open HTCommander.app
 > Apple Silicon (M-series) only for now. Pair the radio in **System Settings → Bluetooth**
 > first. macOS will prompt for **Bluetooth** (and **Microphone**, for voice PTT) permission.
 
+### Android (phone, data-only beta)
+
+**[HTCommander-android.apk](https://github.com/mprattmd/HTCommander/releases/latest/download/HTCommander-android.apk)** — a phone-first build (bottom-nav UI: Radio · Channels · APRS · Mail · Map). Pair the radio in **Settings → Bluetooth** first, then sideload the APK (enable "Install unknown apps" for your browser/file manager) and allow the **Nearby devices** permission on launch.
+
+> Round-one Android scope is **data only** (APRS, packet, Winlink mail, channels) — no voice/PTT yet. iOS isn't possible (Apple blocks Classic-Bluetooth RFCOMM to non-MFi radios).
+
 ### 🔊 PortAudio (audio library)
 
 Both packages **bundle PortAudio**, so audio/voice works out of the box. If audio is

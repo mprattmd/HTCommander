@@ -38,11 +38,23 @@ public partial class MobileChannelsView : UserControl
 
     private void OnSlotClick(object? sender, RoutedEventArgs e)
     {
+        // Did the click originate on the per-row "Edit" button (vs the row itself)?
+        bool isEdit = false;
+        for (var v = e.Source as Visual; v != null; v = v.GetVisualParent())
+            if (v is Button b && b.Classes.Contains("editBtn")) { isEdit = true; break; }
+
         for (var v = e.Source as Visual; v != null; v = v.GetVisualParent())
             if (v is StyledElement se && se.DataContext is ChannelSlot slot)
             {
-                Vm?.BeginEditSlot(slot.SlotId);
-                this.FindAncestorOfType<MobileView>()?.Push(new MobileChannelEditView(), "CH " + slot.SlotId);
+                if (isEdit)
+                {
+                    Vm?.BeginEditSlot(slot.SlotId);
+                    this.FindAncestorOfType<MobileView>()?.Push(new MobileChannelEditView(), "CH " + slot.SlotId);
+                }
+                else
+                {
+                    Vm?.MakeChannelLive(slot.SlotId);   // tap row = tune the radio to this channel
+                }
                 return;
             }
     }

@@ -29,6 +29,15 @@
         <Button Grid.Column="1" x:Name="DraftButton" Classes="mGhost" Content="Save as Draft"/>
       </Grid>
       <TextBlock Classes="mKey" TextWrapping="Wrap" Text="Outbox messages are sent on the next sync; Drafts are not sent."/>
+      <!-- status (e.g. 'To is required', 'Saved to Outbox', 'Mail store unavailable') -->
+      <Border Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}" BorderThickness="1"
+              CornerRadius="9" Padding="10,7">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="STATUS" Classes="mKey" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding WinlinkStatus}" Foreground="{StaticResource MAccent}" FontFamily="{StaticResource MMono}"
+                     FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Border>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

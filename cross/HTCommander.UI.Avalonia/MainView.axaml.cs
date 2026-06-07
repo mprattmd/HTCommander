@@ -287,6 +287,7 @@ public partial class MainView : UserControl
         // Inline single-channel editor: click a radio-memory tile to edit that channel.
         ChEditSaveButton.Click += (_, _) => Vm?.SaveEditingChannel();
         ChEditCancelButton.Click += (_, _) => Vm?.CancelEditingChannel();
+        ChMakeLiveButton.Click += (_, _) => Vm?.MakeEditingChannelLive();
         SlotCards.AddHandler(PointerPressedEvent, OnSlotPressed, RoutingStrategies.Bubble);
         // Fill the table from the radio's current channels the first time it's opened.
         ChannelTableExpander.Expanded += (_, _) => { if (Vm != null && Vm.BuilderChannels.Count == 0) Vm.LoadChannelsFromRadio(); };

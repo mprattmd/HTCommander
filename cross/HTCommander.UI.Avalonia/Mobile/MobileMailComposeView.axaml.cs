@@ -13,8 +13,10 @@ public partial class MobileMailComposeView : UserControl
     public MobileMailComposeView()
     {
         InitializeComponent();
-        OutboxButton.Click += (_, _) => { Vm?.ComposeSaveToOutbox(); Close(); };
-        DraftButton.Click  += (_, _) => { Vm?.SaveAsDraft(); Close(); };
+        // Only leave the compose screen if the message actually saved (e.g. 'To' filled,
+        // mail store available) — otherwise stay so the status line explains why.
+        OutboxButton.Click += (_, _) => { if (Vm?.ComposeSaveToOutbox() == true) Close(); };
+        DraftButton.Click  += (_, _) => { if (Vm?.SaveAsDraft() == true) Close(); };
         AttachButton.Click += async (_, _) => await AddAttachmentAsync();
         AttachRemoveButton.Click += (_, _) => Vm?.RemoveComposeAttachment();
     }

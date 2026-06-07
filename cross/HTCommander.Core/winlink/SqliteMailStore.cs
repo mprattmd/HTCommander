@@ -19,11 +19,11 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Data.Sqlite;
 
-namespace HTCommander.Platform.Linux;
+namespace HTCommander;
 
 /// <summary>
 /// Cross-platform <see cref="IMailStore"/> backed by <c>Microsoft.Data.Sqlite</c>
-/// (bundles its own native SQLite, so it runs on Linux/macOS — unlike the WinForms
+/// (bundles its own native SQLite, so it runs on Linux/macOS/Android — unlike the WinForms
 /// <c>System.Data.SQLite</c> store). Schema matches the original `mails`/`attachments`
 /// tables so the Winlink mail layer (Core <see cref="WinLinkMail"/>) works unchanged.
 /// Attachments are stored as files under an "attachments" subfolder.

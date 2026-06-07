@@ -18,6 +18,15 @@
           <ComboBox.ItemTemplate><DataTemplate x:DataType="core:StationInfoClass"><TextBlock Text="{Binding Callsign}"/></DataTemplate></ComboBox.ItemTemplate>
         </ComboBox>
         <Button x:Name="SyncRadioButton" Classes="mGhost" Content="⇅ Sync over radio (B2F)" IsEnabled="{Binding CanSyncRadio}"/>
+        <!-- Live Winlink connection / sync status -->
+        <Border Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}" BorderThickness="1"
+                CornerRadius="9" Padding="10,7">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="STATUS" Classes="mKey" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding WinlinkStatus}" Foreground="{StaticResource MAccent}" FontFamily="{StaticResource MMono}"
+                       FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </Border>
 

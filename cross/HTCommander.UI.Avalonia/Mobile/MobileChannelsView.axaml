@@ -19,7 +19,9 @@
       <ItemsControl x:Name="SlotList" ItemsSource="{Binding Slots}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:ChannelSlot">
-            <Button Classes="rowBtn">
+            <!-- Tap the row to TUNE the radio to this channel (make it live);
+                 tap Edit to change the slot's contents. -->
+            <Button Classes="rowBtn liveBtn">
               <Grid ColumnDefinitions="48,*,Auto,Auto">
                 <Border Grid.Column="0" Width="44" Height="40" CornerRadius="10" VerticalAlignment="Center"
                         Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}" BorderThickness="1">
@@ -34,7 +36,7 @@
                         CornerRadius="6" Padding="6,1" VerticalAlignment="Center" Margin="0,0,8,0">
                   <TextBlock Text="LIVE" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource MGood}"/>
                 </Border>
-                <TextBlock Grid.Column="3" Classes="chev" Text="›"/>
+                <Button Grid.Column="3" Classes="editBtn" Content="Edit" VerticalAlignment="Center"/>
               </Grid>
             </Button>
           </DataTemplate>

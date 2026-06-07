@@ -147,10 +147,30 @@ Testers get the update in Google's **App Tester** app.
 NOTE: TestFlight/iOS is NOT viable — iOS can't do Classic Bluetooth RFCOMM to a non-MFi
 radio (same wall as Web Bluetooth). Android only.
 
+## Beta 0.5.0 (2) and (3) — on-device fixes
+- **(2) Bluetooth permission** — the Avalonia head never requested the Android 12+
+  *Nearby devices* runtime permission (the spike did; the real app didn't), so
+  `AndroidRadioDiscovery.BondedDevices` came back empty and a paired radio was never found.
+  `MainActivity.OnCreate` now requests `BLUETOOTH_CONNECT`/`BLUETOOTH_SCAN`. Verified on the
+  emulator (permission dialog fires on launch).
+- **(3) bug-fix batch:**
+  - **Tap a channel = tune the radio.** Tapping a slot on the Channels page now calls
+    `MainViewModel.MakeChannelLive` → `RadioController.WriteActiveChannel` (the same VFO-A
+    write APRS/Winlink use). Editing moved to a per-row **Edit** pill.
+  - **Android mail persistence (no longer deferred).** `SqliteMailStore` moved
+    Platform.Linux → **Core** (namespace `HTCommander`); `Microsoft.Data.Sqlite` added to
+    Core + a direct ref in the android head so `libe_sqlite3.so` is packaged. The
+    `MailStore` handler is now registered for **all** heads (was `#if !ANDROID`). Composing
+    on the phone previously hit `store == null` → "Mail store unavailable" and saved nothing.
+    **Verified on emulator:** Save to Outbox → folder shows "Outbox 1", message persists.
+  - **Mail status visible.** Mail page + Compose page show a STATUS line bound to
+    `WinlinkStatus`; compose only leaves the screen if the save succeeded.
+  - **Winlink-password redundancy.** The per-contact `AuthPassword` is APRS-only (signs
+    authenticated APRS messages — see `AprsAuth`). Contact editor now shows it **only for
+    APRS** contacts (relabeled "APRS auth password"); Winlink/BBS contacts get a hint that
+    login uses the single Station-page Winlink password (the operator's Winlink.org account).
+
 ## Deferred / next steps
-- **Mail persistence on Android** — `SqliteMailStore` is still Linux-only (Mail tab works
-  but won't persist on the phone). Port it to Core (Microsoft.Data.Sqlite has Android
-  support) or add an Android store.
 - **Voice/audio (round two)** — `AudioRecord`/`AudioTrack` backends + real audio channel.
 - **Layout polish** — shrink the large radio image on phones; per-tab tuning of stacked
   master-detail (Mail's 3-pane is cramped; consider list→detail navigation on phone).

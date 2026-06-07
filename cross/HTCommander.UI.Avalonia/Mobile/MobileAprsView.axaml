@@ -27,6 +27,19 @@
     </ScrollViewer>
 
     <StackPanel Grid.Row="2" Spacing="10" Margin="0,10,0,0">
+      <!-- Where APRS will transmit. APRS always uses the one APRS channel (set on the
+           Station page / created below) — never a per-contact channel. -->
+      <Border Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}" BorderThickness="1"
+              CornerRadius="9" Padding="10,8">
+        <StackPanel Spacing="3">
+          <TextBlock Classes="mKey" Text="APRS CHANNEL"/>
+          <TextBlock Text="{Binding AprsChannelStatus}" TextWrapping="Wrap" FontSize="12.5"
+                     Foreground="{StaticResource MAccent}" FontFamily="{StaticResource MMono}"/>
+          <TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource MMut}"
+                     Text="Your callsign/SSID, the APRS channel name, and beacon settings live on the Station page (More → Station)."/>
+        </StackPanel>
+      </Border>
+
       <!-- Create the standard APRS channel if the radio doesn't have one yet -->
       <Border Classes="mCard" IsVisible="{Binding CanCreateAprsChannel}">
         <StackPanel Spacing="8">

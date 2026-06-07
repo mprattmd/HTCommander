@@ -7,7 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Tmds.DBus" Version="0.94.1" />
     <PackageReference Include="PortAudioSharp2" Version="1.0.6" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+    <!-- Microsoft.Data.Sqlite now comes transitively from Core (SqliteMailStore moved there). -->
   </ItemGroup>
 
   <PropertyGroup>

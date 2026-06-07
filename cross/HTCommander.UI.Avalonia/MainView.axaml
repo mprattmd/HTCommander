@@ -581,9 +581,13 @@
                                     </StackPanel>
                                     <CheckBox Grid.Row="5" Grid.Column="1" Content="Scan" IsChecked="{Binding Scan}"/>
                                 </Grid>
-                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                                    <Button x:Name="ChEditCancelButton" Content="Cancel"/>
-                                    <Button x:Name="ChEditSaveButton" Classes="Accent" Content="⬆ Save to radio"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="ChMakeLiveButton" Content="📻 Make live"
+                                            ToolTip.Tip="Tune the radio to this channel now (like turning the channel knob)"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                        <Button x:Name="ChEditCancelButton" Content="Cancel"/>
+                                        <Button x:Name="ChEditSaveButton" Classes="Accent" Content="⬆ Save to radio"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -652,29 +656,45 @@
                             <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding StationTypeOptions}"
                                       SelectedItem="{Binding EditType}"/>
 
-                            <TextBlock Text="Connect on channel (Winlink / BBS / Terminal)" Margin="0,6,0,0"/>
-                            <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding ChannelNames}"
-                                      SelectedItem="{Binding EditChannel}"
-                                      ToolTip.Tip="Memory channel to reach this station for connected modes (Winlink/BBS/Terminal). Your APRS channel is NOT set here — it's on the Station tab → APRS."/>
-                            <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                       Text="This channel is for reaching this station in connected modes (e.g. a Winlink RMS gateway). The APRS channel is set on the Station tab, not per-contact."/>
-                            <TextBlock Text="APRS route / path"/>
-                            <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding AprsRoutes}"
-                                      SelectedItem="{Binding SelectedContactRoute}"
-                                      PlaceholderText="Use a saved route…"
-                                      ToolTip.Tip="Pick a saved APRS route (Station tab) to fill the path below, or type a custom path">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:AprsRoute">
-                                        <TextBlock Text="{Binding Display}"/>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                            <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="or type: WIDE1-1,WIDE2-1"/>
-                            <TextBlock Text="AX.25 destination (for Terminal/BBS)"/>
-                            <TextBox Text="{Binding EditAx25Destination}" PlaceholderText="destination callsign-SSID"/>
-                            <CheckBox Content="Wait for incoming connection" IsChecked="{Binding EditWaitForConnection}"/>
-                            <TextBlock Text="Auth password (Winlink/authenticated)"/>
-                            <TextBox Text="{Binding EditAuthPassword}" PasswordChar="•"/>
+                            <!-- APRS contacts: a digipeater PATH, not a connect channel. -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowAprsContactFields}">
+                                <TextBlock Text="APRS route / path" Margin="0,6,0,0"/>
+                                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding AprsRoutes}"
+                                          SelectedItem="{Binding SelectedContactRoute}"
+                                          PlaceholderText="Use a saved route…"
+                                          ToolTip.Tip="Pick a saved APRS route (Station tab) to fill the path below, or type a custom path">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:AprsRoute">
+                                            <TextBlock Text="{Binding Display}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="or type: WIDE1-1,WIDE2-1"/>
+                            </StackPanel>
+
+                            <!-- Winlink / BBS / Terminal contacts: AX.25 connect (channel + destination + wait). -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowConnectContactFields}">
+                                <TextBlock Text="Connect on channel" Margin="0,6,0,0"/>
+                                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding ChannelNames}"
+                                          SelectedItem="{Binding EditChannel}"
+                                          ToolTip.Tip="Memory channel to reach this station for connected modes (Winlink/BBS/Terminal). Your APRS channel is NOT set here — it's on the Station tab → APRS."/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="Memory channel to reach this station in connected modes (e.g. a Winlink RMS gateway). The APRS channel is set on the Station tab, not per-contact."/>
+                                <TextBlock Text="AX.25 destination"/>
+                                <TextBox Text="{Binding EditAx25Destination}" PlaceholderText="destination callsign-SSID"/>
+                                <CheckBox Content="Wait for incoming connection" IsChecked="{Binding EditWaitForConnection}"/>
+                            </StackPanel>
+
+                            <!-- Per-contact password is APRS message signing only (see AprsAuth) — shown for APRS. -->
+                            <StackPanel Spacing="6" IsVisible="{Binding ShowContactAuthPassword}">
+                                <TextBlock Text="APRS auth password (optional)" Margin="0,6,0,0"/>
+                                <TextBox Text="{Binding EditAuthPassword}" PasswordChar="•"/>
+                                <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                           Text="Used to sign authenticated APRS messages with this station. Not your Winlink login."/>
+                            </StackPanel>
+                            <!-- Winlink/BBS auth uses the operator's single Winlink password (Station tab). -->
+                            <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="0,6,0,0" IsVisible="{Binding ShowWinlinkPasswordHint}"
+                                       Text="Winlink/BBS login uses your Winlink password set once on the Station tab — no per-contact password is needed here."/>
 
                             <TextBlock Text="Description"/>
                             <TextBox Text="{Binding EditDescription}" AcceptsReturn="True" Height="48"/>
@@ -730,6 +750,16 @@
                         </Border>
 
                         <StackPanel Grid.Row="2" Spacing="6" Margin="0,8,0,0">
+                            <!-- Where APRS will transmit: the one APRS channel (Station tab / created below),
+                                 never a per-contact channel. -->
+                            <Border Classes="Card">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="APRS channel" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding AprsChannelStatus}" TextWrapping="Wrap" Foreground="{DynamicResource InfoBrush}"/>
+                                    <TextBlock Classes="Hint" TextWrapping="Wrap"
+                                               Text="Your callsign/SSID, the APRS channel name, and beacon settings are on the Station tab."/>
+                                </StackPanel>
+                            </Border>
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                                 <TextBlock Grid.Column="0" Text="Route" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
                                 <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"

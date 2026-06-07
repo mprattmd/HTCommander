@@ -199,6 +199,8 @@ public sealed class MainViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanWriteChannels));
                 OnPropertyChanged(nameof(CanWriteBss));
                 OnPropertyChanged(nameof(CanCreateAprsChannel));
+                OnPropertyChanged(nameof(HasAprsChannel));
+                OnPropertyChanged(nameof(AprsChannelStatus));
                 OnPropertyChanged(nameof(CanSyncRadio));
                 OnPropertyChanged(nameof(CanConnectSession));
                 OnPropertyChanged(nameof(CanDisconnectSession));
@@ -628,7 +630,35 @@ public sealed class MainViewModel : ViewModelBase
     private string editDescription = "";
     public string EditDescription { get => editDescription; set => SetField(ref editDescription, value); }
     private StationInfoClass.StationTypes editType = StationInfoClass.StationTypes.Generic;
-    public StationInfoClass.StationTypes EditType { get => editType; set => SetField(ref editType, value); }
+    public StationInfoClass.StationTypes EditType
+    {
+        get => editType;
+        set
+        {
+            if (!SetField(ref editType, value)) return;
+            OnPropertyChanged(nameof(ShowContactAuthPassword));
+            OnPropertyChanged(nameof(ShowWinlinkPasswordHint));
+            OnPropertyChanged(nameof(ShowAprsContactFields));
+            OnPropertyChanged(nameof(ShowConnectContactFields));
+        }
+    }
+
+    // The per-contact AuthPassword is ONLY used to sign/verify APRS messages (see AprsAuth);
+    // it is NOT the Winlink login. Winlink/BBS authentication uses the operator's single
+    // WinlinkPassword on the Station page. So only surface the per-contact field for APRS
+    // contacts, and point Winlink/BBS contacts at the Station page to avoid the redundancy.
+    public bool ShowContactAuthPassword => editType == StationInfoClass.StationTypes.APRS;
+    public bool ShowWinlinkPasswordHint =>
+        editType == StationInfoClass.StationTypes.Winlink || editType == StationInfoClass.StationTypes.BBS;
+
+    // APRS contacts use a digipeater PATH (not a connect channel). Winlink/BBS/Terminal
+    // contacts use an AX.25 CONNECT (channel + destination + wait-for-incoming). Show only
+    // the fields that apply to the chosen type so each contact form matches how it's used.
+    public bool ShowAprsContactFields => editType == StationInfoClass.StationTypes.APRS;
+    public bool ShowConnectContactFields =>
+        editType == StationInfoClass.StationTypes.Winlink ||
+        editType == StationInfoClass.StationTypes.BBS ||
+        editType == StationInfoClass.StationTypes.Terminal;
 
     // Connection setup for the station (channel/frequency to reach it on, APRS path, etc.)
     private string editChannel = "";
@@ -1007,6 +1037,8 @@ public sealed class MainViewModel : ViewModelBase
         foreach (var ch in Channels)
             if (!string.IsNullOrWhiteSpace(ch.Name) && !ChannelNames.Contains(ch.Name))
                 ChannelNames.Add(ch.Name);
+        // A channel read may have just established (or cleared) the APRS channel location.
+        RefreshAprsChannelState();
     }
 
     /// <summary>
@@ -1155,6 +1187,28 @@ public sealed class MainViewModel : ViewModelBase
         for (int i = 0; i < Slots.Count; i++) Slots[i].IsActive = (i == currentChannelId);
     }
 
+    /// <summary>
+    /// Switch the radio's live channel (VFO A) to this memory slot — i.e. tune the radio,
+    /// the way turning the channel knob would. Distinct from editing the slot's contents.
+    /// </summary>
+    public void MakeChannelLive(int slotId)
+    {
+        if (slotId < 0) return;
+        if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
+        if (HasBanks) controller.SetRegion(SelectedBank);     // tune within the selected bank
+        if (controller.WriteActiveChannel(slotId))
+        {
+            currentChannelId = slotId;                          // optimistic; HtStatus will confirm
+            RefreshActiveSlots();
+            var name = slotId < Slots.Count ? Slots[slotId].Name : "";
+            BuilderStatus = string.IsNullOrEmpty(name)
+                ? $"Switched radio to channel {slotId}."
+                : $"Switched radio to channel {slotId} ({name}).";
+            AppendLog($"Channels: switched radio to live channel {slotId}.");
+        }
+        else BuilderStatus = "Tap ⟳ Load from radio first, then tap a channel to switch.";
+    }
+
     /// <summary>Program a single memory slot from an imported channel card (drag-and-drop target).</summary>
     public void ProgramSlot(int slotId, EditableChannel? ec)
     {
@@ -1215,6 +1269,14 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public void CancelEditingChannel() { EditingChannel = null; editingSlotId = -1; }
+
+    /// <summary>Tune the radio to the slot currently open in the inline editor, then close it.</summary>
+    public void MakeEditingChannelLive()
+    {
+        int id = editingSlotId >= 0 ? editingSlotId : (EditingChannel?.ChannelId ?? -1);
+        MakeChannelLive(id);
+        EditingChannel = null; editingSlotId = -1;
+    }
 
     /// <summary>Import channels from a CSV file (CHIRP / native / RepeaterBook formats).</summary>
     public void ImportChannelsFromCsv(string path)
@@ -1454,29 +1516,37 @@ public sealed class MainViewModel : ViewModelBase
         WinlinkStatus = "New message.";
     }
 
-    /// <summary>Compose a new message and queue it in the Outbox for the next sync.</summary>
-    public void ComposeSaveToOutbox()
+    /// <summary>
+    /// Compose a new message and queue it in the Outbox for the next sync.
+    /// Returns false (and leaves the form intact) if it could not be saved.
+    /// </summary>
+    public bool ComposeSaveToOutbox()
     {
         var store = MailStore;
-        if (store == null) { WinlinkStatus = "Mail store unavailable."; return; }
-        if ((ComposeTo ?? "").Trim().Length == 0) { WinlinkStatus = "Compose: 'To' is required."; return; }
+        if (store == null) { WinlinkStatus = "Mail store unavailable."; return false; }
+        if ((ComposeTo ?? "").Trim().Length == 0) { WinlinkStatus = "Compose: 'To' is required."; return false; }
         var mail = BuildOutgoing("Outbox");
         store.AddMail(mail);
         ClearCompose();
         WinlinkStatus = $"Saved to Outbox: {mail.Subject}";
         SelectFolder("Outbox");
+        return true;
     }
 
-    /// <summary>Save the message being composed to the Draft folder (not sent on sync).</summary>
-    public void SaveAsDraft()
+    /// <summary>
+    /// Save the message being composed to the Draft folder (not sent on sync).
+    /// Returns false (and leaves the form intact) if it could not be saved.
+    /// </summary>
+    public bool SaveAsDraft()
     {
         var store = MailStore;
-        if (store == null) { WinlinkStatus = "Mail store unavailable."; return; }
+        if (store == null) { WinlinkStatus = "Mail store unavailable."; return false; }
         var mail = BuildOutgoing("Draft");
         store.AddMail(mail);
         ClearCompose();
         WinlinkStatus = $"Saved to Draft: {mail.Subject}";
         SelectFolder("Draft");
+        return true;
     }
 
     private void SelectFolder(string name)
@@ -2250,7 +2320,38 @@ public sealed class MainViewModel : ViewModelBase
     private string aprsChannelFreq = "144.3900";
     public string AprsChannelFreq { get => aprsChannelFreq; set => SetField(ref aprsChannelFreq, value); }
 
-    public bool CanCreateAprsChannel => Connected && controller != null;
+    /// <summary>
+    /// True once the radio has a memory channel matching the configured APRS name
+    /// (RadioController records its bank+id as the "AprsChannel" location). This single
+    /// channel — NOT any per-contact channel — is what every APRS message and beacon uses.
+    /// </summary>
+    public bool HasAprsChannel => DataBroker.GetValue<AprsChannelLocation>(0, "AprsChannel", null) != null;
+
+    /// <summary>One-line "where will APRS transmit" summary shown on the APRS page.</summary>
+    public string AprsChannelStatus
+    {
+        get
+        {
+            if (!Connected) return $"Not connected. APRS uses the '{AprsChannelName}' channel set on the Station page.";
+            var loc = DataBroker.GetValue<AprsChannelLocation>(0, "AprsChannel", null);
+            if (loc == null)
+                return $"No '{AprsChannelName}' channel on the radio — APRS will go out on whatever channel you're tuned to. Create one below, or set the APRS channel name on the Station page.";
+            string freq = loc.ChannelId >= 0 && loc.ChannelId < Slots.Count && Slots[loc.ChannelId].RxMHz > 0
+                ? $" · {Slots[loc.ChannelId].RxMHz:0.0000} MHz" : "";
+            return $"Sending on the '{AprsChannelName}' channel (CH {loc.ChannelId}{freq}).";
+        }
+    }
+
+    // Offer the "create APRS channel" helper only when connected AND no APRS channel exists yet.
+    public bool CanCreateAprsChannel => Connected && controller != null && !HasAprsChannel;
+
+    /// <summary>Re-evaluate the APRS-channel status properties (after a channel read or connect change).</summary>
+    private void RefreshAprsChannelState()
+    {
+        OnPropertyChanged(nameof(HasAprsChannel));
+        OnPropertyChanged(nameof(AprsChannelStatus));
+        OnPropertyChanged(nameof(CanCreateAprsChannel));
+    }
 
     /// <summary>Programs an APRS memory channel (FM, wide, muted) into the chosen slot —
     /// the standard 144.39 MHz packet channel, so APRS TX/RX has a channel to use.</summary>
