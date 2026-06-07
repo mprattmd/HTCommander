@@ -78,6 +78,34 @@ Useful: `adb logcat -d | grep -iE 'AndroidTransport|GAIA|FATAL|Exception'`;
   single stacked column** when narrow via a code-behind helper (`RegisterResponsiveSplits`
   snapshots the desktop columns; `ApplySplitLayout` restacks/restores). Desktop unchanged.
 
+## Dedicated mobile UI (cross/HTCommander.UI.Avalonia/Mobile/)
+Android boots into `MobileView` (not the desktop `MainView`): a phone-first UI — light
+**beige + denim** theme (palette in App.axaml), **bottom nav** (Radio · APRS · Mail ·
+Map · More) + a **More** bottom sheet, **drill-down** page stack (push/back), 48–60px
+touch targets. All pages reuse the shared `MainViewModel`. Design mockups:
+`docs/mockups/mobile-mockups.html`.
+- Pages: Radio (mode segmented + connection + status + recent APRS), APRS (messages +
+  compose + Stations drill-down), Mail (folders + list + reader + compose), Contacts
+  (list + detail), Channels (slots + per-slot edit + **Import CSV via the phone file
+  picker** + Write all), Station (identity), Settings (aprs.fi), Packets (RX monitor).
+- Scope (decided with user): **out** = Voice/Modem/Clips (audio, round two), BBS,
+  Terminal. **Map** is a placeholder pending Mapsui-on-Android.
+- Desktop (`MainView`/`MainWindow`) is unchanged.
+
+### Android emulator (UI iteration without the radio)
+Set up this session for fast, reliable UI work (the physical Pixel kept dropping USB /
+locking, and Avalonia's single GPU surface defeats `uiautomator`, so on-device taps were
+guesswork). Emulator gives deterministic `adb` taps and no disconnects. It **cannot** do
+real Bluetooth RFCOMM, so radio-connection testing still needs the Pixel.
+```sh
+export ANDROID_HOME=$HOME/Library/Android/sdk ; export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+# one-time: installed `emulator` + `system-images;android-36;google_apis;arm64-v8a`; AVD "htc"
+$ANDROID_HOME/emulator/emulator -avd htc -no-snapshot -no-boot-anim -gpu auto &   # boots as emulator-5554
+export ANDROID_SERIAL=emulator-5554      # target it (Pixel may also be attached)
+dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj -c Debug -f net10.0-android -t:Run -p:AdbTarget="-s emulator-5554" ...
+# screenshots are 1080x2400 (> read limit) -> downscale: sips -Z 1400 in.png --out out.png
+```
+
 ## Deferred / next steps
 - **Mail persistence on Android** — `SqliteMailStore` is still Linux-only (Mail tab works
   but won't persist on the phone). Port it to Core (Microsoft.Data.Sqlite has Android
