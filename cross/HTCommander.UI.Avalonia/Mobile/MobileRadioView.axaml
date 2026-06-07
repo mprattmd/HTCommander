@@ -1,0 +1,83 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             xmlns:abs="using:HTCommander.Core.Abstractions"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileRadioView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="14" Spacing="12">
+
+      <!-- Mode -->
+      <Border Classes="seg">
+        <Grid ColumnDefinitions="*,*">
+          <Button Grid.Column="0" x:Name="SegPacket" Classes="seg" Content="Packet"/>
+          <Button Grid.Column="1" x:Name="SegDigital" Classes="seg" Content="Digital"/>
+        </Grid>
+      </Border>
+
+      <!-- Connection -->
+      <Border Classes="mCard">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="mKey" Text="RADIO"/>
+          <ComboBox Classes="mInput" ItemsSource="{Binding Radios}" SelectedItem="{Binding SelectedRadio}"
+                    PlaceholderText="Tap Refresh to find your radio">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="abs:RadioDeviceInfo">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <Grid ColumnDefinitions="Auto,*,*" ColumnSpacing="8">
+            <Button Grid.Column="0" x:Name="RefreshButton" Classes="mGhost" Content="Refresh" Padding="16,0"/>
+            <Button Grid.Column="1" x:Name="ConnectButton" Classes="mPri" Content="Connect" IsEnabled="{Binding CanConnect}"/>
+            <Button Grid.Column="2" x:Name="DisconnectButton" Classes="mGhost" Content="Disconnect" IsEnabled="{Binding CanDisconnect}"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- Mode advisory -->
+      <Border IsVisible="{Binding HasModeAdvisory}" Background="#f4ecd6" BorderBrush="#cbab5e"
+              BorderThickness="1" CornerRadius="12" Padding="12">
+        <TextBlock Text="{Binding ModeAdvisory}" Foreground="#7a5a16" TextWrapping="Wrap" FontSize="12.5"/>
+      </Border>
+
+      <!-- Status cards -->
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
+        <Border Grid.Row="0" Grid.Column="0" Classes="mCard">
+          <StackPanel Spacing="4"><TextBlock Classes="mKey" Text="CONNECTION"/>
+            <TextBlock Text="{Binding Status}" FontFamily="{StaticResource MMono}" FontWeight="Bold" FontSize="16" Foreground="{StaticResource MAccent2}" TextTrimming="CharacterEllipsis"/></StackPanel>
+        </Border>
+        <Border Grid.Row="0" Grid.Column="1" Classes="mCard">
+          <StackPanel Spacing="4"><TextBlock Classes="mKey" Text="CHANNEL"/>
+            <TextBlock Classes="mVal" Text="{Binding ChannelId, StringFormat='CH {0}'}"/></StackPanel>
+        </Border>
+        <Border Grid.Row="1" Grid.Column="0" Classes="mCard">
+          <StackPanel Spacing="4"><TextBlock Classes="mKey" Text="BATTERY"/>
+            <TextBlock Classes="mVal" Text="{Binding BatteryPercent, StringFormat='{}{0}%'}"/></StackPanel>
+        </Border>
+        <Border Grid.Row="1" Grid.Column="1" Classes="mCard">
+          <StackPanel Spacing="4"><TextBlock Classes="mKey" Text="FRAMES RX"/>
+            <TextBlock Classes="mVal" Text="{Binding FrameCount}"/></StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Recent APRS -->
+      <TextBlock Classes="mSection" Text="RECENT APRS"/>
+      <ItemsControl ItemsSource="{Binding AprsMessages}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:AprsMessageRow">
+            <Border Classes="mRow">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Header}" Classes="mMono" FontSize="12" Foreground="{StaticResource MMut}"/>
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <TextBlock Text="Voice PTT, modem and clips arrive in round two (audio)." Classes="mKey"
+                 TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

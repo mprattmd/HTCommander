@@ -1,0 +1,224 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileView"
+             x:DataType="vm:MainViewModel">
+
+  <!-- Palette lives in App.axaml (global) so every page resolves it. -->
+  <!-- ============ Reusable mobile styles ============ -->
+  <UserControl.Styles>
+    <Style Selector="TextBlock"><Setter Property="Foreground" Value="{StaticResource MTxt}"/></Style>
+
+    <Style Selector="Border.mCard">
+      <Setter Property="Background" Value="{StaticResource MCard}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource MLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="Padding" Value="14"/>
+      <Setter Property="BoxShadow" Value="0 1 2 0 #14000000"/>
+    </Style>
+
+    <!-- touch list row (~60px) -->
+    <Style Selector="Border.mRow">
+      <Setter Property="Background" Value="{StaticResource MCard}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource MLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="Padding" Value="14,12"/>
+      <Setter Property="MinHeight" Value="60"/>
+      <Setter Property="Margin" Value="0,0,0,9"/>
+      <Setter Property="BoxShadow" Value="0 1 2 0 #14000000"/>
+    </Style>
+    <Style Selector="Border.mRow:pointerover"><Setter Property="Background" Value="{StaticResource MS2}"/></Style>
+
+    <Style Selector="TextBlock.mKey">
+      <Setter Property="Foreground" Value="{StaticResource MMut}"/>
+      <Setter Property="FontSize" Value="11.5"/>
+    </Style>
+    <Style Selector="TextBlock.mVal">
+      <Setter Property="FontFamily" Value="{StaticResource MMono}"/>
+      <Setter Property="Foreground" Value="{StaticResource MAccent2}"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="FontSize" Value="20"/>
+    </Style>
+    <Style Selector="TextBlock.mSection">
+      <Setter Property="Foreground" Value="{StaticResource MDim}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Margin" Value="2,4,0,8"/>
+    </Style>
+    <Style Selector="TextBlock.mMono">
+      <Setter Property="FontFamily" Value="{StaticResource MMono}"/>
+    </Style>
+
+    <!-- primary / ghost buttons -->
+    <Style Selector="Button.mPri">
+      <Setter Property="Background" Value="{StaticResource MAccent}"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="MinHeight" Value="48"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.mPri:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource MAccent2}"/>
+    </Style>
+    <Style Selector="Button.mGhost">
+      <Setter Property="Background" Value="{StaticResource MS2}"/>
+      <Setter Property="Foreground" Value="{StaticResource MTxt}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource MLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="MinHeight" Value="48"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- text inputs -->
+    <Style Selector="TextBox.mInput">
+      <Setter Property="MinHeight" Value="48"/>
+      <Setter Property="Background" Value="{StaticResource MS2}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource MLine}"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Foreground" Value="{StaticResource MTxt}"/>
+      <Setter Property="FontFamily" Value="{StaticResource MMono}"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="ComboBox.mInput">
+      <Setter Property="MinHeight" Value="48"/>
+      <Setter Property="Background" Value="{StaticResource MS2}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource MLine}"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+
+    <!-- chevron -->
+    <Style Selector="TextBlock.chev">
+      <Setter Property="Foreground" Value="{StaticResource MDim}"/>
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- bottom nav item -->
+    <Style Selector="Button.nav">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Padding" Value="0,6"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.nav TextBlock"><Setter Property="Foreground" Value="{StaticResource MMut}"/></Style>
+    <Style Selector="Button.nav.on TextBlock"><Setter Property="Foreground" Value="{StaticResource MAccent}"/></Style>
+
+    <!-- segmented control -->
+    <Style Selector="Border.seg">
+      <Setter Property="Background" Value="#e0d8c8"/>
+      <Setter Property="BorderBrush" Value="{StaticResource MLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Padding" Value="3"/>
+    </Style>
+    <Style Selector="Button.seg">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{StaticResource MMut}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="7"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="MinHeight" Value="34"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.seg.on">
+      <Setter Property="Background" Value="{StaticResource MAccent}"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.seg.on /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource MAccent}"/>
+    </Style>
+
+    <!-- More-sheet tile -->
+    <Style Selector="Button.tile">
+      <Setter Property="Background" Value="{StaticResource MCard}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource MLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="Margin" Value="4"/>
+      <Setter Property="Padding" Value="6,14"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+  </UserControl.Styles>
+
+  <!-- ============ Shell ============ -->
+  <Grid Background="{StaticResource MBg}" RowDefinitions="Auto,*,Auto">
+
+    <!-- Top app bar -->
+    <Border Grid.Row="0" Background="{StaticResource MS1}" BorderBrush="{StaticResource MLine}"
+            BorderThickness="0,0,0,1" Padding="10,10">
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+        <Button Grid.Column="0" x:Name="BackButton" Classes="mGhost" Content="‹" FontSize="22"
+                Width="44" MinHeight="40" Padding="0" IsVisible="False"/>
+        <TextBlock Grid.Column="1" x:Name="AppTitle" Text="Radio" FontSize="19" FontWeight="Bold"
+                   VerticalAlignment="Center" Margin="6,0"/>
+        <Border Grid.Column="2" Background="{StaticResource MCard}" BorderBrush="{StaticResource MLine}"
+                BorderThickness="1" CornerRadius="999" Padding="11,6" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Ellipse x:Name="ConnDot" Width="9" Height="9" VerticalAlignment="Center" Fill="{StaticResource MDim}"/>
+            <TextBlock x:Name="ConnText" Text="Disconnected" FontSize="12.5" FontWeight="SemiBold"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <!-- Page host -->
+    <ContentControl Grid.Row="1" x:Name="PageHost"/>
+
+    <!-- Bottom nav -->
+    <Border Grid.Row="2" Background="{StaticResource MS1}" BorderBrush="{StaticResource MLine}"
+            BorderThickness="0,1,0,0" Padding="6,8,6,20">
+      <Grid x:Name="BottomNav" ColumnDefinitions="*,*,*,*,*">
+        <Button Grid.Column="0" Classes="nav" x:Name="NavRadio">
+          <StackPanel Spacing="3"><TextBlock Text="📻" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="Radio" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+        </Button>
+        <Button Grid.Column="1" Classes="nav" x:Name="NavAprs">
+          <StackPanel Spacing="3"><TextBlock Text="📡" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="APRS" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+        </Button>
+        <Button Grid.Column="2" Classes="nav" x:Name="NavMail">
+          <StackPanel Spacing="3"><TextBlock Text="✉️" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="Mail" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+        </Button>
+        <Button Grid.Column="3" Classes="nav" x:Name="NavMap">
+          <StackPanel Spacing="3"><TextBlock Text="🗺️" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="Map" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+        </Button>
+        <Button Grid.Column="4" Classes="nav" x:Name="NavMore">
+          <StackPanel Spacing="3"><TextBlock Text="⋯" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="More" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- More sheet overlay -->
+    <Grid Grid.RowSpan="3" x:Name="MoreSheet" IsVisible="False" Background="#66000000">
+      <Border VerticalAlignment="Bottom" Background="{StaticResource MBg}" BorderBrush="{StaticResource MLine}"
+              BorderThickness="0,1,0,0" CornerRadius="22,22,0,0" Padding="16,10,16,26">
+        <StackPanel>
+          <Border Width="40" Height="5" CornerRadius="3" Background="{StaticResource MDim}" Margin="0,6,0,14"/>
+          <TextBlock Classes="mSection" Text="CONFIGURE"/>
+          <Grid ColumnDefinitions="*,*,*,*">
+            <Button Grid.Column="0" Classes="tile" x:Name="MoreStation"><StackPanel Spacing="6"><TextBlock Text="🪪" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Station" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
+            <Button Grid.Column="1" Classes="tile" x:Name="MoreChannels"><StackPanel Spacing="6"><TextBlock Text="🎚️" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Channels" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
+            <Button Grid.Column="2" Classes="tile" x:Name="MoreContacts"><StackPanel Spacing="6"><TextBlock Text="👥" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Contacts" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
+            <Button Grid.Column="3" Classes="tile" x:Name="MoreSettings"><StackPanel Spacing="6"><TextBlock Text="⚙️" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Settings" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
+          </Grid>
+          <TextBlock Classes="mSection" Text="TOOLS" Margin="2,12,0,8"/>
+          <Grid ColumnDefinitions="*,*,*,*">
+            <Button Grid.Column="0" Classes="tile" x:Name="MorePackets"><StackPanel Spacing="6"><TextBlock Text="📦" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Packets" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
+            <Button Grid.Column="1" Classes="tile" x:Name="MoreAbout"><StackPanel Spacing="6"><TextBlock Text="ℹ️" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="About" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

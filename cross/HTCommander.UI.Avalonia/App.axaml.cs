@@ -87,7 +87,7 @@ public partial class App : Application
 
 #if ANDROID
         if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
-            singleView.MainView = new MainView { DataContext = viewModel };
+            singleView.MainView = new Mobile.MobileView { DataContext = viewModel };
 #else
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             desktop.MainWindow = new MainWindow { DataContext = viewModel };

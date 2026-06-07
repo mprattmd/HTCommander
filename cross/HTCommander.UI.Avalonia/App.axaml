@@ -22,6 +22,24 @@
         <SolidColorBrush x:Key="DangerActiveBrush" Color="#E74C3C"/>
         <SolidColorBrush x:Key="GoodBrush" Color="#27AE60"/>
         <SolidColorBrush x:Key="InfoBrush" Color="#9CDCFE"/>
+
+        <!-- Mobile (Android) palette: light "beige + denim". Global so every mobile
+             page resolves them at load time (pages aren't in the tree when parsed). -->
+        <SolidColorBrush x:Key="MBg" Color="#f1e9d8"/>
+        <SolidColorBrush x:Key="MS1" Color="#e8ddc6"/>
+        <SolidColorBrush x:Key="MS2" Color="#f6efdf"/>
+        <SolidColorBrush x:Key="MCard" Color="#fdfbf3"/>
+        <SolidColorBrush x:Key="MLine" Color="#d9ccb0"/>
+        <SolidColorBrush x:Key="MTxt" Color="#2e2a1f"/>
+        <SolidColorBrush x:Key="MMut" Color="#7d745d"/>
+        <SolidColorBrush x:Key="MDim" Color="#a99e84"/>
+        <SolidColorBrush x:Key="MAccent" Color="#42648f"/>
+        <SolidColorBrush x:Key="MAccent2" Color="#33506f"/>
+        <SolidColorBrush x:Key="MTint" Color="#e3e9f0"/>
+        <SolidColorBrush x:Key="MTintLine" Color="#c0cedd"/>
+        <SolidColorBrush x:Key="MGood" Color="#3a8f63"/>
+        <SolidColorBrush x:Key="MDanger" Color="#cf5046"/>
+        <FontFamily x:Key="MMono">monospace</FontFamily>
     </Application.Resources>
 
     <Application.Styles>
