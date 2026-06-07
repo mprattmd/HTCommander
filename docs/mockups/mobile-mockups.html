@@ -5,16 +5,17 @@
 <title>HTCommander — mobile portrait mockups (light beige + blue)</title>
 <style>
   :root{
-    --bg:#efe9dd; --s1:#e8e1d2; --s2:#f6f1e7; --card:#fcf9f3; --line:#d8cdb9;
-    --txt:#2c2820; --mut:#7c7464; --dim:#a99e8a;
-    --accent:#2c6bb3; --accent2:#225a99; --good:#2e9e6b; --warn:#b9791f; --danger:#d34a43;
+    --bg:#f1e9d8; --s1:#e8ddc6; --s2:#f6efdf; --card:#fdfbf3; --line:#d9ccb0;
+    --txt:#2e2a1f; --mut:#7d745d; --dim:#a99e84;
+    --accent:#42648f; --accent2:#33506f; --accentTintBg:#e3e9f0; --accentTintLine:#c0cedd;
+    --good:#3a8f63; --warn:#b27a23; --danger:#cf5046;
     --mono:"SF Mono","SFMono-Regular",Menlo,monospace;
     --ui:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;
-    --shadow:0 1px 2px #2c282010,0 1px 3px #2c282008;
+    --shadow:0 1px 2px #2e2a1f10,0 1px 3px #2e2a1f08;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#cdc1ac;color:var(--txt);font-family:var(--ui);padding:40px;
-       background-image:radial-gradient(circle at 25% 0%,#ded3bf 0,#c4b89f 65%);}
+  body{background:#cabd9d;color:var(--txt);font-family:var(--ui);padding:40px;
+       background-image:radial-gradient(circle at 25% 0%,#ded0b3 0,#c2b393 65%);}
   h1{font-size:26px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px;color:#33301f}
   .sub{color:#5f5848;font-size:14px;margin-bottom:32px;max-width:900px;line-height:1.5}
   .sub b{color:#33301f}
@@ -35,14 +36,14 @@
   .appbar{padding:8px 16px 12px;border-bottom:1px solid var(--line);background:var(--s1)}
   .appbar .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
   .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;letter-spacing:-.2px}
-  .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(150deg,#3b82c4,#225a99);
+  .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(150deg,#5478a6,#33506f);
         display:grid;place-items:center;font-size:13px}
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
         background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;box-shadow:var(--shadow)}
   .dot{width:8px;height:8px;border-radius:50%}
   .seg{display:flex;background:#e0d8c8;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
   .seg span{flex:1;text-align:center;font-size:13px;font-weight:600;color:var(--mut);padding:6px 0;border-radius:7px}
-  .seg span.on{background:var(--accent);color:#fff;box-shadow:0 1px 2px #225a9955}
+  .seg span.on{background:var(--accent);color:#fff;box-shadow:0 1px 2px var(--accent2)}
   .iconbtn{width:38px;height:38px;border-radius:10px;background:var(--card);border:1px solid var(--line);
            display:grid;place-items:center;font-size:18px;color:var(--txt);box-shadow:var(--shadow)}
   /* body */
@@ -51,18 +52,18 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow)}
   .stat .k{font-size:11.5px;color:var(--mut);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
-  .stat .v{font-size:21px;font-weight:700;font-family:var(--mono);letter-spacing:-.5px;color:#26314a}
+  .stat .v{font-size:21px;font-weight:700;font-family:var(--mono);letter-spacing:-.5px;color:var(--accent2)}
   .stat .v.sm{font-size:16px}
   /* list rows (touch sized ~60px) */
   .row{display:flex;align-items:center;gap:12px;padding:14px 14px;background:var(--card);
        border:1px solid var(--line);border-radius:14px;margin-bottom:9px;min-height:60px;box-shadow:var(--shadow)}
-  .row .av{width:40px;height:40px;border-radius:11px;background:#e6edf6;display:grid;place-items:center;
-           font-family:var(--mono);font-weight:700;font-size:13px;color:var(--accent);border:1px solid #c7d8ec}
+  .row .av{width:40px;height:40px;border-radius:11px;background:var(--accentTintBg);display:grid;place-items:center;
+           font-family:var(--mono);font-weight:700;font-size:13px;color:var(--accent);border:1px solid var(--accentTintLine)}
   .row .main{flex:1;min-width:0}
   .row .t1{font-weight:600;font-size:15.5px;font-family:var(--mono);color:var(--txt)}
   .row .t2{color:var(--mut);font-size:13px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .row .chev{color:var(--dim);font-size:20px}
-  .tag{font-size:11px;font-weight:600;color:var(--accent);background:#e3edf7;border:1px solid #bcd5ec;border-radius:6px;padding:2px 8px}
+  .tag{font-size:11px;font-weight:600;color:var(--accent);background:var(--accentTintBg);border:1px solid var(--accentTintLine);border-radius:6px;padding:2px 8px}
   .unread{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
   /* big PTT */
   .ptt{margin:8px 4px 4px;height:70px;border-radius:18px;background:linear-gradient(180deg,#dc5048,#c23c36);
@@ -86,7 +87,7 @@
   .sw::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff}
   .sw.off{background:#ddd4c4;border:1px solid var(--line)} .sw.off::after{left:3px;right:auto;background:#fff}
   .btn{height:50px;border-radius:13px;display:grid;place-items:center;font-weight:700;font-size:15px}
-  .btn.pri{background:var(--accent);color:#fff;box-shadow:0 2px 6px -1px #225a9955} .btn.ghost{background:var(--s2);border:1px solid var(--line);color:var(--txt)}
+  .btn.pri{background:var(--accent);color:#fff;box-shadow:0 2px 6px -1px var(--accent2)} .btn.ghost{background:var(--s2);border:1px solid var(--line);color:var(--txt)}
   .back{display:flex;align-items:center;gap:12px;padding:6px 4px 14px}
   .back .a{width:38px;height:38px;border-radius:10px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;font-size:20px;box-shadow:var(--shadow)}
   .back .ttl{font-size:20px;font-weight:700;font-family:var(--mono)}
@@ -220,7 +221,7 @@
           <div class="row"><span class="unread"></span><div class="main"><div class="t1" style="font-family:var(--ui)">Weather advisory — net 1900Z</div><div class="t2">KE4AXW · 12:31</div></div><span class="chev">›</span></div>
           <div class="row"><span class="unread"></span><div class="main"><div class="t1" style="font-family:var(--ui)">Re: antenna swap</div><div class="t2">W4ABC · 11:02</div></div><span class="chev">›</span></div>
           <div class="row"><span style="width:9px"></span><div class="main"><div class="t1" style="font-family:var(--ui);font-weight:500">Field day roster</div><div class="t2">N0CALL · Yest</div></div><span class="chev">›</span></div>
-          <div class="ptt" style="background:var(--accent);box-shadow:0 6px 16px -6px #225a9966;height:52px;font-size:15px;letter-spacing:.3px">✎ Compose</div>
+          <div class="ptt" style="background:var(--accent);box-shadow:0 6px 16px -6px var(--accent2);height:52px;font-size:15px;letter-spacing:.3px">✎ Compose</div>
         </div>
         <div class="nav"><a><span class="ic">📻</span>Radio</a><a><span class="ic">📡</span>APRS</a><a class="on"><span class="ic">✉️</span>Mail</a><a><span class="ic">🗺️</span>Map</a><a><span class="ic">⋯</span>More</a></div>
       </div></div>
@@ -248,6 +249,79 @@
         </div>
       </div></div>
       <div class="cap"><b>6 · Station (form)</b> — desktop scrolling form, re-spaced for touch: section headers, 48px fields, real toggle switches.</div>
+    </div>
+
+    <!-- 7. CHANNELS LIST -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar">
+          <div class="top"><div class="back" style="padding:0"><div class="a">‹</div><div class="ttl" style="font-family:var(--ui)">Channels</div></div><div class="chip">Bank A ▾</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="btn pri" style="height:42px;font-size:14px">⬆ Import CSV</div>
+            <div class="btn ghost" style="height:42px;font-size:14px">⟳ Load from radio</div>
+          </div>
+        </div>
+        <div class="body" style="display:flex;flex-direction:column">
+          <div style="flex:1;overflow:hidden">
+            <div class="row"><div class="av">1</div><div class="main"><div class="t1">APRS</div><div class="t2">144.390 · wide</div></div><span class="tag">FM</span><span class="chev">›</span></div>
+            <div class="row"><div class="av">12</div><div class="main"><div class="t1">Simplex</div><div class="t2">146.520</div></div><span class="tag">FM</span><span class="chev">›</span></div>
+            <div class="row"><div class="av">20</div><div class="main"><div class="t1">W4ABC Rpt</div><div class="t2">147.210 +600 · T103.5</div></div><span class="tag">FM</span><span class="chev">›</span></div>
+            <div class="row"><div class="av">21</div><div class="main"><div class="t1">Winlink</div><div class="t2">145.030</div></div><span class="tag">PKT</span><span class="chev">›</span></div>
+            <div class="row" style="opacity:.6"><div class="av" style="color:var(--dim);background:var(--s2);border-color:var(--line)">22</div><div class="main"><div class="t1" style="color:var(--mut)">— empty —</div></div><span class="chev" style="font-size:22px">＋</span></div>
+          </div>
+          <div class="btn pri" style="margin-top:4px">⬆ Write all to radio</div>
+        </div>
+      </div></div>
+      <div class="cap"><b>7 · Channels (list)</b> — tap a slot to edit; <b>Import CSV</b> opens the phone's file picker; empty slots show "+". Replaces the desktop drag-a-card-onto-a-slot.</div>
+    </div>
+
+    <!-- 8. CHANNEL EDIT -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar"><div class="back"><div class="a">‹</div><div class="ttl">CH 20</div></div></div>
+        <div class="body">
+          <div class="field"><label>Name</label><div class="input">W4ABC Rpt</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label>RX MHz</label><div class="input">147.2100</div></div>
+            <div class="field"><label>TX MHz</label><div class="input">147.8100</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label>Tone RX</label><div class="input ph">—</div></div>
+            <div class="field"><label>Tone TX</label><div class="input">103.5</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label>Mode</label><div class="input" style="justify-content:space-between">FM <span style="color:var(--dim)">▾</span></div></div>
+            <div class="field"><label>Power</label><div class="input" style="justify-content:space-between">High <span style="color:var(--dim)">▾</span></div></div>
+          </div>
+          <div class="toggle" style="margin:2px 0 16px"><div style="font-weight:600">Include in scan</div><div class="sw"></div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="btn pri">⬆ Save to radio</div><div class="btn ghost">Cancel</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="cap"><b>8 · Channel (edit)</b> — full-screen touch form per memory slot (name, RX/TX, tones, mode, power, scan) → writes that slot to the radio.</div>
+    </div>
+
+    <!-- 9. IMPORT CSV REVIEW -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar"><div class="back"><div class="a">‹</div><div class="ttl" style="font-family:var(--ui)">Import CSV</div></div></div>
+        <div class="body" style="display:flex;flex-direction:column">
+          <div class="row" style="margin-bottom:12px"><div class="av" style="color:var(--good);background:#e2efe7;border-color:#bcdcc8">📄</div><div class="main"><div class="t1" style="font-family:var(--ui);font-weight:600">chirp_uv-pro.csv</div><div class="t2">24 channels parsed · from Files</div></div></div>
+          <div class="folderbar"><div class="folder">Write to: Bank A <span>▾</span></div></div>
+          <div style="flex:1;overflow:hidden">
+            <div class="row" style="min-height:48px;margin-bottom:8px"><div class="main"><div class="t1">APRS</div><div class="t2">144.390</div></div><span class="tag">FM</span></div>
+            <div class="row" style="min-height:48px;margin-bottom:8px"><div class="main"><div class="t1">Calling</div><div class="t2">146.520</div></div><span class="tag">FM</span></div>
+            <div class="row" style="min-height:48px;margin-bottom:8px"><div class="main"><div class="t1">W4ABC Rpt</div><div class="t2">147.210 +600</div></div><span class="tag">FM</span></div>
+            <div class="t2" style="text-align:center;margin-top:2px">+ 21 more…</div>
+          </div>
+          <div class="btn pri" style="margin-top:6px">⬆ Write 24 channels to radio</div>
+        </div>
+      </div></div>
+      <div class="cap"><b>9 · Import CSV (review)</b> — after the phone's file picker returns: parsed channels listed, pick a target bank, then write. Accepts CHIRP / RepeaterBook / native CSV.</div>
     </div>
 
   </div>
