@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HTCommander — mobile portrait mockups (light beige + blue)</title>
+<style>
+  :root{
+    --bg:#efe9dd; --s1:#e8e1d2; --s2:#f6f1e7; --card:#fcf9f3; --line:#d8cdb9;
+    --txt:#2c2820; --mut:#7c7464; --dim:#a99e8a;
+    --accent:#2c6bb3; --accent2:#225a99; --good:#2e9e6b; --warn:#b9791f; --danger:#d34a43;
+    --mono:"SF Mono","SFMono-Regular",Menlo,monospace;
+    --ui:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;
+    --shadow:0 1px 2px #2c282010,0 1px 3px #2c282008;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#cdc1ac;color:var(--txt);font-family:var(--ui);padding:40px;
+       background-image:radial-gradient(circle at 25% 0%,#ded3bf 0,#c4b89f 65%);}
+  h1{font-size:26px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px;color:#33301f}
+  .sub{color:#5f5848;font-size:14px;margin-bottom:32px;max-width:900px;line-height:1.5}
+  .sub b{color:#33301f}
+  .gallery{display:grid;grid-template-columns:repeat(3,420px);gap:36px 30px;justify-content:start}
+  .frame-wrap{display:flex;flex-direction:column;gap:12px}
+  .cap{font-size:13px;color:#5f5848} .cap b{color:#33301f;font-weight:600}
+  /* phone bezel (dark, so the light screen pops) */
+  .phone{width:410px;height:864px;background:#15140f;border-radius:46px;padding:9px;
+         box-shadow:0 34px 70px -24px #2c282088,0 0 0 1px #00000030, inset 0 0 0 2px #2a2820;}
+  .screen{position:relative;width:392px;height:846px;background:var(--bg);border-radius:38px;
+          overflow:hidden;display:flex;flex-direction:column;font-size:15px}
+  /* status bar */
+  .status{display:flex;justify-content:space-between;align-items:center;padding:14px 26px 6px;
+          font-size:13px;font-weight:600;color:var(--txt)}
+  .status .r{display:flex;gap:7px;align-items:center}
+  .bat{font-family:var(--mono);font-size:11px;background:var(--good);color:#fff;border-radius:4px;padding:1px 5px;font-weight:700}
+  /* app header */
+  .appbar{padding:8px 16px 12px;border-bottom:1px solid var(--line);background:var(--s1)}
+  .appbar .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;letter-spacing:-.2px}
+  .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(150deg,#3b82c4,#225a99);
+        display:grid;place-items:center;font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+        background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;box-shadow:var(--shadow)}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .seg{display:flex;background:#e0d8c8;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+  .seg span{flex:1;text-align:center;font-size:13px;font-weight:600;color:var(--mut);padding:6px 0;border-radius:7px}
+  .seg span.on{background:var(--accent);color:#fff;box-shadow:0 1px 2px #225a9955}
+  .iconbtn{width:38px;height:38px;border-radius:10px;background:var(--card);border:1px solid var(--line);
+           display:grid;place-items:center;font-size:18px;color:var(--txt);box-shadow:var(--shadow)}
+  /* body */
+  .body{flex:1;overflow:hidden;padding:14px 16px}
+  .h{font-size:12px;font-weight:700;letter-spacing:.6px;color:var(--dim);margin:4px 2px 10px;text-transform:uppercase}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow)}
+  .stat .k{font-size:11.5px;color:var(--mut);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+  .stat .v{font-size:21px;font-weight:700;font-family:var(--mono);letter-spacing:-.5px;color:#26314a}
+  .stat .v.sm{font-size:16px}
+  /* list rows (touch sized ~60px) */
+  .row{display:flex;align-items:center;gap:12px;padding:14px 14px;background:var(--card);
+       border:1px solid var(--line);border-radius:14px;margin-bottom:9px;min-height:60px;box-shadow:var(--shadow)}
+  .row .av{width:40px;height:40px;border-radius:11px;background:#e6edf6;display:grid;place-items:center;
+           font-family:var(--mono);font-weight:700;font-size:13px;color:var(--accent);border:1px solid #c7d8ec}
+  .row .main{flex:1;min-width:0}
+  .row .t1{font-weight:600;font-size:15.5px;font-family:var(--mono);color:var(--txt)}
+  .row .t2{color:var(--mut);font-size:13px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .chev{color:var(--dim);font-size:20px}
+  .tag{font-size:11px;font-weight:600;color:var(--accent);background:#e3edf7;border:1px solid #bcd5ec;border-radius:6px;padding:2px 8px}
+  .unread{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
+  /* big PTT */
+  .ptt{margin:8px 4px 4px;height:70px;border-radius:18px;background:linear-gradient(180deg,#dc5048,#c23c36);
+       display:grid;place-items:center;font-weight:800;letter-spacing:1px;font-size:16px;color:#fff;
+       box-shadow:0 10px 22px -10px #c23c3688}
+  .ptt small{display:block;font-weight:600;letter-spacing:.3px;font-size:11px;opacity:.9;text-align:center;margin-top:3px}
+  /* bottom nav */
+  .nav{display:flex;border-top:1px solid var(--line);background:var(--s1);padding:9px 6px 22px}
+  .nav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mut);font-size:11px;font-weight:600}
+  .nav a .ic{font-size:21px;line-height:1}
+  .nav a.on{color:var(--accent)}
+  /* form */
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;color:var(--mut);margin-bottom:6px;font-weight:600}
+  .input{height:48px;background:var(--s2);border:1px solid var(--line);border-radius:12px;
+         display:flex;align-items:center;padding:0 14px;font-family:var(--mono);font-size:15px;color:var(--txt)}
+  .input.ph{color:var(--dim);font-family:var(--ui)}
+  .toggle{display:flex;align-items:center;justify-content:space-between;background:var(--card);
+          border:1px solid var(--line);border-radius:12px;padding:14px;min-height:56px;box-shadow:var(--shadow)}
+  .sw{width:46px;height:28px;border-radius:999px;background:var(--accent);position:relative;flex:none}
+  .sw::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff}
+  .sw.off{background:#ddd4c4;border:1px solid var(--line)} .sw.off::after{left:3px;right:auto;background:#fff}
+  .btn{height:50px;border-radius:13px;display:grid;place-items:center;font-weight:700;font-size:15px}
+  .btn.pri{background:var(--accent);color:#fff;box-shadow:0 2px 6px -1px #225a9955} .btn.ghost{background:var(--s2);border:1px solid var(--line);color:var(--txt)}
+  .back{display:flex;align-items:center;gap:12px;padding:6px 4px 14px}
+  .back .a{width:38px;height:38px;border-radius:10px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;font-size:20px;box-shadow:var(--shadow)}
+  .back .ttl{font-size:20px;font-weight:700;font-family:var(--mono)}
+  /* bottom sheet (More) */
+  .scrim{position:absolute;inset:0;background:#2c282055;display:flex;flex-direction:column;justify-content:flex-end}
+  .sheet{background:var(--bg);border-top-left-radius:22px;border-top-right-radius:22px;border-top:1px solid var(--line);padding:10px 16px 26px;max-height:80%;box-shadow:0 -10px 40px -10px #2c282044}
+  .grab{width:40px;height:5px;border-radius:3px;background:#c3b8a3;margin:6px auto 14px}
+  .sheetgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 8px;text-align:center;box-shadow:var(--shadow)}
+  .tile .ic{font-size:22px;display:block;margin-bottom:7px}
+  .tile .l{font-size:12.5px;font-weight:600}
+  .folderbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+  .folder{flex:1;height:42px;border-radius:11px;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 13px;font-weight:600;font-size:14px;box-shadow:var(--shadow)}
+</style>
+</head>
+<body>
+  <h1>HTCommander — phone (portrait) UI · light "beige + blue"</h1>
+  <p class="sub">Warm paper surfaces with a confident blue accent (red kept for PTT, green for "connected"), mono for callsigns/frequencies like a logbook. One-handed layout: thumb-reachable <b>bottom nav</b> (Radio · APRS · Mail · Map · More), <b>drill-down</b> master→detail instead of side-by-side panes, 48–60px touch targets, persistent <b>PTT</b>. Mockups to react to — the real screens reuse the existing ViewModels.</p>
+
+  <div class="gallery">
+
+    <!-- 1. RADIO / HOME -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar">
+          <div class="top">
+            <div class="brand"><span class="logo">📻</span> HTCommander</div>
+            <div class="chip"><span class="dot" style="background:var(--good)"></span> UV-PRO</div>
+          </div>
+          <div class="seg"><span>Voice</span><span class="on">Packet</span><span>Digital</span></div>
+        </div>
+        <div class="body">
+          <div class="grid2" style="margin-bottom:12px">
+            <div class="stat"><div class="k">Channel</div><div class="v">CH 12</div></div>
+            <div class="stat"><div class="k">Frequency</div><div class="v sm">146.520</div></div>
+            <div class="stat"><div class="k">Battery</div><div class="v">64%</div></div>
+            <div class="stat"><div class="k">Frames RX</div><div class="v">149</div></div>
+          </div>
+          <div class="h">Recent APRS</div>
+          <div class="row" style="min-height:52px"><div class="main"><div class="t1">KE4AXW-7</div><div class="t2">Mobile · 2.1 mi SW</div></div><span class="t2" style="font-family:var(--mono)">3m</span></div>
+          <div class="row" style="min-height:52px"><div class="main"><div class="t1">W4ABC</div><div class="t2">QSL? meet at repeater</div></div><span class="t2" style="font-family:var(--mono)">7m</span></div>
+          <div class="ptt">🎤 HOLD TO TALK<small>Packet mode · TX authorized</small></div>
+        </div>
+        <div class="nav">
+          <a class="on"><span class="ic">📻</span>Radio</a>
+          <a><span class="ic">📡</span>APRS</a>
+          <a><span class="ic">✉️</span>Mail</a>
+          <a><span class="ic">🗺️</span>Map</a>
+          <a><span class="ic">⋯</span>More</a>
+        </div>
+      </div></div>
+      <div class="cap"><b>1 · Radio (home)</b> — connection chip + Mode segmented control in a compact header; glanceable status; persistent PTT; bottom nav.</div>
+    </div>
+
+    <!-- 2. MORE SHEET -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar"><div class="top"><div class="brand"><span class="logo">📻</span> HTCommander</div><div class="chip"><span class="dot" style="background:var(--good)"></span> UV-PRO</div></div></div>
+        <div class="body" style="opacity:.4"><div class="grid2"><div class="stat"><div class="k">Channel</div><div class="v">CH 12</div></div><div class="stat"><div class="k">Battery</div><div class="v">64%</div></div></div></div>
+        <div class="scrim"><div class="sheet">
+          <div class="grab"></div>
+          <div class="h">Configure</div>
+          <div class="sheetgrid">
+            <div class="tile"><span class="ic">🪪</span><span class="l">Station</span></div>
+            <div class="tile"><span class="ic">🎚️</span><span class="l">Channels</span></div>
+            <div class="tile"><span class="ic">👥</span><span class="l">Contacts</span></div>
+            <div class="tile"><span class="ic">⚙️</span><span class="l">Settings</span></div>
+          </div>
+          <div class="h">Messaging &amp; data</div>
+          <div class="sheetgrid">
+            <div class="tile"><span class="ic">🗄️</span><span class="l">BBS</span></div>
+            <div class="tile"><span class="ic">⌨️</span><span class="l">Terminal</span></div>
+            <div class="tile"><span class="ic">📦</span><span class="l">Packets</span></div>
+          </div>
+          <div class="h">Diagnostics</div>
+          <div class="sheetgrid">
+            <div class="tile"><span class="ic">📈</span><span class="l">Modem</span></div>
+            <div class="tile"><span class="ic">🎙️</span><span class="l">Clips</span></div>
+            <div class="tile"><span class="ic">ℹ️</span><span class="l">About</span></div>
+          </div>
+        </div></div>
+      </div></div>
+      <div class="cap"><b>2 · "More" sheet</b> — the 9 secondary destinations as a grouped sheet, so the bottom bar stays to 4 primaries + More.</div>
+    </div>
+
+    <!-- 3. CONTACTS LIST -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar"><div class="top"><div class="brand">Contacts</div><div class="iconbtn">＋</div></div>
+          <div class="input ph">🔍 Search callsign or name…</div></div>
+        <div class="body">
+          <div class="row"><div class="av">KE</div><div class="main"><div class="t1">KE4AXW</div><div class="t2">Matt · Winlink RMS</div></div><span class="tag">RMS</span><span class="chev">›</span></div>
+          <div class="row"><div class="av">W4</div><div class="main"><div class="t1">W4ABC-1</div><div class="t2">Club BBS · 145.030</div></div><span class="tag">BBS</span><span class="chev">›</span></div>
+          <div class="row"><div class="av">N0</div><div class="main"><div class="t1">N0CALL</div><div class="t2">Field day net</div></div><span class="tag">APRS</span><span class="chev">›</span></div>
+          <div class="row"><div class="av">KD</div><div class="main"><div class="t1">KD8XYZ-7</div><div class="t2">Dave · mobile</div></div><span class="tag">APRS</span><span class="chev">›</span></div>
+        </div>
+        <div class="nav"><a><span class="ic">📻</span>Radio</a><a><span class="ic">📡</span>APRS</a><a><span class="ic">✉️</span>Mail</a><a><span class="ic">🗺️</span>Map</a><a class="on"><span class="ic">⋯</span>More</a></div>
+      </div></div>
+      <div class="cap"><b>3 · Contacts (list)</b> — drill-down master. Tap a row → detail page (next). Big touch rows, type tag, search + add.</div>
+    </div>
+
+    <!-- 4. CONTACT DETAIL -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar"><div class="back"><div class="a">‹</div><div class="ttl">KE4AXW</div></div></div>
+        <div class="body">
+          <div class="field"><label>Callsign</label><div class="input">KE4AXW</div></div>
+          <div class="field"><label>Name</label><div class="input">Matt</div></div>
+          <div class="field"><label>Type</label><div class="input">Winlink RMS gateway</div></div>
+          <div class="field"><label>Connect on channel</label><div class="input">RMS-145.030</div></div>
+          <div class="field"><label>AX.25 destination</label><div class="input">KE4AXW-10</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+            <div class="btn pri">Save</div><div class="btn ghost">Remove</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="cap"><b>4 · Contact (detail)</b> — pushed page with Back; the editor that used to be a cramped side panel becomes a full, touch-sized form.</div>
+    </div>
+
+    <!-- 5. MAIL LIST -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar"><div class="top"><div class="brand">Mail</div><div class="chip">⇅ Sync</div></div>
+          <div class="folderbar"><div class="folder">Inbox · 2 unread <span>▾</span></div></div></div>
+        <div class="body">
+          <div class="row"><span class="unread"></span><div class="main"><div class="t1" style="font-family:var(--ui)">Weather advisory — net 1900Z</div><div class="t2">KE4AXW · 12:31</div></div><span class="chev">›</span></div>
+          <div class="row"><span class="unread"></span><div class="main"><div class="t1" style="font-family:var(--ui)">Re: antenna swap</div><div class="t2">W4ABC · 11:02</div></div><span class="chev">›</span></div>
+          <div class="row"><span style="width:9px"></span><div class="main"><div class="t1" style="font-family:var(--ui);font-weight:500">Field day roster</div><div class="t2">N0CALL · Yest</div></div><span class="chev">›</span></div>
+          <div class="ptt" style="background:var(--accent);box-shadow:0 6px 16px -6px #225a9966;height:52px;font-size:15px;letter-spacing:.3px">✎ Compose</div>
+        </div>
+        <div class="nav"><a><span class="ic">📻</span>Radio</a><a><span class="ic">📡</span>APRS</a><a class="on"><span class="ic">✉️</span>Mail</a><a><span class="ic">🗺️</span>Map</a><a><span class="ic">⋯</span>More</a></div>
+      </div></div>
+      <div class="cap"><b>5 · Mail (list)</b> — folder selector replaces the desktop folder pane; tap a message → reader page. Compose as a clear action.</div>
+    </div>
+
+    <!-- 6. STATION FORM -->
+    <div class="frame-wrap">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>12:43</span><span class="r">▦ ▾ ⌃ <span class="bat">100</span></span></div>
+        <div class="appbar"><div class="back"><div class="a">‹</div><div class="ttl" style="font-family:var(--ui)">Station</div></div></div>
+        <div class="body">
+          <div class="h">Identity</div>
+          <div class="field"><label>Callsign</label><div class="input">KE4AXW</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label>SSID</label><div class="input">7</div></div>
+            <div class="field"><label>Winlink password</label><div class="input">••••••</div></div>
+          </div>
+          <div class="toggle" style="margin-bottom:16px">
+            <div><div style="font-weight:600">Allow transmit</div><div class="t2" style="color:var(--mut);font-size:12.5px;margin-top:2px">Licensed &amp; authorized</div></div>
+            <div class="sw"></div>
+          </div>
+          <div class="h">Beacon</div>
+          <div class="toggle"><div style="font-weight:600">Share my location</div><div class="sw off"></div></div>
+        </div>
+      </div></div>
+      <div class="cap"><b>6 · Station (form)</b> — desktop scrolling form, re-spaced for touch: section headers, 48px fields, real toggle switches.</div>
+    </div>
+
+  </div>
+</body>
+</html>
