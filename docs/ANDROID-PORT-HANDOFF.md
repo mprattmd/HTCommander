@@ -61,11 +61,15 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"          # adb at $ANDROID_HOME/
 # Build + deploy + launch (Debug uses Fast Deployment — adb install of a Debug APK
 # CRASHES with "No assemblies found"; use -t:Run, or Release, or EmbedAssembliesIntoApk):
 dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj \
-  -c Debug -f net10.0-android -t:Run \
+  -c Debug -f net10.0-android -t:Run -p:BuildAndroid=true \
   -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME"
 
-# Desktop (unchanged): dotnet build ... -f net9.0
+# Desktop (unchanged): dotnet build ... -f net9.0   (NO -p:BuildAndroid)
 ```
+> ⚠️ **`-p:BuildAndroid=true` is REQUIRED for every Android build.** The UI project is
+> **desktop-only (net9.0) by default** so the cross-platform solution + packaging scripts +
+> CI build with just the .NET 9 SDK (no Android workload). The `net10.0-android` TFM is only
+> added when `BuildAndroid=true`, so `-f net10.0-android` fails without it.
 Useful: `adb logcat -d | grep -iE 'AndroidTransport|GAIA|FATAL|Exception'`;
 `adb exec-out screencap -p > /tmp/s.png`. NOTE: Avalonia renders to one GPU surface, so
 `uiautomator`/element automation does NOT work — drive the UI by hand or raw `input tap`.
@@ -102,7 +106,7 @@ export ANDROID_HOME=$HOME/Library/Android/sdk ; export JAVA_HOME=/opt/homebrew/o
 # one-time: installed `emulator` + `system-images;android-36;google_apis;arm64-v8a`; AVD "htc"
 $ANDROID_HOME/emulator/emulator -avd htc -no-snapshot -no-boot-anim -gpu auto &   # boots as emulator-5554
 export ANDROID_SERIAL=emulator-5554      # target it (Pixel may also be attached)
-dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj -c Debug -f net10.0-android -t:Run -p:AdbTarget="-s emulator-5554" ...
+dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj -c Debug -f net10.0-android -t:Run -p:BuildAndroid=true -p:AdbTarget="-s emulator-5554" ...
 # screenshots are 1080x2400 (> read limit) -> downscale: sips -Z 1400 in.png --out out.png
 ```
 
@@ -126,8 +130,8 @@ PW=$(grep 'password:' ~/.htcommander/signing.txt | sed 's/.*password: //')
 #    instance_size" crash at launch. Always rm obj/bin before a Release build.
 rm -rf cross/HTCommander.UI.Avalonia/obj cross/HTCommander.UI.Avalonia/bin
 
-# 2) Signed Release APK (default link/trim ~38MB; do NOT use AndroidLinkMode=None — 80MB)
-dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj -c Release -f net10.0-android \
+# 2) Signed Release APK (default link/trim ~40MB; do NOT use AndroidLinkMode=None — 80MB)
+dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj -c Release -f net10.0-android -p:BuildAndroid=true \
   -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" \
   -p:AndroidKeyStore=true -p:AndroidSigningKeyStore="$HOME/.htcommander/htcommander.keystore" \
   -p:AndroidSigningStorePass="$PW" -p:AndroidSigningKeyAlias=htcommander -p:AndroidSigningKeyPass="$PW"

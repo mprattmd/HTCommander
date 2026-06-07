@@ -1,8 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- net9.0 = desktop (Windows/Linux/macOS); net9.0-android = the Android head.
-         Per-TFM output type, deps and platform backends are selected below. -->
-    <TargetFrameworks>net9.0;net10.0-android</TargetFrameworks>
+    <!-- net9.0 = desktop (Windows/Linux/macOS); net10.0-android = the Android head.
+         Desktop-only by DEFAULT so the cross-platform solution + packaging scripts build
+         with just the .NET 9 SDK (no Android workload — that's what CI runs). Opt into the
+         Android head with -p:BuildAndroid=true (see the Android build/deploy commands). -->
+    <TargetFrameworks>net9.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(BuildAndroid)' == 'true'">net9.0;net10.0-android</TargetFrameworks>
     <Version>0.5.1</Version>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
