@@ -47,13 +47,13 @@ public partial class MobileView : UserControl
         NavAprs.Click  += (_, _) => NavigateRoot("APRS");
         NavMail.Click  += (_, _) => NavigateRoot("Mail");
         NavMap.Click   += (_, _) => NavigateRoot("Map");
+        NavChannels.Click += (_, _) => NavigateRoot("Channels");
         NavMore.Click  += (_, _) => MoreSheet.IsVisible = true;
 
         BackButton.Click += (_, _) => Back();
 
         // "More" tiles → navigate (and close the sheet)
         MoreStation.Click  += (_, _) => NavigateRoot("Station");
-        MoreChannels.Click += (_, _) => NavigateRoot("Channels");
         MoreContacts.Click += (_, _) => NavigateRoot("Contacts");
         MoreSettings.Click += (_, _) => NavigateRoot("Settings");
         MorePackets.Click  += (_, _) => NavigateRoot("Packets");
@@ -133,8 +133,9 @@ public partial class MobileView : UserControl
         SetOn(NavAprs, key == "APRS");
         SetOn(NavMail, key == "Mail");
         SetOn(NavMap, key == "Map");
+        SetOn(NavChannels, key == "Channels");
         // "More" destinations keep More highlighted.
-        SetOn(NavMore, key is "Station" or "Channels" or "Contacts" or "Settings" or "Packets" or "About");
+        SetOn(NavMore, key is "Station" or "Contacts" or "Settings" or "Packets" or "About");
     }
 
     private static void SetOn(Control c, bool on)

@@ -19,8 +19,8 @@
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <Grid ColumnDefinitions="Auto,*,*" ColumnSpacing="8">
-            <Button Grid.Column="0" x:Name="RefreshButton" Classes="mGhost" Content="Refresh" Padding="16,0"/>
+          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+            <Button Grid.Column="0" x:Name="RefreshButton" Classes="mGhost" Content="Refresh"/>
             <Button Grid.Column="1" x:Name="ConnectButton" Classes="mPri" Content="Connect" IsEnabled="{Binding CanConnect}"/>
             <Button Grid.Column="2" x:Name="DisconnectButton" Classes="mGhost" Content="Disconnect" IsEnabled="{Binding CanDisconnect}"/>
           </Grid>

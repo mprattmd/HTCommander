@@ -58,9 +58,11 @@
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="FontSize" Value="15"/>
       <Setter Property="MinHeight" Value="48"/>
+      <Setter Property="Padding" Value="12,8"/>
       <Setter Property="CornerRadius" Value="12"/>
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
       <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
     <Style Selector="Button.mPri:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{StaticResource MAccent2}"/>
@@ -72,9 +74,11 @@
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="MinHeight" Value="48"/>
+      <Setter Property="Padding" Value="12,8"/>
       <Setter Property="CornerRadius" Value="12"/>
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
       <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
     <!-- text inputs -->
@@ -199,21 +203,24 @@
     <!-- Bottom nav -->
     <Border Grid.Row="2" Background="{StaticResource MS1}" BorderBrush="{StaticResource MLine}"
             BorderThickness="0,1,0,0" Padding="6,8,6,20">
-      <Grid x:Name="BottomNav" ColumnDefinitions="*,*,*,*,*">
+      <Grid x:Name="BottomNav" ColumnDefinitions="*,*,*,*,*,*">
         <Button Grid.Column="0" Classes="nav" x:Name="NavRadio">
-          <StackPanel Spacing="3"><TextBlock Text="📻" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="Radio" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+          <StackPanel Spacing="3"><TextBlock Text="📻" FontSize="20" HorizontalAlignment="Center"/><TextBlock Text="Radio" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
         </Button>
         <Button Grid.Column="1" Classes="nav" x:Name="NavAprs">
-          <StackPanel Spacing="3"><TextBlock Text="📡" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="APRS" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+          <StackPanel Spacing="3"><TextBlock Text="📡" FontSize="20" HorizontalAlignment="Center"/><TextBlock Text="APRS" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
         </Button>
         <Button Grid.Column="2" Classes="nav" x:Name="NavMail">
-          <StackPanel Spacing="3"><TextBlock Text="✉️" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="Mail" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+          <StackPanel Spacing="3"><TextBlock Text="✉️" FontSize="20" HorizontalAlignment="Center"/><TextBlock Text="Mail" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
         </Button>
         <Button Grid.Column="3" Classes="nav" x:Name="NavMap">
-          <StackPanel Spacing="3"><TextBlock Text="🗺️" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="Map" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+          <StackPanel Spacing="3"><TextBlock Text="🗺️" FontSize="20" HorizontalAlignment="Center"/><TextBlock Text="Map" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
         </Button>
-        <Button Grid.Column="4" Classes="nav" x:Name="NavMore">
-          <StackPanel Spacing="3"><TextBlock Text="⋯" FontSize="21" HorizontalAlignment="Center"/><TextBlock Text="More" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+        <Button Grid.Column="4" Classes="nav" x:Name="NavChannels">
+          <StackPanel Spacing="3"><TextBlock Text="🎚️" FontSize="20" HorizontalAlignment="Center"/><TextBlock Text="Channels" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
+        </Button>
+        <Button Grid.Column="5" Classes="nav" x:Name="NavMore">
+          <StackPanel Spacing="3"><TextBlock Text="⋯" FontSize="20" HorizontalAlignment="Center"/><TextBlock Text="More" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel>
         </Button>
       </Grid>
     </Border>
@@ -225,11 +232,10 @@
         <StackPanel>
           <Border Width="40" Height="5" CornerRadius="3" Background="{StaticResource MDim}" Margin="0,6,0,14"/>
           <TextBlock Classes="mSection" Text="CONFIGURE"/>
-          <Grid ColumnDefinitions="*,*,*,*">
+          <Grid ColumnDefinitions="*,*,*">
             <Button Grid.Column="0" Classes="tile" x:Name="MoreStation"><StackPanel Spacing="6"><TextBlock Text="🪪" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Station" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
-            <Button Grid.Column="1" Classes="tile" x:Name="MoreChannels"><StackPanel Spacing="6"><TextBlock Text="🎚️" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Channels" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
-            <Button Grid.Column="2" Classes="tile" x:Name="MoreContacts"><StackPanel Spacing="6"><TextBlock Text="👥" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Contacts" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
-            <Button Grid.Column="3" Classes="tile" x:Name="MoreSettings"><StackPanel Spacing="6"><TextBlock Text="⚙️" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Settings" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
+            <Button Grid.Column="1" Classes="tile" x:Name="MoreContacts"><StackPanel Spacing="6"><TextBlock Text="👥" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Contacts" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
+            <Button Grid.Column="2" Classes="tile" x:Name="MoreSettings"><StackPanel Spacing="6"><TextBlock Text="⚙️" FontSize="22" HorizontalAlignment="Center"/><TextBlock Text="Settings" FontSize="12.5" FontWeight="SemiBold" HorizontalAlignment="Center"/></StackPanel></Button>
           </Grid>
           <TextBlock Classes="mSection" Text="TOOLS" Margin="2,12,0,8"/>
           <Grid ColumnDefinitions="*,*,*,*">
