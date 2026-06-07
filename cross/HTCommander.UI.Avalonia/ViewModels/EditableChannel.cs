@@ -112,7 +112,9 @@ public sealed class ChannelSlot : ViewModelBase
     public bool IsActive { get => isActive; set => SetField(ref isActive, value); }
 
     public bool IsEmpty => string.IsNullOrEmpty(name);
-    public string Display => IsEmpty ? (SlotId).ToString() : name;
+    /// <summary>1-based slot number for display (the wire/channel_id stays 0-based via SlotId).</summary>
+    public int Number => SlotId + 1;
+    public string Display => IsEmpty ? Number.ToString() : name;
     public string FreqText => rxMHz > 0 ? rxMHz.ToString("0.0000", CultureInfo.InvariantCulture) : "";
 }
 

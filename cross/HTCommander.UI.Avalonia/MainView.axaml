@@ -160,7 +160,7 @@
                         <Border Classes="Card" Padding="12,8" Width="120" Margin="0,0,10,10">
                             <StackPanel Spacing="2">
                                 <TextBlock Text="Channel" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
-                                <TextBlock Text="{Binding ChannelId, StringFormat='CH {0}'}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding ChannelId, Converter={StaticResource PlusOne}, StringFormat='CH {0}'}" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
                         <Border Classes="Card" Padding="12,8" Width="120" Margin="0,0,10,10">
@@ -202,7 +202,7 @@
                                                        FontSize="11" HorizontalAlignment="Center"/>
                                             <Grid ColumnDefinitions="*,*">
                                                 <TextBlock Grid.Column="0" Foreground="#86F29A" FontFamily="monospace" FontSize="11"
-                                                           Text="{Binding ChannelId, StringFormat='CH {0}'}"/>
+                                                           Text="{Binding ChannelId, Converter={StaticResource PlusOne}, StringFormat='CH {0}'}"/>
                                                 <TextBlock Grid.Column="1" Foreground="#86F29A" FontFamily="monospace" FontSize="11"
                                                            HorizontalAlignment="Right"
                                                            Text="{Binding BatteryPercent, StringFormat='{}{0}%'}"/>
@@ -252,11 +252,11 @@
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Squelch" Foreground="{DynamicResource TextMutedBrush}"/>
                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SquelchText}"/>
                                 <TextBlock Grid.Row="2" Grid.Column="2" Text="Channel" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding ChannelId}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding ChannelId, Converter={StaticResource PlusOne}}"/>
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="RSSI" Foreground="{DynamicResource TextMutedBrush}"/>
                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Rssi}"/>
                                 <TextBlock Grid.Row="3" Grid.Column="2" Text="Region" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding Region}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding Region, Converter={StaticResource PlusOne}}"/>
                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="GPS" Foreground="{DynamicResource TextMutedBrush}"/>
                                 <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding GpsText}"/>
                                 <TextBlock Grid.Row="4" Grid.Column="2" Text="Device" Foreground="{DynamicResource TextMutedBrush}"/>
@@ -483,7 +483,9 @@
                         <TextBlock Text="Bank" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" IsVisible="{Binding HasBanks}"/>
                         <ComboBox x:Name="ChBankCombo" MinWidth="70" IsVisible="{Binding HasBanks}"
                                   ItemsSource="{Binding Banks}" SelectedItem="{Binding SelectedBank}"
-                                  ToolTip.Tip="Channel bank (region/zone) to read and write"/>
+                                  ToolTip.Tip="Channel bank (region/zone) to read and write">
+                            <ComboBox.ItemTemplate><DataTemplate x:DataType="x:Int32"><TextBlock Text="{Binding Converter={StaticResource PlusOne}}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
                         <Button x:Name="ChLoadAllBanksButton" Content="Load all banks"
                                 IsVisible="{Binding HasBanks}" IsEnabled="{Binding CanLoadAllBanks}"
                                 ToolTip.Tip="Read every bank so all channels appear in the channel pickers (briefly cycles the radio through each bank, then returns)"/>
@@ -561,7 +563,7 @@
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 DataContext="{Binding EditingChannel}" x:DataType="vm:EditableChannel">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="{Binding ChannelId, StringFormat='Edit channel slot {0}'}" FontWeight="Bold" FontSize="15"/>
+                                <TextBlock Text="{Binding ChannelId, Converter={StaticResource PlusOne}, StringFormat='Edit channel slot {0}'}" FontWeight="Bold" FontSize="15"/>
                                 <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Name" VerticalAlignment="Center"/>
                                     <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding Name}" MaxLength="10"/>
@@ -787,7 +789,9 @@
                                     <Grid ColumnDefinitions="Auto,90,Auto,*" ColumnSpacing="8">
                                         <TextBlock Grid.Column="0" Text="Slot" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
                                         <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
-                                                  ItemsSource="{Binding ChannelSlotIds}" SelectedItem="{Binding AprsChannelSlot}"/>
+                                                  ItemsSource="{Binding ChannelSlotIds}" SelectedItem="{Binding AprsChannelSlot}">
+                                            <ComboBox.ItemTemplate><DataTemplate x:DataType="x:Int32"><TextBlock Text="{Binding Converter={StaticResource PlusOne}}"/></DataTemplate></ComboBox.ItemTemplate>
+                                        </ComboBox>
                                         <TextBlock Grid.Column="2" Text="MHz" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
                                         <TextBox Grid.Column="3" Text="{Binding AprsChannelFreq}"/>
                                     </Grid>

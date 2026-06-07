@@ -41,7 +41,7 @@
         </Border>
         <Border Grid.Row="0" Grid.Column="1" Classes="mCard">
           <StackPanel Spacing="4"><TextBlock Classes="mKey" Text="CHANNEL"/>
-            <TextBlock Classes="mVal" Text="{Binding ChannelId, StringFormat='CH {0}'}"/></StackPanel>
+            <TextBlock Classes="mVal" Text="{Binding ChannelId, Converter={StaticResource PlusOne}, StringFormat='CH {0}'}"/></StackPanel>
         </Border>
         <Border Grid.Row="1" Grid.Column="0" Classes="mCard">
           <StackPanel Spacing="4"><TextBlock Classes="mKey" Text="BATTERY"/>

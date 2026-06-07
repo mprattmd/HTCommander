@@ -1202,9 +1202,9 @@ public sealed class MainViewModel : ViewModelBase
             RefreshActiveSlots();
             var name = slotId < Slots.Count ? Slots[slotId].Name : "";
             BuilderStatus = string.IsNullOrEmpty(name)
-                ? $"Switched radio to channel {slotId}."
-                : $"Switched radio to channel {slotId} ({name}).";
-            AppendLog($"Channels: switched radio to live channel {slotId}.");
+                ? $"Switched radio to channel {slotId + 1}."
+                : $"Switched radio to channel {slotId + 1} ({name}).";
+            AppendLog($"Channels: switched radio to live channel {slotId + 1}.");
         }
         else BuilderStatus = "Tap ⟳ Load from radio first, then tap a channel to switch.";
     }
@@ -1221,8 +1221,8 @@ public sealed class MainViewModel : ViewModelBase
         EnsureSlots();
         if (slotId < Slots.Count) { Slots[slotId].Name = info.name_str; Slots[slotId].RxMHz = info.rx_freq / 1_000_000.0; }
         string where = HasBanks ? $" in bank {SelectedBank}" : "";
-        BuilderStatus = $"Programmed slot {slotId}{where}: {info.name_str}";
-        AppendLog($"Channel builder: programmed slot {slotId}{where} -> {info.name_str}");
+        BuilderStatus = $"Programmed slot {slotId + 1}{where}: {info.name_str}";
+        AppendLog($"Channel builder: programmed slot {slotId + 1}{where} -> {info.name_str}");
     }
 
     /// <summary>Copy the channels last read from the radio into the editable builder.</summary>
@@ -1264,7 +1264,7 @@ public sealed class MainViewModel : ViewModelBase
         if (!CanWriteChannels) { BuilderStatus = "Connect to a radio first to write channels."; return; }
         int id = editingSlotId >= 0 ? editingSlotId : EditingChannel.ChannelId;
         controller.WriteChannel(EditingChannel.ToRadioChannelInfo(id));
-        BuilderStatus = $"Wrote channel {id} ({EditingChannel.Name}) to the radio.";
+        BuilderStatus = $"Wrote channel {id + 1} ({EditingChannel.Name}) to the radio.";
         EditingChannel = null; editingSlotId = -1;
     }
 
@@ -2338,7 +2338,7 @@ public sealed class MainViewModel : ViewModelBase
                 return $"No '{AprsChannelName}' channel on the radio — APRS will go out on whatever channel you're tuned to. Create one below, or set the APRS channel name on the Station page.";
             string freq = loc.ChannelId >= 0 && loc.ChannelId < Slots.Count && Slots[loc.ChannelId].RxMHz > 0
                 ? $" · {Slots[loc.ChannelId].RxMHz:0.0000} MHz" : "";
-            return $"Sending on the '{AprsChannelName}' channel (CH {loc.ChannelId}{freq}).";
+            return $"Sending on the '{AprsChannelName}' channel (CH {loc.ChannelId + 1}{freq}).";
         }
     }
 
@@ -2385,7 +2385,7 @@ public sealed class MainViewModel : ViewModelBase
         if (HasBanks) controller.SetRegion(SelectedBank);
         controller.WriteChannel(ch);
         if (slot < Slots.Count) { Slots[slot].Name = "APRS"; Slots[slot].RxMHz = mhz; }
-        AppendLog($"Created APRS channel at {mhz.ToString("0.0000", CultureInfo.InvariantCulture)} MHz in slot {slot}.");
+        AppendLog($"Created APRS channel at {mhz.ToString("0.0000", CultureInfo.InvariantCulture)} MHz in slot {slot + 1}.");
     }
 
     // ---- Audio clips (record / play / list) --------------------------------

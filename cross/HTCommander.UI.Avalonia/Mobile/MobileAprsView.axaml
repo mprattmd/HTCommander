@@ -46,7 +46,9 @@
           <TextBlock Classes="mKey" Text="NO APRS CHANNEL — CREATE ONE (144.39 FM)"/>
           <Grid ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="8">
             <TextBlock Grid.Column="0" Text="Slot" VerticalAlignment="Center" Foreground="{StaticResource MMut}"/>
-            <ComboBox Grid.Column="1" Classes="mInput" ItemsSource="{Binding ChannelSlotIds}" SelectedItem="{Binding AprsChannelSlot}"/>
+            <ComboBox Grid.Column="1" Classes="mInput" ItemsSource="{Binding ChannelSlotIds}" SelectedItem="{Binding AprsChannelSlot}">
+              <ComboBox.ItemTemplate><DataTemplate x:DataType="x:Int32"><TextBlock Text="{Binding Converter={StaticResource PlusOne}}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
             <TextBlock Grid.Column="2" Text="MHz" VerticalAlignment="Center" Foreground="{StaticResource MMut}"/>
             <TextBox Grid.Column="3" Classes="mInput" Text="{Binding AprsChannelFreq}"/>
           </Grid>

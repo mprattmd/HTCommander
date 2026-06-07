@@ -10,7 +10,9 @@
     </Grid>
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,8,0,0" IsVisible="{Binding HasBanks}">
       <TextBlock Grid.Column="0" Classes="mKey" Text="BANK" VerticalAlignment="Center"/>
-      <ComboBox Grid.Column="1" Classes="mInput" ItemsSource="{Binding Banks}" SelectedItem="{Binding SelectedBank}"/>
+      <ComboBox Grid.Column="1" Classes="mInput" ItemsSource="{Binding Banks}" SelectedItem="{Binding SelectedBank}">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="x:Int32"><TextBlock Text="{Binding Converter={StaticResource PlusOne}}"/></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
       <Button Grid.Column="2" x:Name="LoadAllButton" Classes="mGhost" Content="Load all banks" IsEnabled="{Binding CanLoadAllBanks}" Padding="14,0"/>
     </Grid>
     <TextBlock Grid.Row="2" Classes="mKey" Text="{Binding BuilderStatus}" TextWrapping="Wrap" Margin="2,8,2,8"/>
@@ -25,7 +27,7 @@
               <Grid ColumnDefinitions="48,*,Auto,Auto">
                 <Border Grid.Column="0" Width="44" Height="40" CornerRadius="10" VerticalAlignment="Center"
                         Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}" BorderThickness="1">
-                  <TextBlock Text="{Binding SlotId}" FontFamily="{StaticResource MMono}" FontWeight="Bold"
+                  <TextBlock Text="{Binding Number}" FontFamily="{StaticResource MMono}" FontWeight="Bold"
                              Foreground="{StaticResource MAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Spacing="2">

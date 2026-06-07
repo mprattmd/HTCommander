@@ -1,9 +1,12 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:HTCommander.UI.Avalonia.Converters"
              x:Class="HTCommander.UI.Avalonia.App"
              RequestedThemeVariant="Dark">
 
     <Application.Resources>
+        <!-- Show 0-based radio indices (channel/bank) as 1-based for humans; wire stays 0-based. -->
+        <conv:PlusOneConverter x:Key="PlusOne"/>
         <!-- Centralized palette. Surfaces go dark->light by tier; accent is a
              ham-radio blue. Referenced via DynamicResource in AppStyles + markup. -->
         <Color x:Key="SystemAccentColor">#2F80ED</Color>

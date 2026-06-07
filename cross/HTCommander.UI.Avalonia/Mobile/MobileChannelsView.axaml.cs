@@ -49,7 +49,7 @@ public partial class MobileChannelsView : UserControl
                 if (isEdit)
                 {
                     Vm?.BeginEditSlot(slot.SlotId);
-                    this.FindAncestorOfType<MobileView>()?.Push(new MobileChannelEditView(), "CH " + slot.SlotId);
+                    this.FindAncestorOfType<MobileView>()?.Push(new MobileChannelEditView(), "CH " + slot.Number);
                 }
                 else
                 {
