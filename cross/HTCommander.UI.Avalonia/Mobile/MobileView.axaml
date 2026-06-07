@@ -170,6 +170,9 @@
   </UserControl.Styles>
 
   <!-- ============ Shell ============ -->
+  <!-- Force LIGHT theme variant: the design is light beige, so Fluent inputs/dropdowns
+       must use light-theme (dark-text-on-light) defaults instead of the app's Dark. -->
+  <ThemeVariantScope RequestedThemeVariant="Light">
   <Grid Background="{StaticResource MBg}" RowDefinitions="Auto,*,Auto">
 
     <!-- Top app bar -->
@@ -237,4 +240,5 @@
       </Border>
     </Grid>
   </Grid>
+  </ThemeVariantScope>
 </UserControl>

@@ -25,11 +25,46 @@
             <ToggleSwitch Grid.Column="1" IsChecked="{Binding AllowTransmit}" OnContent="" OffContent=""/>
           </Grid>
           <TextBlock Classes="mKey" TextWrapping="Wrap"
-                     Text="I am licensed and authorized to transmit. Required (with a callsign) before any on-air TX — APRS, Winlink, beacons."/>
+                     Text="I am licensed and authorized to transmit. Required (with a callsign) before any on-air TX."/>
         </StackPanel>
       </Border>
+
+      <TextBlock Classes="mSection" Text="APRS" Margin="2,8,0,8"/>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="APRS CHANNEL (FOR MESSAGES + BEACON)"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding ChannelNames}" SelectedItem="{Binding AprsChannelName}"/>
+      </StackPanel>
+
+      <TextBlock Classes="mSection" Text="FIXED POSITION (NO GPS)" Margin="2,8,0,8"/>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+        <StackPanel Grid.Column="0" Spacing="6"><TextBlock Classes="mKey" Text="LATITUDE"/>
+          <TextBox Classes="mInput" Text="{Binding ManualLatitude}" Watermark="35.7796"/></StackPanel>
+        <StackPanel Grid.Column="1" Spacing="6"><TextBlock Classes="mKey" Text="LONGITUDE"/>
+          <TextBox Classes="mInput" Text="{Binding ManualLongitude}" Watermark="-78.6382"/></StackPanel>
+      </Grid>
+      <Button x:Name="SetFixedButton" Classes="mGhost" Content="Set fixed position on radio" IsEnabled="{Binding CanRequestPosition}"/>
+
+      <!-- Beacon (only meaningful once a radio is connected) -->
+      <StackPanel IsVisible="{Binding HasBss}" Spacing="14">
+        <TextBlock Classes="mSection" Text="BEACON" Margin="2,8,0,0"/>
+        <Border Classes="mCard">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="Share my location" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding BeaconShareLocation}" OnContent="" OffContent=""/>
+          </Grid>
+        </Border>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+          <StackPanel Grid.Column="0" Spacing="6"><TextBlock Classes="mKey" Text="APRS SYMBOL"/>
+            <TextBox Classes="mInput" Text="{Binding BeaconSymbol}" MaxLength="2"/></StackPanel>
+          <StackPanel Grid.Column="1" Spacing="6"><TextBlock Classes="mKey" Text="INTERVAL (S)"/>
+            <TextBox Classes="mInput" Text="{Binding BeaconInterval}"/></StackPanel>
+        </Grid>
+        <StackPanel Spacing="6"><TextBlock Classes="mKey" Text="BEACON COMMENT"/>
+          <TextBox Classes="mInput" Text="{Binding BeaconMessageText}" MaxLength="18"/></StackPanel>
+      </StackPanel>
+
       <TextBlock Classes="mKey" TextWrapping="Wrap" Margin="0,4,0,0"
-                 Text="Beacon, APRS routes and fixed position are configured on the desktop app for now."/>
+                 Text="Settings save automatically. APRS routes &amp; beacon method are on the desktop app."/>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

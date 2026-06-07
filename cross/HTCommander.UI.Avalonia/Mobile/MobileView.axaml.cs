@@ -106,7 +106,8 @@ public partial class MobileView : UserControl
         "Station" => new MobileStationView(),
         "Settings" => new MobileSettingsView(),
         "Packets" => new MobilePacketsView(),
-        _ => Placeholder(key),   // Map (Mapsui-on-Android pending), About
+        "Map" => new MobileMapView(),
+        _ => Placeholder(key),   // About
     };
 
     private static string TitleFor(string key) => key;

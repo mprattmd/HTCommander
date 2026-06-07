@@ -7,14 +7,6 @@
   <ScrollViewer>
     <StackPanel Margin="14" Spacing="12">
 
-      <!-- Mode -->
-      <Border Classes="seg">
-        <Grid ColumnDefinitions="*,*">
-          <Button Grid.Column="0" x:Name="SegPacket" Classes="seg" Content="Packet"/>
-          <Button Grid.Column="1" x:Name="SegDigital" Classes="seg" Content="Digital"/>
-        </Grid>
-      </Border>
-
       <!-- Connection -->
       <Border Classes="mCard">
         <StackPanel Spacing="10">

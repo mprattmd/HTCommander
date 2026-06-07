@@ -14,7 +14,8 @@ public partial class MobileMailView : UserControl
     public MobileMailView()
     {
         InitializeComponent();
-        SyncButton.Click += (_, _) => Vm?.SyncWinlinkInternet();
+        SyncInternetButton.Click += (_, _) => Vm?.SyncWinlinkInternet();
+        SyncRadioButton.Click += (_, _) => Vm?.SyncWinlinkRadio();
         ComposeButton.Click += (_, _) =>
         {
             Vm?.NewMail();

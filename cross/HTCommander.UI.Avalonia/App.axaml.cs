@@ -86,6 +86,7 @@ public partial class App : Application
         var viewModel = new MainViewModel(dispatcher, audioDevices, radioPlatform);
 
 #if ANDROID
+        viewModel.RadioMode = "Packet";   // mobile is data-only (Packet); no Voice/Digital switch
         if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
             singleView.MainView = new Mobile.MobileView { DataContext = viewModel };
 #else

@@ -17,6 +17,7 @@ public partial class MobileChannelsView : UserControl
         InitializeComponent();
         ImportButton.Click += async (_, _) => await ImportCsvAsync();
         LoadButton.Click += (_, _) => Vm?.LoadChannelsFromRadio();
+        LoadAllButton.Click += (_, _) => Vm?.LoadAllBanks();
         WriteAllButton.Click += (_, _) => Vm?.WriteChannelsToRadio();
         SlotList.AddHandler(Button.ClickEvent, OnSlotClick);
     }

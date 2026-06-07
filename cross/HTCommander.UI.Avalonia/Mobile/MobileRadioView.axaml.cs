@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-using System.ComponentModel;
 using Avalonia.Controls;
 using HTCommander.UI.Avalonia.ViewModels;
 
@@ -23,7 +22,6 @@ namespace HTCommander.UI.Avalonia.Mobile;
 public partial class MobileRadioView : UserControl
 {
     private MainViewModel? Vm => DataContext as MainViewModel;
-    private MainViewModel? hooked;
 
     public MobileRadioView()
     {
@@ -31,33 +29,5 @@ public partial class MobileRadioView : UserControl
         RefreshButton.Click    += (_, _) => Vm?.Refresh();
         ConnectButton.Click    += (_, _) => Vm?.Connect();
         DisconnectButton.Click += (_, _) => Vm?.Disconnect();
-        SegPacket.Click  += (_, _) => { if (Vm != null) Vm.RadioMode = "Packet"; };
-        SegDigital.Click += (_, _) => { if (Vm != null) Vm.RadioMode = "Digital"; };
-        DataContextChanged += (_, _) => { Hook(); UpdateSeg(); };
-    }
-
-    private void Hook()
-    {
-        if (hooked != null) hooked.PropertyChanged -= OnVmChanged;
-        hooked = Vm;
-        if (hooked != null) hooked.PropertyChanged += OnVmChanged;
-    }
-
-    private void OnVmChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(MainViewModel.RadioMode) or null) UpdateSeg();
-    }
-
-    private void UpdateSeg()
-    {
-        bool packet = Vm?.IsPacketMode ?? true;
-        SetOn(SegPacket, packet);
-        SetOn(SegDigital, Vm?.IsDigitalMode ?? false);
-    }
-
-    private static void SetOn(Control c, bool on)
-    {
-        if (on) { if (!c.Classes.Contains("on")) c.Classes.Add("on"); }
-        else c.Classes.Remove("on");
     }
 }

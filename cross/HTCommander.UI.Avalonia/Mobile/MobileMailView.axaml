@@ -4,15 +4,25 @@
              xmlns:core="using:HTCommander"
              x:Class="HTCommander.UI.Avalonia.Mobile.MobileMailView"
              x:DataType="vm:MainViewModel">
-  <Grid RowDefinitions="Auto,Auto,*" Margin="14,12">
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,0,0,8">
-      <ComboBox Grid.Column="0" Classes="mInput" ItemsSource="{Binding Folders}" SelectedItem="{Binding SelectedFolder}">
-        <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MailFolder"><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
-      </ComboBox>
-      <Button Grid.Column="1" x:Name="SyncButton" Classes="mGhost" Content="⇅ Sync" Padding="14,0"/>
-    </Grid>
-    <Button Grid.Row="1" x:Name="ComposeButton" Classes="mPri" Content="✎  Compose" Margin="0,0,0,10"/>
-    <ScrollViewer Grid.Row="2">
+  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="14,12">
+    <ComboBox Grid.Row="0" Classes="mInput" ItemsSource="{Binding Folders}" SelectedItem="{Binding SelectedFolder}" Margin="0,0,0,10">
+      <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MailFolder"><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
+    </ComboBox>
+
+    <Border Grid.Row="1" Classes="mCard" Margin="0,0,0,10">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="mKey" Text="SYNC MAIL"/>
+        <Button x:Name="SyncInternetButton" Classes="mPri" Content="⇅ Sync over internet (CMS)"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding WinlinkStations}" SelectedItem="{Binding SelectedSyncStation}"
+                  PlaceholderText="Winlink station for radio sync (add in Contacts)">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="core:StationInfoClass"><TextBlock Text="{Binding Callsign}"/></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button x:Name="SyncRadioButton" Classes="mGhost" Content="⇅ Sync over radio (B2F)" IsEnabled="{Binding CanSyncRadio}"/>
+      </StackPanel>
+    </Border>
+
+    <Button Grid.Row="2" x:Name="ComposeButton" Classes="mPri" Content="✎  Compose" Margin="0,0,0,10"/>
+    <ScrollViewer Grid.Row="3">
       <ItemsControl x:Name="MailList" ItemsSource="{Binding Mails}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="core:WinLinkMail">

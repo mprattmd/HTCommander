@@ -3,14 +3,19 @@
              xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
              x:Class="HTCommander.UI.Avalonia.Mobile.MobileChannelsView"
              x:DataType="vm:MainViewModel">
-  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="14,12">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="14,12">
     <Grid Grid.Row="0" ColumnDefinitions="*,*" ColumnSpacing="8">
       <Button Grid.Column="0" x:Name="ImportButton" Classes="mPri" Content="⬆ Import CSV"/>
       <Button Grid.Column="1" x:Name="LoadButton" Classes="mGhost" Content="⟳ Load from radio"/>
     </Grid>
-    <TextBlock Grid.Row="1" Classes="mKey" Text="{Binding BuilderStatus}" TextWrapping="Wrap" Margin="2,8,2,8"/>
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,8,0,0" IsVisible="{Binding HasBanks}">
+      <TextBlock Grid.Column="0" Classes="mKey" Text="BANK" VerticalAlignment="Center"/>
+      <ComboBox Grid.Column="1" Classes="mInput" ItemsSource="{Binding Banks}" SelectedItem="{Binding SelectedBank}"/>
+      <Button Grid.Column="2" x:Name="LoadAllButton" Classes="mGhost" Content="Load all banks" IsEnabled="{Binding CanLoadAllBanks}" Padding="14,0"/>
+    </Grid>
+    <TextBlock Grid.Row="2" Classes="mKey" Text="{Binding BuilderStatus}" TextWrapping="Wrap" Margin="2,8,2,8"/>
 
-    <ScrollViewer Grid.Row="2">
+    <ScrollViewer Grid.Row="3">
       <ItemsControl x:Name="SlotList" ItemsSource="{Binding Slots}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:ChannelSlot">
@@ -37,6 +42,6 @@
       </ItemsControl>
     </ScrollViewer>
 
-    <Button Grid.Row="3" x:Name="WriteAllButton" Classes="mPri" Content="⬆ Write all to radio" Margin="0,10,0,0"/>
+    <Button Grid.Row="4" x:Name="WriteAllButton" Classes="mPri" Content="⬆ Write all to radio" Margin="0,10,0,0"/>
   </Grid>
 </UserControl>
