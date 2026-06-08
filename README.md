@@ -66,7 +66,7 @@ Benshi-protocol radios, connected over **Bluetooth**:
 
 ## What works today
 
-The Linux app today (tracked in [docs/PARITY.md](docs/PARITY.md)). Items marked
+The Linux and macOS app today (tracked in [docs/PARITY.md](docs/PARITY.md)). Items marked
 **(needs RF)** / **(needs CMS)** / **(needs peer)** are implemented and offline-tested
 but await on-air / server / station verification:
 
@@ -77,8 +77,9 @@ but await on-air / server / station verification:
 
 - **Bluetooth connect** (BlueZ, raw RFCOMM/SDP) — verified on UV-PRO.
 - **Radio status** — battery, channel, RSSI, region, GPS-lock telemetry.
-- **Live voice RX/TX** over Bluetooth audio (SBC) with **press-and-hold PTT**, mic
-  gain/AGC and speaker volume. Transmit is gated on your callsign + Allow-Transmit.
+- **Live voice RX/TX** over Bluetooth audio (SBC): open the link with **🎙 Go on air**
+  on the Voice tab, then **press-and-hold PTT**, with mic gain/AGC and speaker volume.
+  Transmit is gated on your callsign + Allow-Transmit.
 - **APRS** — receive + decode + station list; **send messages** with a global
   **routes** manager and a destination picker; a **per-packet decode detail** view;
   a **"create APRS channel"** helper; and a **fixed/manual position** (beacon without GPS).
@@ -172,7 +173,8 @@ dotnet publish cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj \
   App-TNC) with on-screen guidance on what each needs.
 - **Channels** — **click a memory tile to edit that channel** (name, RX/TX, CTCSS, mode,
   power, scan → write it). Also: drag-and-drop programming, **Import/Export CSV**
-  (CHIRP / RepeaterBook / native), **Load all banks**, and **⬆ Write to radio**.
+  (CHIRP / RepeaterBook / native), **Load all banks**, and **⬆ Write ALL to radio**
+  (bulk write after a CSV import) with an **unsaved-changes** flag.
 - **Contacts** — APRS/Winlink/terminal address book; this is where a contact's **channel**
   and AX.25/connection settings live (incl. the Winlink RMS station to sync with).
 - **APRS** — send/receive messages with a routes manager + destination picker; a fixed
@@ -247,8 +249,8 @@ items above and the longer-haul features below.
 >
 > **Not yet ported / planned later:** text-to-speech and speech-to-text, SSTV
 > send/receive, AGWPE server, YAPP & torrent file transfer, web server, ADS-B / dump1090,
-> self-update, detached tabs, and a macOS build. These exist in the original Windows app
-> but are **not available** in the Linux build today.
+> self-update, and detached tabs. These exist in the original Windows app but are **not
+> available** in the Linux/macOS build today.
 
 ---
 
