@@ -48,7 +48,7 @@ is a light **beige + denim** theme shared with the mobile app.
 | **Packet capture**: live list with **per-packet decode detail**, CSV export / load | ✅ |
 | **Winlink mail**: local mailboxes, compose (CC + attachments), reply/forward, draft, move, backup/restore; internet/radio sync | ✅ / ⏳ needs a reachable CMS or RMS to fully exercise |
 | **BBS** host / mail drop (connected-mode AX.25) | ⏳ wired; needs a station to connect over the air |
-| **Modem / Clips**: FFT waterfall, soft-modem (AFSK1200 / PSK / G3RUH), WAV record/playback, Morse/DTMF preview | ✅ (on-air demod unverified) |
+| **Modem / Clips**: FFT waterfall, soft-modem (AFSK1200 / PSK / G3RUH), WAV record/playback, Morse/DTMF preview + on-air transmit | ✅ (soft-modem demod unverified on RF) |
 | **Station identity**: callsign, Station ID, Allow-Transmit, Winlink password | ✅ |
 | Settings (audio devices, mic gain, volume, serial GPS, aprs.fi key) | ✅ |
 
@@ -153,7 +153,8 @@ Diagnostics**.
   live traffic and the stations-heard table.
 - **Modem / Clips** — a scrolling FFT **waterfall** of the RX audio + a **soft-modem**
   (AFSK1200 / PSK / G3RUH) whose decoded frames route to Packets, plus a WAV **clip**
-  recorder and **Morse / DTMF** generate + local preview.
+  recorder and **Morse / DTMF** tones with local **preview** and **on-air transmit**
+  (▶ Play / 📡 Send through the open voice link).
 - **Settings** — audio input/output devices, mic gain, output volume, a **serial GPS**
   source (port/baud), and the **aprs.fi API key**. (Station identity lives on the
   **Station** tab, not here.)
@@ -170,10 +171,10 @@ radio sync), connected-mode terminal + full packet decode, and GPS & map richnes
 **in the app today**. The remaining work is mostly **on-air verification** of the
 features that need RF / a CMS / a peer station, plus the longer-haul items below.
 
-**Partially done** (usable, with caveats): **Morse / DTMF** generate + local preview
-(on-air tone TX pending), the **soft-modem** decode (AFSK1200 / PSK / G3RUH — wired,
-demod unverified on RF), and **audio clips** (record / name / play / delete;
-transmit-clip pending).
+**Partially done** (usable, with caveats): the **soft-modem** decode (AFSK1200 / PSK /
+G3RUH — wired, demod unverified on RF), and **audio clips** (record / name / play /
+delete; transmit-clip pending). **Morse / DTMF** now both preview locally and **transmit
+on the air**.
 
 **Not yet ported / planned later** (deferred): speech-to-text & text-to-speech, SSTV,
 torrent / YAPP file exchange, AGWPE server, ADS-B / dump1090, self-update, and a Windows

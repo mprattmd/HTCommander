@@ -196,6 +196,51 @@ public sealed class RadioVoiceTransmitter
         }
     }
 
+    /// <summary>
+    /// Transmit a pre-rendered 16-bit PCM buffer (32 kHz mono) on the air: SBC-encode each
+    /// frame, SLIP-frame it with the 0x00 audio tag, stream to the radio paced in real time,
+    /// then send the end frame to un-key. For GENERATED tones (Morse / DTMF) — not live mic.
+    /// Keying is implicit (audio frames key the radio). Blocks until done, so run it on a
+    /// worker thread; <paramref name="cancelled"/> lets the caller abort mid-stream (the end
+    /// frame is still sent, so the radio always un-keys).
+    ///
+    /// ⚠ TRANSMIT = ON-AIR RF EMISSION — the caller must gate this behind an explicit operator
+    /// action, an open voice link, and a lawful frequency/power.
+    /// </summary>
+    public static void TransmitPcmBuffer(byte[] pcm16, int sampleRate, Action<byte[]> send, Func<bool>? cancelled = null)
+    {
+        if (send == null || pcm16 == null || sampleRate <= 0 || pcm16.Length < 2) return;
+        var encoder = new SbcEncoder();
+        var frame = new SbcFrame
+        {
+            Frequency = SbcFrequency.Freq32K, Blocks = 16, Mode = SbcMode.Mono,
+            AllocationMethod = SbcBitAllocationMethod.Loudness, Subbands = 8, Bitpool = 18
+        };
+        int samplesPerFrame = frame.Blocks * frame.Subbands;   // 128
+        int frameBytes = samplesPerFrame * 2;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        long sentSamples = 0;
+        int off = 0;
+        try
+        {
+            while (off + frameBytes <= pcm16.Length)
+            {
+                if (cancelled != null && cancelled()) break;
+                var samples = new short[samplesPerFrame];
+                for (int i = 0; i < samplesPerFrame; i++)
+                    samples[i] = (short)(pcm16[off + i * 2] | (pcm16[off + i * 2 + 1] << 8));
+                byte[] sbc = encoder.Encode(samples, null, frame);
+                if (sbc != null && sbc.Length > 0) { try { send(Escape(0x00, sbc)); } catch (Exception) { } }
+                off += frameBytes;
+                sentSamples += samplesPerFrame;
+                // Pace to real time (a small lead buffer is fine) so we never flood the radio.
+                long aheadMs = (sentSamples * 1000 / sampleRate) - sw.ElapsedMilliseconds;
+                if (aheadMs > 20) Thread.Sleep((int)(aheadMs - 10));
+            }
+        }
+        finally { try { send(EndFrame); } catch (Exception) { } }
+    }
+
     // SLIP-frames a payload: 0x7e <cmd> <0x7d/0x7e-escaped payload> 0x7e.
     private static byte[] Escape(byte cmd, byte[] data)
     {

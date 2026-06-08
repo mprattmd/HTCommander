@@ -126,6 +126,8 @@ public partial class MainView : UserControl
         ClipRenameButton.Click += (_, _) => Vm?.RenameSelectedClip();
         ClipDeleteButton.Click += (_, _) => Vm?.DeleteSelectedClip();
         VoiceModePlayButton.Click += (_, _) => Vm?.PlayVoiceMode();
+        // 📡 transmit tones on the air; clicking again while it's sending aborts (un-keys).
+        VoiceModeSendButton.Click += (_, _) => { if (Vm == null) return; if (Vm.Transmitting) Vm.StopVoiceModeTx(); else Vm.SendVoiceModeOnAir(); };
 
         // About dialog
         AboutButton.Click += (_, _) => { if (TopLevel.GetTopLevel(this) is Window w) new AboutWindow().ShowDialog(w); };

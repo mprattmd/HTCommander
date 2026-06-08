@@ -1388,11 +1388,23 @@ public sealed class MainViewModel : ViewModelBase
         BuilderStatus = $"Imported {parsed.Length} channel(s) from {System.IO.Path.GetFileName(path)}.";
     }
 
-    /// <summary>Export the builder rows to a CSV file (native or CHIRP format).</summary>
+    /// <summary>Export the channels to a CSV file (native or CHIRP format).</summary>
     public void ExportChannelsToCsv(string path, bool chirp)
     {
-        var arr = new RadioChannelInfo[BuilderChannels.Count];
-        for (int i = 0; i < BuilderChannels.Count; i++) arr[i] = BuilderChannels[i].ToRadioChannelInfo(i);
+        // Prefer the editable builder rows; if the builder is empty (e.g. the channels were only
+        // read by the initial sync, never "Load from radio"-ed into the builder), fall back to the
+        // channels read from the radio — otherwise export would write just the header row.
+        RadioChannelInfo[] arr;
+        if (BuilderChannels.Count > 0)
+        {
+            arr = new RadioChannelInfo[BuilderChannels.Count];
+            for (int i = 0; i < BuilderChannels.Count; i++) arr[i] = BuilderChannels[i].ToRadioChannelInfo(i);
+        }
+        else
+        {
+            arr = radioChannels.Values.Where(c => c.rx_freq != 0 || c.tx_freq != 0).ToArray();
+        }
+        if (arr.Length == 0) { BuilderStatus = "No channels to export — load channels from the radio or import a CSV first."; return; }
         string csv = chirp ? ImportUtils.ExportToChirpFormat(arr) : ImportUtils.ExportToNativeFormat(arr);
         try { System.IO.File.WriteAllText(path, csv); BuilderStatus = $"Exported {arr.Length} channel(s) to {System.IO.Path.GetFileName(path)}."; }
         catch (Exception ex) { BuilderStatus = "Export failed: " + ex.Message; }
@@ -2612,10 +2624,32 @@ public sealed class MainViewModel : ViewModelBase
                 play.SetDevice(Settings.OutputDeviceId);
                 if (!play.Start()) { play.Dispose(); dispatcher.Post(() => AppendLog("Clip playback failed (no output device).")); return; }
                 clipPlayback = play;
-                play.AddSamples(data, 0, read);
+                FeedPlaybackPaced(play, data, read, r.Format);
             }
             catch (Exception ex) { dispatcher.Post(() => AppendLog("Clip playback failed: " + ex.Message)); }
         });
+    }
+
+    // Feed PCM into the playback in real-time-paced chunks. The playback's ring buffer is a
+    // low-latency live-audio buffer (~0.5s cap), so a multi-second buffer pushed all at once
+    // would drop all but its last ~0.5s. Stops the playback once it (and a short tail) drain.
+    private void FeedPlaybackPaced(IAudioPlayback play, byte[] data, int length, AudioFormat fmt)
+    {
+        int bytesPerSec = Math.Max(1, fmt.AverageBytesPerSecond);
+        int chunkBytes = Math.Max(fmt.BlockAlign, bytesPerSec * 80 / 1000);   // ~80ms per push
+        int off = 0;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (off < length && ReferenceEquals(clipPlayback, play))
+        {
+            int n = Math.Min(chunkBytes, length - off);
+            play.AddSamples(data, off, n);
+            off += n;
+            // Keep ~150-200ms queued: ahead of the 50ms pre-roll, under the ~0.5s cap.
+            long aheadMs = ((long)off * 1000 / bytesPerSec) - sw.ElapsedMilliseconds;
+            if (aheadMs > 200) System.Threading.Thread.Sleep((int)(aheadMs - 150));
+        }
+        System.Threading.Thread.Sleep(150);   // let the tail drain
+        if (ReferenceEquals(clipPlayback, play)) StopClipPlayback();
     }
 
     public void StopClipPlayback()
@@ -2626,7 +2660,9 @@ public sealed class MainViewModel : ViewModelBase
         try { p.Dispose(); } catch (Exception) { }
     }
 
-    // Play a 16-bit PCM buffer (32k/mono) through the configured output device.
+    // Play a 16-bit PCM buffer (32k/mono) through the configured output device. The playback's
+    // ring buffer is a low-latency live-audio buffer (~0.5s cap), so a multi-second clip must be
+    // fed in real-time-paced chunks — pushing it all at once would drop all but the last ~0.5s.
     private void PlayPcm16(byte[] pcm16)
     {
         StopClipPlayback();
@@ -2639,7 +2675,7 @@ public sealed class MainViewModel : ViewModelBase
                 play.SetDevice(Settings.OutputDeviceId);
                 if (!play.Start()) { play.Dispose(); dispatcher.Post(() => AppendLog("Playback failed (no output device).")); return; }
                 clipPlayback = play;
-                play.AddSamples(pcm16, 0, pcm16.Length);
+                FeedPlaybackPaced(play, pcm16, pcm16.Length, AudioFormat.RadioPcm);
             }
             catch (Exception ex) { dispatcher.Post(() => AppendLog("Playback failed: " + ex.Message)); }
         });
@@ -2666,23 +2702,66 @@ public sealed class MainViewModel : ViewModelBase
     private string voiceModeText = "";
     public string VoiceModeText { get => voiceModeText; set => SetField(ref voiceModeText, value); }
 
-    /// <summary>Generates Morse or DTMF audio from the text and plays it to the speaker.
-    /// (On-air transmit of these tone modes is a follow-up — it needs the SBC buffer path.)</summary>
-    public void PlayVoiceMode()
+    /// <summary>Render the current tone mode (Morse / DTMF) to 16-bit PCM, or null if there's
+    /// nothing encodable. Shared by the local preview and the on-air send.</summary>
+    private byte[]? RenderVoiceModePcm16()
     {
         string text = (VoiceModeText ?? "").Trim();
-        if (text.Length == 0) { AppendLog("Enter text for " + VoiceMode + "."); return; }
+        if (text.Length == 0) { AppendLog("Enter text for " + VoiceMode + "."); return null; }
+        byte[] pcm8 = string.Equals(VoiceMode, "DTMF", StringComparison.OrdinalIgnoreCase)
+            ? HTCommander.radio.DmtfEngine.GenerateDmtfPcm(text)
+            : HTCommander.radio.MorseCodeEngine.GenerateMorsePcm(text);
+        if (pcm8.Length == 0) { AppendLog($"{VoiceMode}: nothing encodable in \"{text}\"."); return null; }
+        return Pcm8ToPcm16(pcm8);
+    }
+
+    /// <summary>Generates Morse or DTMF audio from the text and plays it to the speaker (preview).</summary>
+    public void PlayVoiceMode()
+    {
         try
         {
-            byte[] pcm8 = string.Equals(VoiceMode, "DTMF", StringComparison.OrdinalIgnoreCase)
-                ? HTCommander.radio.DmtfEngine.GenerateDmtfPcm(text)
-                : HTCommander.radio.MorseCodeEngine.GenerateMorsePcm(text);
-            if (pcm8.Length == 0) { AppendLog($"{VoiceMode}: nothing to play (no encodable characters)."); return; }
-            PlayPcm16(Pcm8ToPcm16(pcm8));
-            AppendLog($"Playing {VoiceMode}: {text}");
+            byte[]? pcm16 = RenderVoiceModePcm16();
+            if (pcm16 == null) return;
+            PlayPcm16(pcm16);
+            AppendLog($"Playing {VoiceMode}: {VoiceModeText.Trim()}");
         }
         catch (Exception ex) { AppendLog($"{VoiceMode} failed: " + ex.Message); }
     }
+
+    private System.Threading.CancellationTokenSource? toneTxCts;
+
+    /// <summary>Transmit the current tone mode (Morse / DTMF) ON THE AIR through the open voice
+    /// link. Operator-gated: needs an open voice audio link, a callsign, and Allow-transmit.
+    /// Mutually exclusive with PTT (the shared <see cref="Transmitting"/> flag blocks both).</summary>
+    public void SendVoiceModeOnAir()
+    {
+        if (!CanTransmit || audioChannel == null)
+        {
+            AppendLog("Open the voice link (🎙 Go on air) and set callsign + Allow-transmit before sending tones on the air.");
+            return;
+        }
+        if (Transmitting) { AppendLog("Already transmitting — wait for it to finish."); return; }
+        byte[]? pcm16;
+        try { pcm16 = RenderVoiceModePcm16(); }
+        catch (Exception ex) { AppendLog($"{VoiceMode} failed: " + ex.Message); return; }
+        if (pcm16 == null) return;
+
+        var ch = audioChannel;
+        var cts = new System.Threading.CancellationTokenSource();
+        toneTxCts = cts;
+        Transmitting = true;
+        string label = $"{VoiceMode}: {VoiceModeText.Trim()}";
+        AppendLog($"Sending {label} ON THE AIR.");
+        Task.Run(() =>
+        {
+            try { RadioVoiceTransmitter.TransmitPcmBuffer(pcm16, 32000, data => ch.Send(data), () => cts.IsCancellationRequested); }
+            catch (Exception ex) { dispatcher.Post(() => AppendLog($"{VoiceMode} TX failed: " + ex.Message)); }
+            finally { dispatcher.Post(() => { Transmitting = false; if (toneTxCts == cts) toneTxCts = null; AppendLog($"Finished sending {label}."); }); }
+        });
+    }
+
+    /// <summary>Abort an in-progress tone (Morse / DTMF) transmission; the radio still un-keys.</summary>
+    public void StopVoiceModeTx() => toneTxCts?.Cancel();
 
     public void DeleteSelectedClip()
     {

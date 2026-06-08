@@ -1145,15 +1145,19 @@
                     <TextBlock Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                Text="Transmit uses automatic gain control (auto-leveling) — set Mic gain as the max boost. Holding PTT keys the radio on the air."/>
 
-                    <!-- Tone modes: Morse / DTMF (generate + local preview) -->
+                    <!-- Tone modes: Morse / DTMF — local preview AND on-air transmit -->
                     <TextBlock Text="Tone modes" FontWeight="Bold" FontSize="16" Margin="0,8,0,0"/>
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                         <ComboBox Grid.Column="0" MinWidth="90" ItemsSource="{Binding VoiceModes}" SelectedItem="{Binding VoiceMode}"/>
                         <TextBox Grid.Column="1" Text="{Binding VoiceModeText}" PlaceholderText="Text (Morse) or digits (DTMF)"/>
-                        <Button Grid.Column="2" x:Name="VoiceModePlayButton" Content="▶ Play"/>
+                        <Button Grid.Column="2" x:Name="VoiceModePlayButton" Content="▶ Play"
+                                ToolTip.Tip="Preview the tones locally through your speaker (no transmit)"/>
+                        <Button Grid.Column="3" x:Name="VoiceModeSendButton" Classes="Ptt" Content="📡 Send"
+                                IsEnabled="{Binding CanTransmit}"
+                                ToolTip.Tip="Transmit the Morse/DTMF on the air through the open voice link (needs callsign + Allow-transmit)"/>
                     </Grid>
                     <TextBlock Classes="Hint" TextWrapping="Wrap"
-                               Text="Generates Morse/DTMF audio and plays it locally for preview. On-air transmit of tone modes is coming in a follow-up."/>
+                               Text="▶ Play previews locally; 📡 Send transmits the tones on the air through the open voice link — so open voice first (🎙 Go on air) and set your callsign + Allow-transmit. Morse is ~15 WPM at 500 Hz."/>
                 </StackPanel>
             </TabItem>
             <TabItem x:Name="ClipsTab" Header="Clips">

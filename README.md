@@ -114,7 +114,8 @@ but await on-air / server / station verification:
 - **DSP / audio extras** — a scrolling **FFT waterfall** of the RX audio (Modem tab),
   a **soft-modem** (AFSK1200 / PSK / G3RUH) fed the RX audio with decoded frames routed
   to Packets *(demod needs RF to verify)*, **WAV record/playback**, an **audio clips**
-  recorder, and **Morse / DTMF** generate + local preview.
+  recorder, and **Morse / DTMF** with local preview **and on-air transmit** (keys the
+  radio through the open voice link — ~15 WPM / 500 Hz Morse).
 - **Station identity & settings** — callsign, Station ID, Allow-Transmit, Winlink
   password, plus audio devices / mic gain / volume.
 - **AppImage packaging** + GitHub releases.
@@ -243,9 +244,9 @@ See [docs/ROADMAP.md](docs/ROADMAP.md). Phases 0–4 (identity, APRS, mail, term
 GPS/map) are in the app; the next work is on-air verification of the **(needs RF/CMS/peer)**
 items above and the longer-haul features below.
 
-> **Partially done** (usable, with caveats): **Morse / DTMF** generate + local preview
-> (on-air tone TX pending), **soft-modem** decode (AFSK1200/PSK/G3RUH — wired, demod
-> unverified on RF), and **audio clips** (record/name/play/delete; transmit-clip pending).
+> **Partially done** (usable, with caveats): the **soft-modem** decode (AFSK1200/PSK/G3RUH
+> — wired, demod unverified on RF), and **audio clips** (record/name/play/delete;
+> transmit-clip pending). **Morse / DTMF** now transmit on the air (preview + send).
 >
 > **Not yet ported / planned later:** text-to-speech and speech-to-text, SSTV
 > send/receive, AGWPE server, YAPP & torrent file transfer, web server, ADS-B / dump1090,
