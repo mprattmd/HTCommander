@@ -28,7 +28,8 @@ The feature is mostly "fetch + map + append," because the channel-builder pipeli
 
 ## 2. RepeaterBook API recap
 
-- Endpoints: `api/export.php` (North America) and `api/exportROW.php` (rest-of-world). Country selects which.
+- Endpoints: `api/export.php` (amateur, North America), `api/exportROW.php` (amateur, rest-of-world), and **`api/exportgmrs.php` (GMRS, US-only)**. Service type + country select which.
+- **GMRS support (decided 2026-06-14):** users want to search GMRS repeaters too, not just amateur. Add a **Service** selector (Amateur / GMRS) in the search dialog; GMRS routes to `exportgmrs.php` (US only — disable ROW/country picker for GMRS). The result→channel mapping is largely shared; GMRS channels are FM on the 462/467 MHz band. Verify the GMRS JSON shape has the same tone fields as amateur during Phase 1.
 - Query params: `callsign`, `city`, `landmark`, `state_id`, `country`, `county`, `frequency`, `mode`, `stype`; `%` wildcard.
 - **Auth:** approved app token via header `X-RB-App-Token: <token>` (or `Authorization: Bearer app_<token>`).
 - **Required User-Agent:** `HTCommander (+https://github.com/mprattmd/HTCommander; mprattmd@gmail.com)` (decided — stable, version-less).
@@ -38,9 +39,21 @@ The feature is mostly "fetch + map + append," because the channel-builder pipeli
 
 ## 3. Proposed solutions (decisions to confirm)
 
-### Decision A — Token distribution model ✅ DECIDED: A1 (injected + user override)
+### Decision A — Token distribution model ✅ DECIDED (revised 2026-06-14): A2 (per-user only)
 
-**Chosen: A1.** Ship the app token injected at build time (kept out of source, via CI secret/env like the existing codesign pattern), **plus** a "RepeaterBook API token" override field in Settings for power users, local-dev builds, and as a fallback if the shared token gets throttled. Accepted tradeoff: the injected token is extractable from binaries and a shared-throttle risk; the per-user override is the mitigation.
+**Chosen: A2 — and CONFIRMED viable (2026-06-14).** RepeaterBook's model: the **developer gets the app (HTCommander) approved once**, after which **each end user requests their own token for that approved app** at <https://www.repeaterbook.com/user/api_apps.php> (signed into their free RepeaterBook account). So per-user tokens are exactly how RepeaterBook intends third-party apps to work — no shared secret, nothing injected at build time. The Settings "Request a token" link points users at that page. The feature stays disabled until a token is present. Prerequisite: the HTCommander app must be approved by RepeaterBook before users can request tokens for it.
+
+*(Previously A1 — injected build-time token + override — superseded 2026-06-14.)*
+
+**Storage (decided 2026-06-14): encrypted secret store, NOT plaintext `IConfigStore`.** The token is a per-user secret and must be stored at rest via OS-native secret stores, not the plaintext `settings.json` / Registry that `IConfigStore` uses. This requires a NEW cross-platform `ISecretStore` seam (does not exist yet):
+
+| Platform | Backend |
+|----------|---------|
+| macOS | Keychain (Security framework `SecItemAdd`/`SecItemCopyMatching`, generic-password item) |
+| Windows | DPAPI (`ProtectedData.Protect`, `DataProtectionScope.CurrentUser`) — ciphertext can live in the Registry/a file |
+| Linux | libsecret (`secret-tool` / Secret Service API); fallback to a clearly-labeled obfuscated file if no Secret Service is present (headless) |
+
+Today there is NO encryption anywhere in the codebase (verified 2026-06-14). The existing `AprsFiApiKey` and `WinlinkPassword` are stored in plaintext via `IConfigStore`; ideally migrate them onto `ISecretStore` too (see Decision G). RepeaterBook is the first consumer of the new seam.
 
 RepeaterBook issues **one application token to the developer (you)**, not per-user. For a distributed, **open-source** desktop app this is a real tension — a shared secret can't live in a public repo. Options:
 
@@ -136,9 +149,10 @@ Repeater convention: the **repeater transmits on the output freq** (your **RX**)
 ---
 
 ## 6. Decisions log
-- ✅ **Token model:** A1 — injected app token + per-user Settings override (§3 Decision A).
+- ✅ **Token model:** A2 — per-user token only; no shipped/injected token (§3 Decision A, revised 2026-06-14).
+- ✅ **Token storage:** encrypted via a new cross-platform `ISecretStore` (macOS Keychain / Windows DPAPI / Linux libsecret), NOT plaintext `IConfigStore` (§3 Decision A, 2026-06-14).
 - ✅ **Search v1:** location + band + mode + proximity; defaults VHF+UHF, FM analog (§3 Decision C).
-- ⬜ **Open — default RX tone-squelch:** set `rx_sub_audio` from TSQ, or leave RX tone off by default (common operator preference)? Decide during Phase 1; lean "off by default" unless TSQ is present.
+- ✅ **Default RX tone-squelch:** OFF — leave `rx_sub_audio` = 0 regardless of the RepeaterBook TSQ field (decided 2026-06-14, operator preference). Only `tx_sub_audio` (the uplink PL/DCS) is set from the data.
 
 ## 7. Proximity — implementation note
 Proximity is a **post-filter**, not an API param: query by location (state/county), then compute great-circle distance from the user's GPS/QTH fix to each result's lat/long and keep those within N miles. Source the fix from the app's existing GPS handling. When no fix is available, disable the proximity control rather than erroring.

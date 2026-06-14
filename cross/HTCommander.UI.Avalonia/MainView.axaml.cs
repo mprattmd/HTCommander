@@ -60,6 +60,8 @@ public partial class MainView : UserControl
         TestToneButton.Click += (_, _) => Vm?.Settings.TestOutput();
         RefreshDevicesButton.Click += (_, _) => Vm?.Settings.RefreshDevices();
         RefreshSerialButton.Click += (_, _) => Vm?.Settings.RefreshSerialPorts();
+        RepeaterBookTokenHelpButton.Click += (_, _) => OpenUrl("https://www.repeaterbook.com/user/api_apps.php");
+        ChRepeaterBookButton.Click += async (_, _) => await OpenRepeaterBookSearchAsync();
 
         // PTT is press-and-hold (fail-safe): transmit only while held; any release
         // or loss of pointer capture un-keys the radio.
@@ -667,5 +669,32 @@ public partial class MainView : UserControl
         if (p == null) return;
         try { MapControl.Map.Navigator.CenterOnAndZoomTo(p, 50); mapCentered = true; }
         catch (Exception) { }
+    }
+
+    /// <summary>Launches the RepeaterBook search dialog and appends any picked repeaters to the builder.</summary>
+    private async System.Threading.Tasks.Task OpenRepeaterBookSearchAsync()
+    {
+        if (Vm == null || TopLevel.GetTopLevel(this) is not Window owner) return;
+        string token = HTCommander.DataBroker.GetValue<string>(0, "RepeaterBookToken", "") ?? "";
+        var (lat, lon) = Vm.CurrentFix();
+        var vm = new ViewModels.RepeaterBookSearchViewModel(token, lat, lon);
+        var dlg = new RepeaterBookSearchWindow { DataContext = vm };
+        bool add = await dlg.ShowDialog<bool>(owner);
+        if (add) Vm.AddRepeaterBookChannels(vm.GetSelectedChannels());
+    }
+
+    /// <summary>Opens a URL in the user's default browser, cross-platform.</summary>
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            var psi = OperatingSystem.IsMacOS()
+                ? new System.Diagnostics.ProcessStartInfo("open", url)
+                : OperatingSystem.IsWindows()
+                    ? new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }
+                    : new System.Diagnostics.ProcessStartInfo("xdg-open", url);
+            System.Diagnostics.Process.Start(psi);
+        }
+        catch (Exception) { /* opening a browser is best-effort */ }
     }
 }

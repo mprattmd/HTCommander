@@ -115,6 +115,15 @@ public sealed class SettingsViewModel : ViewModelBase
         set { if (SetField(ref aprsFiApiKey, value) && !loading) { DataBroker.Dispatch(SettingsDevice, "AprsFiApiKey", value, store: true); FlashSaved(); } }
     }
 
+    // RepeaterBook API token (used by the channel-builder's "Search RepeaterBook"
+    // feature). Stored encrypted via the secret store — see DataBroker secret keys.
+    private string repeaterBookToken = "";
+    public string RepeaterBookToken
+    {
+        get => repeaterBookToken;
+        set { if (SetField(ref repeaterBookToken, value) && !loading) { DataBroker.Dispatch(SettingsDevice, "RepeaterBookToken", value, store: true); FlashSaved(); } }
+    }
+
     private AudioDevice? selectedOutput;
     public AudioDevice? SelectedOutput
     {
@@ -205,6 +214,7 @@ public sealed class SettingsViewModel : ViewModelBase
             float vol = DataBroker.GetValue<float>(SettingsDevice, "OutputVolume", 1.0f);
             float micGain = DataBroker.GetValue<float>(SettingsDevice, "MicGain", 4.0f);   // 4x default (matches MicGainPercent)
             string aprsFiKey = DataBroker.GetValue<string>(SettingsDevice, "AprsFiApiKey", "") ?? "";
+            string rbToken = DataBroker.GetValue<string>(SettingsDevice, "RepeaterBookToken", "") ?? "";
 
             dispatcher.Post(() =>
             {
@@ -216,6 +226,7 @@ public sealed class SettingsViewModel : ViewModelBase
                 OutputVolumePercent = (int)Math.Round(Math.Clamp(vol, 0f, 1.5f) * 100);
                 MicGainPercent = (int)Math.Round(Math.Clamp(micGain, 1f, 40f) * 100);
                 AprsFiApiKey = aprsFiKey;
+                RepeaterBookToken = rbToken;
                 loading = false;
             });
         });

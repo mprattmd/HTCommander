@@ -33,8 +33,25 @@ namespace HTCommander
         private static readonly List<Subscription> _subscriptions = new List<Subscription>();
         private static readonly Dictionary<string, object> _dataHandlers = new Dictionary<string, object>();
         private static IConfigStore _registryHelper;
+        private static ISecretStore _secretStore;
         private static bool _initialized = false;
         private static IUiDispatcher _uiContext;
+
+        /// <summary>
+        /// Device-0 string keys that hold per-user secrets. When an
+        /// <see cref="ISecretStore"/> is wired in, these are read/written there
+        /// (encrypted at rest) instead of the plaintext <see cref="IConfigStore"/>,
+        /// and any legacy plaintext copy is migrated on first access.
+        /// </summary>
+        private static readonly HashSet<string> _secretKeys = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "WinlinkPassword",
+            "AprsFiApiKey",
+            "RepeaterBookToken",
+        };
+
+        private static bool IsSecretKey(int deviceId, string name)
+            => deviceId == 0 && _secretStore != null && name != null && _secretKeys.Contains(name);
 
         /// <summary>
         /// Internal structure for storing data keys.
@@ -86,11 +103,22 @@ namespace HTCommander
         /// <param name="configStore">The platform-specific settings store (registry on Windows, JSON file on Linux/macOS).</param>
         /// <param name="uiContext">Optional UI dispatcher for marshalling callbacks to the UI thread.</param>
         public static void Initialize(IConfigStore configStore, IUiDispatcher uiContext = null)
+            => Initialize(configStore, null, uiContext);
+
+        /// <summary>
+        /// Initializes the data broker with settings persistence plus an optional
+        /// encrypted secret store for the keys in <see cref="_secretKeys"/>.
+        /// </summary>
+        /// <param name="configStore">The platform-specific settings store (registry on Windows, JSON file on Linux/macOS).</param>
+        /// <param name="secretStore">Optional OS-native secret store for tokens/passwords. When null, secrets fall back to <paramref name="configStore"/> (plaintext, legacy behaviour).</param>
+        /// <param name="uiContext">Optional UI dispatcher for marshalling callbacks to the UI thread.</param>
+        public static void Initialize(IConfigStore configStore, ISecretStore secretStore, IUiDispatcher uiContext = null)
         {
             lock (_lock)
             {
                 if (_initialized) return;
                 _registryHelper = configStore;
+                _secretStore = secretStore;
                 _uiContext = uiContext;
                 _initialized = true;
             }
@@ -126,8 +154,17 @@ namespace HTCommander
                     var key = new DataKey(deviceId, name);
                     _dataStore[key] = data;
 
+                    // Secret keys: persist encrypted via the secret store, never
+                    // plaintext. Also scrub any legacy plaintext copy from the
+                    // settings store so it can't linger after migration.
+                    if (IsSecretKey(deviceId, name))
+                    {
+                        string secret = data as string ?? "";
+                        _secretStore.Set(name, secret);   // empty value deletes the entry
+                        _registryHelper?.DeleteValue(name);
+                    }
                     // Persist to registry if device 0
-                    if (deviceId == 0 && _registryHelper != null)
+                    else if (deviceId == 0 && _registryHelper != null)
                     {
                         if (data is int intValue)
                         {
@@ -257,6 +294,29 @@ namespace HTCommander
                     }
                 }
 
+                // Secret keys: read from the encrypted secret store, migrating any
+                // legacy plaintext value out of the settings store on first read.
+                if (IsSecretKey(deviceId, name) && (typeof(T) == typeof(string)))
+                {
+                    string secret = _secretStore.Get(name);
+                    if (secret == null && _registryHelper != null)
+                    {
+                        string legacy = _registryHelper.ReadString(name, null);
+                        if (!string.IsNullOrEmpty(legacy) && !legacy.StartsWith("~~JSON:"))
+                        {
+                            _secretStore.Set(name, legacy);     // move into the keychain
+                            _registryHelper.DeleteValue(name);  // and remove the plaintext
+                            secret = legacy;
+                        }
+                    }
+                    if (secret != null)
+                    {
+                        _dataStore[key] = secret;
+                        return (T)(object)secret;
+                    }
+                    return defaultValue;
+                }
+
                 // For device 0, try loading from registry if not in memory
                 if (deviceId == 0 && _registryHelper != null)
                 {
@@ -380,8 +440,13 @@ namespace HTCommander
                 var key = new DataKey(deviceId, name);
                 bool removed = _dataStore.Remove(key);
 
-                // Also remove from registry if device 0
-                if (deviceId == 0 && _registryHelper != null)
+                // Also remove from persistence if device 0
+                if (IsSecretKey(deviceId, name))
+                {
+                    _secretStore.Delete(name);
+                    _registryHelper?.DeleteValue(name);
+                }
+                else if (deviceId == 0 && _registryHelper != null)
                 {
                     _registryHelper.DeleteValue(name);
                 }

@@ -1415,6 +1415,35 @@ public sealed class MainViewModel : ViewModelBase
         BuilderChannels.Add(new EditableChannel { ChannelId = BuilderChannels.Count, Name = "NEW", Mode = "FM", Power = "H" });
     }
 
+    /// <summary>
+    /// Append RepeaterBook search results to the channel builder (next free slots),
+    /// mirroring the CSV-import path. They land as editable rows; the user reviews
+    /// and then uses "Write to radio".
+    /// </summary>
+    public void AddRepeaterBookChannels(System.Collections.Generic.IEnumerable<RadioChannelInfo> channels)
+    {
+        if (channels == null) return;
+        int startSlot = BuilderChannels.Count;
+        int added = 0;
+        foreach (var c in channels)
+        {
+            if (c == null) continue;
+            BuilderChannels.Add(new EditableChannel(c) { ChannelId = startSlot++ });
+            added++;
+        }
+        BuilderStatus = added > 0
+            ? $"Added {added} repeater(s) from RepeaterBook — review and Write to radio."
+            : "No repeaters selected.";
+    }
+
+    /// <summary>Best available position fix (radio GPS, then serial GPS), for proximity search. Null if none.</summary>
+    public (double? lat, double? lon) CurrentFix()
+    {
+        if (myPosition is { Locked: true } mp) return (mp.Latitude, mp.Longitude);
+        if (serialPosition is { IsFixed: true } sp) return (sp.Latitude, sp.Longitude);
+        return (null, null);
+    }
+
     public void RemoveBuilderChannel(EditableChannel? ch)
     {
         if (ch != null) BuilderChannels.Remove(ch);

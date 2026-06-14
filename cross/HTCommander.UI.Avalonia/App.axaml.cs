@@ -55,6 +55,7 @@ public partial class App : Application
         IConfigStore configStore = new AndroidConfigStore();
         IAudioDeviceEnumerator audioDevices = new AndroidAudioDeviceEnumerator();
         IRadioPlatform radioPlatform = new AndroidRadioPlatform();
+        ISecretStore secretStore = null;   // Android Keystore not wired yet; secrets fall back to config store
 #else
         // Desktop: JSON config + PortAudio; radio transport is macOS IOBluetooth or Linux BlueZ.
         IConfigStore configStore = new JsonConfigStore("HTCommander");
@@ -62,9 +63,14 @@ public partial class App : Application
         IRadioPlatform radioPlatform = OperatingSystem.IsMacOS()
             ? new HTCommander.Platform.Mac.MacRadioPlatform()
             : new LinuxRadioPlatform();
+        // Secrets (tokens/passwords) live in the OS-native encrypted store:
+        // macOS Keychain, or the Linux Secret Service (with a guarded fallback).
+        ISecretStore secretStore = OperatingSystem.IsMacOS()
+            ? new HTCommander.Platform.Mac.MacKeychainSecretStore("HTCommander")
+            : new LinuxSecretStore("HTCommander");
 #endif
 
-        DataBroker.Initialize(configStore, dispatcher);
+        DataBroker.Initialize(configStore, secretStore, dispatcher);
 
         // Portable data handlers (Core) — shared by every platform.
         DataBroker.AddDataHandler("BbsHandler", new BbsHandler());
