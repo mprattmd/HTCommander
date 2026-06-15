@@ -31,7 +31,7 @@ namespace HTCommander.UI.Avalonia;
 /// <see cref="AvaloniaAndroidApplication{TApp}"/>) rather than on the activity.
 /// This is where the shared <see cref="App"/> and AppBuilder customizations live.
 /// </summary>
-[Application(Label = "HTCommander")]
+[Application(Label = "HTCommander", Icon = "@mipmap/appicon", RoundIcon = "@mipmap/appicon_round")]
 public sealed class HtcAndroidApplication : AvaloniaAndroidApplication<App>
 {
     public HtcAndroidApplication(IntPtr javaReference, JniHandleOwnership transfer)
