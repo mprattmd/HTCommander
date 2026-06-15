@@ -313,3 +313,6 @@ packaging/*.AppImage
 
 # Build outputs (mac .app, etc.)
 dist/
+
+# Play Store submission assets (local only — contains personal screenshots)
+store-assets/
