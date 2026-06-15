@@ -13,6 +13,17 @@
       </StackPanel>
       <TextBlock Classes="mKey" TextWrapping="Wrap"
                  Text="Used on the Map to plot stations by callsign over the internet (confirms your beacon reached the network). Viewing needs no licence."/>
+
+      <TextBlock Classes="mSection" Text="REPEATERBOOK (REPEATER DIRECTORY)" Margin="0,8,0,0"/>
+      <StackPanel Spacing="6">
+        <TextBlock Classes="mKey" Text="API TOKEN"/>
+        <TextBox Classes="mInput" Text="{Binding Settings.RepeaterBookToken}" PasswordChar="•"
+                 Watermark="your RepeaterBook app token"/>
+      </StackPanel>
+      <TextBlock Classes="mKey" TextWrapping="Wrap"
+                 Text="Lets the Channels screen search RepeaterBook and add repeaters. Sign in to your free RepeaterBook account, request a token for HTCommander, then paste it here. Stored encrypted in the Android Keystore."/>
+      <Button x:Name="RequestTokenButton" Classes="mGhost" Content="Request a token"/>
+
       <Border Classes="mCard" Margin="0,8,0,0">
         <StackPanel Spacing="6">
           <TextBlock Text="Audio &amp; GPS" FontWeight="SemiBold"/>

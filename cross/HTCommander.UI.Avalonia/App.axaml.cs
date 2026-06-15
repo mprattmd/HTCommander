@@ -55,7 +55,7 @@ public partial class App : Application
         IConfigStore configStore = new AndroidConfigStore();
         IAudioDeviceEnumerator audioDevices = new AndroidAudioDeviceEnumerator();
         IRadioPlatform radioPlatform = new AndroidRadioPlatform();
-        ISecretStore secretStore = null;   // Android Keystore not wired yet; secrets fall back to config store
+        ISecretStore secretStore = new AndroidSecretStore();   // AES-GCM via the hardware-backed AndroidKeyStore
 #else
         // Desktop: JSON config + PortAudio; radio transport is macOS IOBluetooth or Linux BlueZ.
         IConfigStore configStore = new JsonConfigStore("HTCommander");

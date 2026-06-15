@@ -4,10 +4,13 @@
              x:Class="HTCommander.UI.Avalonia.Mobile.MobileChannelsView"
              x:DataType="vm:MainViewModel">
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="14,12">
-    <Grid Grid.Row="0" ColumnDefinitions="*,*" ColumnSpacing="8">
-      <Button Grid.Column="0" x:Name="ImportButton" Classes="mPri" Content="⬆ Import CSV"/>
-      <Button Grid.Column="1" x:Name="LoadButton" Classes="mGhost" Content="⟳ Load from radio"/>
-    </Grid>
+    <StackPanel Grid.Row="0" Spacing="8">
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <Button Grid.Column="0" x:Name="ImportButton" Classes="mPri" Content="⬆ Import CSV"/>
+        <Button Grid.Column="1" x:Name="LoadButton" Classes="mGhost" Content="⟳ Load from radio"/>
+      </Grid>
+      <Button x:Name="RepeaterBookButton" Classes="mGhost" Content="🔎 Search RepeaterBook"/>
+    </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,8,0,0" IsVisible="{Binding HasBanks}">
       <TextBlock Grid.Column="0" Classes="mKey" Text="BANK" VerticalAlignment="Center"/>
       <ComboBox Grid.Column="1" Classes="mInput" ItemsSource="{Binding Banks}" SelectedItem="{Binding SelectedBank}">

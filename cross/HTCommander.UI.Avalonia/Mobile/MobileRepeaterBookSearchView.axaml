@@ -1,0 +1,89 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileRepeaterBookSearchView"
+             x:DataType="vm:RepeaterBookSearchViewModel">
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="14,12">
+
+    <!-- Search inputs -->
+    <StackPanel Grid.Row="0" Spacing="8">
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Classes="mKey" Text="SERVICE"/>
+          <ComboBox Classes="mInput" HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding ServiceOptions}" SelectedItem="{Binding SelectedService}"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBlock Classes="mKey" Text="BAND"/>
+          <ComboBox Classes="mInput" HorizontalAlignment="Stretch" IsEnabled="{Binding BandEnabled}"
+                    ItemsSource="{Binding BandOptions}" SelectedItem="{Binding SelectedBand}"/>
+        </StackPanel>
+      </Grid>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Classes="mKey" Text="STATE / PROVINCE"/>
+          <TextBox Classes="mInput" Text="{Binding State}" Watermark="e.g. Colorado"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBlock Classes="mKey" Text="MODE"/>
+          <ComboBox Classes="mInput" HorizontalAlignment="Stretch" IsEnabled="{Binding IsAmateur}"
+                    ItemsSource="{Binding ModeOptions}" SelectedItem="{Binding SelectedMode}"/>
+        </StackPanel>
+      </Grid>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Classes="mKey" Text="CITY"/>
+          <TextBox Classes="mInput" Text="{Binding City}"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBlock Classes="mKey" Text="COUNTY"/>
+          <TextBox Classes="mInput" Text="{Binding County}"/>
+        </StackPanel>
+      </Grid>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <CheckBox Content="Within" IsChecked="{Binding UseProximity}" IsEnabled="{Binding ProximityAvailable}"
+                  VerticalAlignment="Center"/>
+        <NumericUpDown Width="120" Minimum="1" Maximum="500" Increment="5" Value="{Binding ProximityMiles}"
+                       IsEnabled="{Binding UseProximity}"/>
+        <TextBlock Text="mi of me" VerticalAlignment="Center" Classes="mKey"/>
+        <TextBlock Text="(no GPS fix)" VerticalAlignment="Center" Classes="mKey"
+                   IsVisible="{Binding !ProximityAvailable}"/>
+      </StackPanel>
+      <Button x:Name="SearchButton" Classes="mPri" Content="Search" IsEnabled="{Binding CanSearch}"/>
+    </StackPanel>
+
+    <!-- Status + select-all -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="2,8" ColumnSpacing="8">
+      <TextBlock Grid.Column="0" Classes="mKey" Text="{Binding StatusText}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+      <Button Grid.Column="1" x:Name="SelectAllButton" Classes="mGhost" Content="All" Padding="14,0" MinHeight="36"/>
+      <Button Grid.Column="2" x:Name="SelectNoneButton" Classes="mGhost" Content="None" Padding="14,0" MinHeight="36"/>
+    </Grid>
+
+    <!-- Results -->
+    <ScrollViewer Grid.Row="2">
+      <ItemsControl ItemsSource="{Binding Results}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:RepeaterBookRow">
+            <Border Classes="mRow">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Callsign}" FontWeight="Bold"/>
+                  <TextBlock Classes="mKey" Text="{Binding Location}"/>
+                  <TextBlock Classes="mKey mMono"
+                             Text="{Binding Output, StringFormat='out {0}'}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                  <TextBlock Classes="mMono" Text="{Binding Tone}" HorizontalAlignment="Right"/>
+                  <TextBlock Classes="mKey" Text="{Binding Mode}" HorizontalAlignment="Right"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Button Grid.Row="3" x:Name="AddButton" Classes="mPri" Content="Add selected to builder" Margin="0,10,0,0"/>
+  </Grid>
+</UserControl>

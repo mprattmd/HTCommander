@@ -16,6 +16,11 @@ public partial class MobileChannelsView : UserControl
     {
         InitializeComponent();
         ImportButton.Click += async (_, _) => await ImportCsvAsync();
+        RepeaterBookButton.Click += (_, _) =>
+        {
+            if (Vm == null) return;
+            this.FindAncestorOfType<MobileView>()?.Push(new MobileRepeaterBookSearchView(Vm), "RepeaterBook");
+        };
         LoadButton.Click += (_, _) => Vm?.LoadChannelsFromRadio();
         LoadAllButton.Click += (_, _) => Vm?.LoadAllBanks();
         WriteAllButton.Click += (_, _) => Vm?.WriteChannelsToRadio();

@@ -21,7 +21,7 @@ public interface ISecretStore
     bool IsEncrypted { get; }
 
     /// <summary>Reads a secret, or null if it is not present.</summary>
-    string Get(string key);
+    string? Get(string key);
 
     /// <summary>
     /// Stores (or replaces) a secret. A null or empty value deletes the entry
