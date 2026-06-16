@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:feat="using:HTCommander.UI.Avalonia"
         xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
         xmlns:abs="using:HTCommander.Core.Abstractions"
         xmlns:audio="using:HTCommander.Core.Abstractions.Audio"
@@ -480,6 +481,7 @@
                         <Button x:Name="ChImportButton" Content="Import CSV…"
                                 ToolTip.Tip="Import CHIRP, RepeaterBook, or native CSV"/>
                         <Button x:Name="ChRepeaterBookButton" Content="Search RepeaterBook…"
+                                IsVisible="{x:Static feat:FeatureFlags.RepeaterBookEnabled}"
                                 ToolTip.Tip="Search the RepeaterBook online directory and add repeaters to the builder (needs an API token in Settings)"/>
                         <Button x:Name="ChExportButton" Content="Export CSV…"/>
                         <Button x:Name="ChLoadRadioButton" Content="Load from radio"/>
@@ -1298,19 +1300,22 @@
                         <TextBlock Classes="Hint" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                    Text="Get a free API key at aprs.fi (My account → API key). Used on the Map tab to look up stations by callsign and plot them (orange) — useful to confirm your beacon reached the network. Viewing/looking up needs no licence."/>
 
-                        <TextBlock Text="RepeaterBook (repeater directory)" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="API token"/>
-                            <TextBox HorizontalAlignment="Stretch" Text="{Binding RepeaterBookToken}" PasswordChar="•"
-                                     PlaceholderText="your approved RepeaterBook app token"/>
+                        <!-- RepeaterBook settings — gated by FeatureFlags.RepeaterBookEnabled (hidden in public release builds). -->
+                        <StackPanel IsVisible="{x:Static feat:FeatureFlags.RepeaterBookEnabled}">
+                            <TextBlock Text="RepeaterBook (repeater directory)" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="API token"/>
+                                <TextBox HorizontalAlignment="Stretch" Text="{Binding RepeaterBookToken}" PasswordChar="•"
+                                         PlaceholderText="your approved RepeaterBook app token"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Classes="Hint" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"
+                                           Text="Each user requests their own token."/>
+                                <Button x:Name="RepeaterBookTokenHelpButton" Classes="Link" Padding="0" Content="Request a token"/>
+                            </StackPanel>
+                            <TextBlock Classes="Hint" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                                       Text="Used by the channel builder's &quot;Search RepeaterBook…&quot; to import repeaters. Sign in to your free RepeaterBook account and request a token for HTCommander on the API Apps page, then paste it here. Stored encrypted in your OS keychain."/>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Classes="Hint" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"
-                                       Text="Each user requests their own token."/>
-                            <Button x:Name="RepeaterBookTokenHelpButton" Classes="Link" Padding="0" Content="Request a token"/>
-                        </StackPanel>
-                        <TextBlock Classes="Hint" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
-                                   Text="Used by the channel builder's &quot;Search RepeaterBook…&quot; to import repeaters. Sign in to your free RepeaterBook account and request a token for HTCommander on the API Apps page, then paste it here. Stored encrypted in your OS keychain."/>
 
                         <TextBlock Text="Settings persist to ~/.config/htcommander/ via JSON config."
                                    Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>

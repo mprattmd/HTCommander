@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             xmlns:feat="using:HTCommander.UI.Avalonia"
              x:Class="HTCommander.UI.Avalonia.Mobile.MobileSettingsView"
              x:DataType="vm:MainViewModel">
   <ScrollViewer>
@@ -14,15 +15,19 @@
       <TextBlock Classes="mKey" TextWrapping="Wrap"
                  Text="Used on the Map to plot stations by callsign over the internet (confirms your beacon reached the network). Viewing needs no licence."/>
 
-      <TextBlock Classes="mSection" Text="REPEATERBOOK (REPEATER DIRECTORY)" Margin="0,8,0,0"/>
-      <StackPanel Spacing="6">
-        <TextBlock Classes="mKey" Text="API TOKEN"/>
-        <TextBox Classes="mInput" Text="{Binding Settings.RepeaterBookToken}" PasswordChar="•"
-                 Watermark="your RepeaterBook app token"/>
+      <!-- RepeaterBook settings — gated by FeatureFlags.RepeaterBookEnabled (hidden in public release builds). -->
+      <StackPanel x:Name="RepeaterBookSettingsSection" Spacing="6"
+                  IsVisible="{x:Static feat:FeatureFlags.RepeaterBookEnabled}">
+        <TextBlock Classes="mSection" Text="REPEATERBOOK (REPEATER DIRECTORY)" Margin="0,8,0,0"/>
+        <StackPanel Spacing="6">
+          <TextBlock Classes="mKey" Text="API TOKEN"/>
+          <TextBox Classes="mInput" Text="{Binding Settings.RepeaterBookToken}" PasswordChar="•"
+                   Watermark="your RepeaterBook app token"/>
+        </StackPanel>
+        <TextBlock Classes="mKey" TextWrapping="Wrap"
+                   Text="Lets the Channels screen search RepeaterBook and add repeaters. Sign in to your free RepeaterBook account, request a token for HTCommander, then paste it here. Stored encrypted in the Android Keystore."/>
+        <Button x:Name="RequestTokenButton" Classes="mGhost" Content="Request a token"/>
       </StackPanel>
-      <TextBlock Classes="mKey" TextWrapping="Wrap"
-                 Text="Lets the Channels screen search RepeaterBook and add repeaters. Sign in to your free RepeaterBook account, request a token for HTCommander, then paste it here. Stored encrypted in the Android Keystore."/>
-      <Button x:Name="RequestTokenButton" Classes="mGhost" Content="Request a token"/>
 
       <Border Classes="mCard" Margin="0,8,0,0">
         <StackPanel Spacing="6">

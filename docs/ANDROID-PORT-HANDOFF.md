@@ -131,7 +131,10 @@ PW=$(grep 'password:' ~/.htcommander/signing.txt | sed 's/.*password: //')
 rm -rf cross/HTCommander.UI.Avalonia/obj cross/HTCommander.UI.Avalonia/bin
 
 # 2) Signed Release APK (default link/trim ~40MB; do NOT use AndroidLinkMode=None — 80MB)
+#    -p:RepeaterBookHidden=true hides the RepeaterBook UI entry points (feature held back;
+#    code stays compiled in — see FeatureFlags.cs). DROP this flag once RepeaterBook ships.
 dotnet build cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj -c Release -f net10.0-android -p:BuildAndroid=true \
+  -p:RepeaterBookHidden=true \
   -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" \
   -p:AndroidKeyStore=true -p:AndroidSigningKeyStore="$HOME/.htcommander/htcommander.keystore" \
   -p:AndroidSigningStorePass="$PW" -p:AndroidSigningKeyAlias=htcommander -p:AndroidSigningKeyPass="$PW"

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             xmlns:feat="using:HTCommander.UI.Avalonia"
              x:Class="HTCommander.UI.Avalonia.Mobile.MobileChannelsView"
              x:DataType="vm:MainViewModel">
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="14,12">
@@ -9,7 +10,9 @@
         <Button Grid.Column="0" x:Name="ImportButton" Classes="mPri" Content="⬆ Import CSV"/>
         <Button Grid.Column="1" x:Name="LoadButton" Classes="mGhost" Content="⟳ Load from radio"/>
       </Grid>
-      <Button x:Name="RepeaterBookButton" Classes="mGhost" Content="🔎 Search RepeaterBook"/>
+      <!-- RepeaterBook entry point — gated by FeatureFlags.RepeaterBookEnabled (hidden in public release builds). -->
+      <Button x:Name="RepeaterBookButton" Classes="mGhost" Content="🔎 Search RepeaterBook"
+              IsVisible="{x:Static feat:FeatureFlags.RepeaterBookEnabled}"/>
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,8,0,0" IsVisible="{Binding HasBanks}">
       <TextBlock Grid.Column="0" Classes="mKey" Text="BANK" VerticalAlignment="Center"/>

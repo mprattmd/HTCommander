@@ -12,6 +12,9 @@
     <Version>0.5.4</Version>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Hide RepeaterBook entry points in public release builds (-p:RepeaterBookHidden=true);
+         the feature code stays compiled in. Default/dev builds show it. See FeatureFlags.cs. -->
+    <DefineConstants Condition="'$(RepeaterBookHidden)' == 'true'">$(DefineConstants);RB_HIDDEN</DefineConstants>
   </PropertyGroup>
 
   <!-- Desktop-only properties -->
