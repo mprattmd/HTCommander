@@ -1,0 +1,81 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+        x:Class="HTCommander.UI.Avalonia.ContactEditWindow"
+        x:DataType="vm:MainViewModel"
+        Width="420" Height="600" MinWidth="380" MinHeight="440"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface0Brush}"
+        Icon="/Assets/HTCommander.ico"
+        Title="Contact">
+    <DockPanel Margin="16">
+        <!-- Action buttons pinned to the bottom; the form scrolls above them -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8"
+                    HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="ContactCancelButton" Content="Cancel"/>
+            <Button x:Name="ContactSaveButton" Classes="Accent" Content="Save"/>
+        </StackPanel>
+
+        <ScrollViewer>
+            <StackPanel Spacing="6">
+                <TextBlock Text="Callsign"/>
+                <TextBox Text="{Binding EditCallsign}"/>
+                <TextBlock Text="Name"/>
+                <TextBox Text="{Binding EditName}"/>
+                <TextBlock Text="Type"/>
+                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding StationTypeOptions}"
+                          SelectedItem="{Binding EditType}"/>
+
+                <!-- APRS contacts: a digipeater PATH, not a connect channel. -->
+                <StackPanel Spacing="6" IsVisible="{Binding ShowAprsContactFields}">
+                    <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
+                               Text="Optional. APRS messages already send from the APRS page using the APRS channel set on the Station tab — you only need an APRS contact to save a station's name and a custom digipeater path."/>
+                    <TextBlock Text="APRS route / path" Margin="0,6,0,0"/>
+                    <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding AprsRoutes}"
+                              SelectedItem="{Binding SelectedContactRoute}"
+                              PlaceholderText="Use a saved route…"
+                              ToolTip.Tip="Pick a saved APRS route (Station tab) to fill the path below, or type a custom path">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:AprsRoute">
+                                <TextBlock Text="{Binding Display}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="or type: WIDE1-1,WIDE2-1"/>
+                </StackPanel>
+
+                <!-- Winlink / BBS / Terminal contacts: AX.25 connect (channel + destination + wait). -->
+                <StackPanel Spacing="6" IsVisible="{Binding ShowConnectContactFields}">
+                    <TextBlock Text="Connect on channel" Margin="0,6,0,0"/>
+                    <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding ChannelNames}"
+                              SelectedItem="{Binding EditChannel}"
+                              ToolTip.Tip="Memory channel to reach this station for connected modes (Winlink/BBS/Terminal). Your APRS channel is NOT set here — it's on the Station tab → APRS."/>
+                    <TextBlock Classes="Hint" TextWrapping="Wrap"
+                               Text="Memory channel to reach this station in connected modes (e.g. a Winlink RMS gateway). The APRS channel is set on the Station tab, not per-contact."/>
+                    <TextBlock Text="AX.25 destination"/>
+                    <TextBox Text="{Binding EditAx25Destination}" PlaceholderText="e.g. KE4AXW-10"/>
+                    <TextBlock Classes="Hint" TextWrapping="Wrap"
+                               Text="The exact callsign-SSID to connect to over the air (for a Winlink RMS gateway, its station call like KE4AXW-10). The Callsign field above is just this contact's label; the connection uses this destination. Leave the channel blank to use whatever you're tuned to."/>
+                    <CheckBox Content="Wait for incoming connection" IsChecked="{Binding EditWaitForConnection}"/>
+                </StackPanel>
+
+                <!-- Per-contact password is APRS message signing only (see AprsAuth) — shown for APRS. -->
+                <StackPanel Spacing="6" IsVisible="{Binding ShowContactAuthPassword}">
+                    <TextBlock Text="APRS auth password (optional)" Margin="0,6,0,0"/>
+                    <TextBox Text="{Binding EditAuthPassword}" PasswordChar="•"/>
+                    <TextBlock Classes="Hint" TextWrapping="Wrap"
+                               Text="Used to sign authenticated APRS messages with this station. Not your Winlink login."/>
+                </StackPanel>
+                <!-- Winlink/BBS auth uses the operator's single Winlink password (Station tab). -->
+                <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="0,6,0,0" IsVisible="{Binding ShowWinlinkPasswordHint}"
+                           Text="Winlink/BBS login uses your Winlink password set once on the Station tab — no per-contact password is needed here."/>
+
+                <TextBlock Text="Description"/>
+                <TextBox Text="{Binding EditDescription}" AcceptsReturn="True" Height="48"/>
+
+                <TextBlock Classes="Hint" Margin="0,8,0,0"
+                           Text="Set the channel/frequency (and APRS path) to reach this station. Saved to ~/.config/HTCommander and shared with the radio's station list."/>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

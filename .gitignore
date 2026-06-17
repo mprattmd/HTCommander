@@ -316,3 +316,6 @@ dist/
 
 # Play Store submission assets (local only — contains personal screenshots)
 store-assets/
+
+# macOS Finder metadata
+.DS_Store

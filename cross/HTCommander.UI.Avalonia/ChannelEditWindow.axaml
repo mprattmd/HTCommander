@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+        x:Class="HTCommander.UI.Avalonia.ChannelEditWindow"
+        x:DataType="vm:EditableChannel"
+        Width="380" SizeToContent="Height"
+        MinWidth="360"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface0Brush}"
+        Icon="/Assets/HTCommander.ico"
+        Title="Edit channel">
+    <StackPanel Margin="16" Spacing="8">
+        <TextBlock Text="{Binding ChannelId, Converter={StaticResource PlusOne}, StringFormat='Channel slot {0}'}"
+                   FontWeight="Bold" FontSize="15"/>
+        <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Name" VerticalAlignment="Center"/>
+            <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding Name}" MaxLength="10"/>
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="RX MHz" VerticalAlignment="Center"/>
+            <TextBox  Grid.Row="1" Grid.Column="1" Text="{Binding RxMHzText}"/>
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="TX MHz" VerticalAlignment="Center"/>
+            <TextBox  Grid.Row="2" Grid.Column="1" Text="{Binding TxMHzText}"/>
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Tone RX/TX" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <TextBox Width="80" Text="{Binding RxToneText}"/>
+                <TextBox Width="80" Text="{Binding TxToneText}"/>
+            </StackPanel>
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Mode / Power" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <ComboBox x:Name="ModeCombo" MinWidth="80" SelectedItem="{Binding Mode}"/>
+                <ComboBox x:Name="PowerCombo" MinWidth="70" SelectedItem="{Binding Power}"/>
+            </StackPanel>
+            <CheckBox Grid.Row="5" Grid.Column="1" Content="Scan" IsChecked="{Binding Scan}"/>
+        </Grid>
+        <!-- Buttons laid out so they never overflow the dialog -->
+        <StackPanel Spacing="8">
+            <Button x:Name="MakeLiveButton" Content="📻 Make live" HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    ToolTip.Tip="Tune the radio to this channel now (like turning the channel knob)"/>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Grid.Column="0" x:Name="CancelButton" Content="Cancel"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                <Button Grid.Column="1" x:Name="SaveButton" Classes="Accent" Content="⬆ Save"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,37 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+        x:Class="HTCommander.UI.Avalonia.ImportedChannelsWindow"
+        x:DataType="vm:MainViewModel"
+        Width="320" Height="520" MinWidth="240" MinHeight="280"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface0Brush}"
+        Icon="/Assets/HTCommander.ico"
+        Title="Imported channels">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="12" RowSpacing="8">
+        <TextBlock Grid.Row="0" Classes="Section"
+                   Text="{Binding BuilderChannels.Count, StringFormat='Imported ({0}) — drag onto a slot'}"/>
+        <Border Grid.Row="1" Classes="ListCard">
+            <ScrollViewer>
+                <ItemsControl x:Name="ImportedCards" ItemsSource="{Binding BuilderChannels}" Margin="6">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:EditableChannel">
+                            <Border Classes="Chan" Cursor="Hand"
+                                    ToolTip.Tip="{Binding RxMHzText, StringFormat='{}{0} MHz — drag onto a memory slot in the main window'}">
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="cname" Text="{Binding Name}" HorizontalAlignment="Center"/>
+                                    <TextBlock Classes="cfreq" Text="{Binding RxMHzText}" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+        <TextBlock Grid.Row="2" Classes="Hint" TextWrapping="Wrap"
+                   Text="Drag a channel onto a memory slot on the Channels tab to program it. Keep this window open beside the main window."/>
+    </Grid>
+</Window>

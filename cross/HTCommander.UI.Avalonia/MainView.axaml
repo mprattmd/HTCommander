@@ -484,6 +484,8 @@
                                 IsVisible="{x:Static feat:FeatureFlags.RepeaterBookEnabled}"
                                 ToolTip.Tip="Search the RepeaterBook online directory and add repeaters to the builder (needs an API token in Settings)"/>
                         <Button x:Name="ChExportButton" Content="Export CSV…"/>
+                        <Button x:Name="ChImportedWindowButton" Classes="Accent" Content="Imported channels…"
+                                ToolTip.Tip="Open the imported channels in a floating window — drag a channel from it onto a memory slot below to program it"/>
                         <Button x:Name="ChLoadRadioButton" Content="Load from radio"/>
                         <Border Width="1" Background="{DynamicResource BorderBrush}" Margin="4,2" IsVisible="{Binding HasBanks}"/>
                         <TextBlock Text="Bank" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" IsVisible="{Binding HasBanks}"/>
@@ -510,106 +512,35 @@
                     </StackPanel>
 
                     <TextBlock Grid.Row="1" Classes="Hint" Margin="0,0,0,8"
-                               Text="Import a CSV (or drag a .csv onto this tab), then drag a channel from the right onto a memory slot on the left to program it. Green = current channel."/>
+                               Text="Import a CSV (or drag a .csv onto this tab), then open “Imported channels…” and drag a channel from that window onto a memory slot below to program it. Green = current channel."/>
 
-                    <!-- Card grids: radio memory slots (left) + imported channels (right) -->
-                    <Grid Grid.Row="2" ColumnDefinitions="*,12,300">
-                        <!-- Radio memory slots -->
-                        <Grid Grid.Column="0" RowDefinitions="Auto,*">
-                            <TextBlock Grid.Row="0" Classes="Section"
-                                       Text="{Binding Slots.Count, StringFormat='Radio memory ({0} slots)'}"/>
-                            <Border Grid.Row="1" Classes="ListCard">
-                                <ScrollViewer>
-                                    <ItemsControl x:Name="SlotCards" ItemsSource="{Binding Slots}" Margin="6">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:ChannelSlot">
-                                                <Border Classes="Chan" Classes.empty="{Binding IsEmpty}" Classes.active="{Binding IsActive}"
-                                                        ToolTip.Tip="{Binding FreqText, StringFormat='Slot · {0} MHz'}">
-                                                    <StackPanel VerticalAlignment="Center">
-                                                        <TextBlock Classes="cname" Text="{Binding Display}" HorizontalAlignment="Center"/>
-                                                        <TextBlock Classes="cfreq" Text="{Binding FreqText}" HorizontalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-                        </Grid>
-
-                        <!-- Imported channels (drag sources) -->
-                        <Grid Grid.Column="2" RowDefinitions="Auto,*">
-                            <TextBlock Grid.Row="0" Classes="Section"
-                                       Text="{Binding BuilderChannels.Count, StringFormat='Imported ({0}) — drag onto a slot'}"/>
-                            <Border Grid.Row="1" Classes="ListCard">
-                                <ScrollViewer>
-                                    <ItemsControl x:Name="ImportedCards" ItemsSource="{Binding BuilderChannels}" Margin="6">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:EditableChannel">
-                                                <Border Classes="Chan" Cursor="Hand"
-                                                        ToolTip.Tip="{Binding RxMHzText, StringFormat='{}{0} MHz — drag onto a slot'}">
-                                                    <StackPanel VerticalAlignment="Center">
-                                                        <TextBlock Classes="cname" Text="{Binding Name}" HorizontalAlignment="Center"/>
-                                                        <TextBlock Classes="cfreq" Text="{Binding RxMHzText}" HorizontalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-                        </Grid>
-                    </Grid>
-
-                    <!-- Inline single-channel editor: appears over the tiles when a slot is clicked -->
-                    <Border Grid.Row="2" IsVisible="{Binding IsEditingChannel}" Background="#66332b1c"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}"
-                                BorderThickness="1" CornerRadius="6" Padding="16" Width="360"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                DataContext="{Binding EditingChannel}" x:DataType="vm:EditableChannel">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{Binding ChannelId, Converter={StaticResource PlusOne}, StringFormat='Edit channel slot {0}'}" FontWeight="Bold" FontSize="15"/>
-                                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Name" VerticalAlignment="Center"/>
-                                    <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding Name}" MaxLength="10"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="RX MHz" VerticalAlignment="Center"/>
-                                    <TextBox  Grid.Row="1" Grid.Column="1" Text="{Binding RxMHzText}"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="TX MHz" VerticalAlignment="Center"/>
-                                    <TextBox  Grid.Row="2" Grid.Column="1" Text="{Binding TxMHzText}"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Tone RX/TX" VerticalAlignment="Center"/>
-                                    <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                                        <TextBox Width="80" Text="{Binding RxToneText}"/>
-                                        <TextBox Width="80" Text="{Binding TxToneText}"/>
-                                    </StackPanel>
-                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Mode / Power" VerticalAlignment="Center"/>
-                                    <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                                        <ComboBox MinWidth="80" ItemsSource="{Binding $parent[Window].((vm:MainViewModel)DataContext).ChannelModes}" SelectedItem="{Binding Mode}"/>
-                                        <ComboBox MinWidth="70" ItemsSource="{Binding $parent[Window].((vm:MainViewModel)DataContext).ChannelPowers}" SelectedItem="{Binding Power}"/>
-                                    </StackPanel>
-                                    <CheckBox Grid.Row="5" Grid.Column="1" Content="Scan" IsChecked="{Binding Scan}"/>
-                                </Grid>
-                                <!-- Buttons laid out so they never overflow the 360-wide modal -->
-                                <StackPanel Spacing="8">
-                                    <Button x:Name="ChMakeLiveButton" Content="📻 Make live" HorizontalAlignment="Stretch"
-                                            HorizontalContentAlignment="Center"
-                                            ToolTip.Tip="Tune the radio to this channel now (like turning the channel knob)"/>
-                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                                        <Button Grid.Column="0" x:Name="ChEditCancelButton" Content="Cancel"
-                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                                        <Button Grid.Column="1" x:Name="ChEditSaveButton" Classes="Accent" Content="⬆ Save"
-                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                                    </Grid>
-                                </StackPanel>
-                            </StackPanel>
+                    <!-- Radio memory slots. The imported channels (drag sources) now live in a
+                         separate floating window (Imported channels…); drag a card from there
+                         onto a slot here — native cross-window drag-and-drop. -->
+                    <Grid Grid.Row="2" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Classes="Section"
+                                   Text="{Binding Slots.Count, StringFormat='Radio memory ({0} slots)'}"/>
+                        <Border Grid.Row="1" Classes="ListCard">
+                            <ScrollViewer>
+                                <ItemsControl x:Name="SlotCards" ItemsSource="{Binding Slots}" Margin="6">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:ChannelSlot">
+                                            <Border Classes="Chan" Classes.empty="{Binding IsEmpty}" Classes.active="{Binding IsActive}"
+                                                    ToolTip.Tip="{Binding FreqText, StringFormat='Slot · {0} MHz'}">
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Classes="cname" Text="{Binding Display}" HorizontalAlignment="Center"/>
+                                                    <TextBlock Classes="cfreq" Text="{Binding FreqText}" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </Border>
-                    </Border>
+                    </Grid>
 
                     <!-- Edit channels as a table (fills from the radio when expanded) -->
                     <Expander x:Name="ChannelTableExpander" Grid.Row="3" Header="Edit channels as a table (advanced)" IsExpanded="False" Margin="0,8,0,0">
@@ -643,96 +574,32 @@
                 </Grid>
             </TabItem>
             <TabItem x:Name="ContactsTab" Header="Contacts">
-                <Grid x:Name="ContactsSplit" ColumnDefinitions="*,300" Margin="8" ColumnSpacing="12">
-                    <!-- list -->
-                    <Grid Grid.Column="0" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Margin="0,0,0,6" FontWeight="Bold"
-                                   Text="{Binding Contacts.Count, StringFormat='Contacts ({0})'}"/>
-                        <Border Grid.Row="1" Classes="ListCard">
-                            <ListBox ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedContact}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="core:StationInfoClass">
-                                        <Grid ColumnDefinitions="120,*,90" ColumnSpacing="8">
-                                            <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Callsign}"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Name}"/>
-                                            <TextBlock Grid.Column="2" Foreground="{DynamicResource InfoBrush}" Text="{Binding StationType}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </Border>
-                    </Grid>
-                    <!-- editor -->
-                    <ScrollViewer Grid.Column="1" VerticalAlignment="Stretch">
-                        <StackPanel Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="Add / edit contact" FontWeight="Bold" VerticalAlignment="Center"/>
-                                <Button Grid.Column="1" x:Name="NewContactButton" Content="✚ New"
-                                        ToolTip.Tip="Clear the form to add a new contact"/>
-                            </Grid>
-                            <TextBlock Text="Callsign"/>
-                            <TextBox Text="{Binding EditCallsign}"/>
-                            <TextBlock Text="Name"/>
-                            <TextBox Text="{Binding EditName}"/>
-                            <TextBlock Text="Type"/>
-                            <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding StationTypeOptions}"
-                                      SelectedItem="{Binding EditType}"/>
-
-                            <!-- APRS contacts: a digipeater PATH, not a connect channel. -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowAprsContactFields}">
-                                <TextBlock Classes="Hint" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"
-                                           Text="Optional. APRS messages already send from the APRS page using the APRS channel set on the Station tab — you only need an APRS contact to save a station's name and a custom digipeater path."/>
-                                <TextBlock Text="APRS route / path" Margin="0,6,0,0"/>
-                                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding AprsRoutes}"
-                                          SelectedItem="{Binding SelectedContactRoute}"
-                                          PlaceholderText="Use a saved route…"
-                                          ToolTip.Tip="Pick a saved APRS route (Station tab) to fill the path below, or type a custom path">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:AprsRoute">
-                                            <TextBlock Text="{Binding Display}"/>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <TextBox Text="{Binding EditAprsRoute}" PlaceholderText="or type: WIDE1-1,WIDE2-1"/>
-                            </StackPanel>
-
-                            <!-- Winlink / BBS / Terminal contacts: AX.25 connect (channel + destination + wait). -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowConnectContactFields}">
-                                <TextBlock Text="Connect on channel" Margin="0,6,0,0"/>
-                                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding ChannelNames}"
-                                          SelectedItem="{Binding EditChannel}"
-                                          ToolTip.Tip="Memory channel to reach this station for connected modes (Winlink/BBS/Terminal). Your APRS channel is NOT set here — it's on the Station tab → APRS."/>
-                                <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                           Text="Memory channel to reach this station in connected modes (e.g. a Winlink RMS gateway). The APRS channel is set on the Station tab, not per-contact."/>
-                                <TextBlock Text="AX.25 destination"/>
-                                <TextBox Text="{Binding EditAx25Destination}" PlaceholderText="e.g. KE4AXW-10"/>
-                                <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                           Text="The exact callsign-SSID to connect to over the air (for a Winlink RMS gateway, its station call like KE4AXW-10). The Callsign field above is just this contact's label; the connection uses this destination. Leave the channel blank to use whatever you're tuned to."/>
-                                <CheckBox Content="Wait for incoming connection" IsChecked="{Binding EditWaitForConnection}"/>
-                            </StackPanel>
-
-                            <!-- Per-contact password is APRS message signing only (see AprsAuth) — shown for APRS. -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowContactAuthPassword}">
-                                <TextBlock Text="APRS auth password (optional)" Margin="0,6,0,0"/>
-                                <TextBox Text="{Binding EditAuthPassword}" PasswordChar="•"/>
-                                <TextBlock Classes="Hint" TextWrapping="Wrap"
-                                           Text="Used to sign authenticated APRS messages with this station. Not your Winlink login."/>
-                            </StackPanel>
-                            <!-- Winlink/BBS auth uses the operator's single Winlink password (Station tab). -->
-                            <TextBlock Classes="Hint" TextWrapping="Wrap" Margin="0,6,0,0" IsVisible="{Binding ShowWinlinkPasswordHint}"
-                                       Text="Winlink/BBS login uses your Winlink password set once on the Station tab — no per-contact password is needed here."/>
-
-                            <TextBlock Text="Description"/>
-                            <TextBox Text="{Binding EditDescription}" AcceptsReturn="True" Height="48"/>
-
-                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
-                                <Button x:Name="AddContactButton" Classes="Accent" Content="Add / Update"/>
-                                <Button x:Name="RemoveContactButton" Content="Remove"/>
-                            </StackPanel>
-                            <TextBlock Classes="Hint" Margin="0,8,0,0"
-                                       Text="Set the channel/frequency (and APRS path) to reach this station. Saved to ~/.config/HTCommander and shared with the radio's station list."/>
-                        </StackPanel>
-                    </ScrollViewer>
+                <!-- The contact form is a dialog (New / Edit / double-click a row); this tab is the list. -->
+                <Grid RowDefinitions="Auto,*,Auto" Margin="8" RowSpacing="8">
+                    <TextBlock Grid.Row="0" FontWeight="Bold"
+                               Text="{Binding Contacts.Count, StringFormat='Contacts ({0})'}"/>
+                    <Border Grid.Row="1" Classes="ListCard">
+                        <ListBox x:Name="ContactsList" ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedContact}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="core:StationInfoClass">
+                                    <Grid ColumnDefinitions="120,*,90" ColumnSpacing="8">
+                                        <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Callsign}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"/>
+                                        <TextBlock Grid.Column="2" Foreground="{DynamicResource InfoBrush}" Text="{Binding StationType}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="NewContactButton" Classes="Accent" Content="✚ New"
+                                ToolTip.Tip="Add a new contact"/>
+                        <Button x:Name="EditContactButton" Content="Edit"
+                                IsEnabled="{Binding SelectedContact, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                ToolTip.Tip="Edit the selected contact (or double-click it)"/>
+                        <Button x:Name="RemoveContactButton" Content="Remove"
+                                IsEnabled="{Binding SelectedContact, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </StackPanel>
                 </Grid>
             </TabItem>
             <TabItem x:Name="AprsTab" Header="APRS">

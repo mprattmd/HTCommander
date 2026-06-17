@@ -70,9 +70,11 @@ public partial class MainView : UserControl
         // Voice audio is no longer a button: it opens/closes automatically with the Voice tab
         // (see OnMainTabChanged). Nothing to wire here.
 
-        AddContactButton.Click += (_, _) => Vm?.AddOrUpdateContact();
+        // Contacts: the add/edit form is now a dialog (New / Edit / double-click a row).
+        NewContactButton.Click += async (_, _) => { Vm?.NewContact(); await OpenContactEditAsync(); };
+        EditContactButton.Click += async (_, _) => { if (Vm?.SelectedContact != null) await OpenContactEditAsync(); };
         RemoveContactButton.Click += (_, _) => Vm?.RemoveSelectedContact();
-        NewContactButton.Click += (_, _) => Vm?.NewContact();
+        ContactsList.DoubleTapped += async (_, _) => { if (Vm?.SelectedContact != null) await OpenContactEditAsync(); };
         SendTerminalButton.Click += (_, _) => Vm?.SendTerminal();
         SessionConnectButton.Click += (_, _) => Vm?.ConnectSession();
         SessionDisconnectButton.Click += (_, _) => Vm?.DisconnectSession();
@@ -183,7 +185,7 @@ public partial class MainView : UserControl
 
     private void RegisterResponsiveSplits()
     {
-        responsiveSplits = new[] { RadioDetailGrid, ContactsSplit, AprsSplit, PacketsSplit, MailSplit, ClipsSplit };
+        responsiveSplits = new[] { RadioDetailGrid, AprsSplit, PacketsSplit, MailSplit, ClipsSplit };
         foreach (var g in responsiveSplits)
         {
             var kids = g.Children.OfType<Control>().ToArray();
@@ -292,74 +294,76 @@ public partial class MainView : UserControl
     {
         ChImportButton.Click += async (_, _) => await ImportChannelsAsync();
         ChExportButton.Click += async (_, _) => await ExportChannelsAsync();
+        ChImportedWindowButton.Click += (_, _) => OpenImportedChannels();
         ChLoadRadioButton.Click += (_, _) => Vm?.LoadChannelsFromRadio();
         ChLoadAllBanksButton.Click += (_, _) => Vm?.LoadAllBanks();
         ChAddRowButton.Click += (_, _) => Vm?.AddBuilderChannel();
         ChRemoveRowButton.Click += (_, _) => Vm?.RemoveBuilderChannel(ChannelGrid.SelectedItem as EditableChannel);
         ChWriteButton.Click += (_, _) => Vm?.WriteChannelsToRadio();
 
-        // Inline single-channel editor: click a radio-memory tile to edit that channel.
-        ChEditSaveButton.Click += (_, _) => Vm?.SaveEditingChannel();
-        ChEditCancelButton.Click += (_, _) => Vm?.CancelEditingChannel();
-        ChMakeLiveButton.Click += (_, _) => Vm?.MakeEditingChannelLive();
+        // Single-channel editor: click a radio-memory tile to edit that channel in a dialog.
         SlotCards.AddHandler(PointerPressedEvent, OnSlotPressed, RoutingStrategies.Bubble);
         // Fill the table from the radio's current channels the first time it's opened.
         ChannelTableExpander.Expanded += (_, _) => { if (Vm != null && Vm.BuilderChannels.Count == 0) Vm.LoadChannelsFromRadio(); };
 
-        // Drag a .csv file onto the builder to import it (matches the Windows builder).
+        // Drop targets on the builder: a .csv file (import) OR a channel card dragged from the
+        // floating Imported channels window (program the slot under the pointer). Native OS DnD
+        // so it works across the two windows.
         ChannelBuilderRoot.AddHandler(DragDrop.DragOverEvent, OnChannelDragOver);
         ChannelBuilderRoot.AddHandler(DragDrop.DropEvent, OnChannelDrop);
         DragDrop.SetAllowDrop(ChannelBuilderRoot, true);
-
-        // In-app drag: pick up an imported channel card and drop it on a memory slot to
-        // program it (single-window manual drag — version-independent of the OS DnD API).
-        ImportedCards.AddHandler(PointerPressedEvent, OnImportedPointerPressed, RoutingStrategies.Tunnel);
-        ImportedCards.AddHandler(PointerReleasedEvent, OnImportedPointerReleased, RoutingStrategies.Tunnel);
     }
 
-    // Click a radio-memory tile -> open the inline editor for that slot. Ignored while a
-    // channel card is being dragged onto a slot (that path programs the slot instead).
+    private ImportedChannelsWindow? importedWindow;
+
+    /// <summary>Opens (or re-focuses) the floating imported-channels drag-source window.</summary>
+    private void OpenImportedChannels()
+    {
+        if (Vm == null || TopLevel.GetTopLevel(this) is not Window owner) return;
+        if (importedWindow != null) { importedWindow.Activate(); return; }
+        importedWindow = new ImportedChannelsWindow { DataContext = Vm };
+        importedWindow.Closed += (_, _) => importedWindow = null;
+        importedWindow.Show(owner);   // non-modal so the user can drag onto the main window
+    }
+
+    // Click a radio-memory tile -> open the channel editor dialog for that slot.
     private void OnSlotPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (_dragChannel != null) return;
         if (!e.GetCurrentPoint(SlotCards).Properties.IsLeftButtonPressed) return;
         var slot = AncestorDataContext<ChannelSlot>(e.Source);
-        if (slot != null) Vm?.BeginEditSlot(slot.SlotId);
+        if (slot != null) _ = OpenChannelEditAsync(slot.SlotId);
     }
 
-    private EditableChannel? _dragChannel;
+    /// <summary>Opens the single-channel editor dialog for a memory slot and applies the result.</summary>
+    private async Task OpenChannelEditAsync(int slotId)
+    {
+        if (Vm == null || TopLevel.GetTopLevel(this) is not Window owner) return;
+        Vm.BeginEditSlot(slotId);                 // sets EditingChannel + editingSlotId
+        if (Vm.EditingChannel == null) return;
+        var dlg = new ChannelEditWindow { DataContext = Vm.EditingChannel };
+        dlg.SetOptions(Vm.ChannelModes, Vm.ChannelPowers);
+        var result = await dlg.ShowDialog<ChannelEditResult>(owner);
+        switch (result)
+        {
+            case ChannelEditResult.Save: Vm.SaveEditingChannel(); break;
+            case ChannelEditResult.MakeLive: Vm.MakeEditingChannelLive(); break;
+            default: Vm.CancelEditingChannel(); break;
+        }
+    }
+
+    /// <summary>Opens the add/edit-contact dialog (bound to the live Edit* fields) and saves on OK.</summary>
+    private async Task OpenContactEditAsync()
+    {
+        if (Vm == null || TopLevel.GetTopLevel(this) is not Window owner) return;
+        var dlg = new ContactEditWindow { DataContext = Vm };
+        if (await dlg.ShowDialog<bool>(owner)) Vm.AddOrUpdateContact();
+    }
 
     private static T? AncestorDataContext<T>(object? source) where T : class
     {
         for (var v = source as global::Avalonia.Visual; v != null; v = v.GetVisualParent())
             if (v is global::Avalonia.StyledElement se && se.DataContext is T t) return t;
         return null;
-    }
-
-    private void OnImportedPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(ImportedCards).Properties.IsLeftButtonPressed) return;
-        _dragChannel = AncestorDataContext<EditableChannel>(e.Source);
-        if (_dragChannel != null)
-        {
-            e.Pointer.Capture(ImportedCards);   // so we get the release even over the slot grid
-            if (Vm != null) Vm.BuilderStatus = $"Dragging '{_dragChannel.Name}' — drop it on a memory slot.";
-        }
-    }
-
-    private void OnImportedPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        var ch = _dragChannel;
-        _dragChannel = null;
-        e.Pointer.Capture(null);
-        if (ch == null) return;
-
-        // Hit-test the slot grid at the release point.
-        var pos = e.GetPosition(SlotCards);
-        var hit = SlotCards.InputHitTest(pos);
-        var slot = AncestorDataContext<ChannelSlot>(hit);
-        if (slot != null) Vm?.ProgramSlot(slot.SlotId, ch);
-        else if (Vm != null) Vm.BuilderStatus = "Dropped outside the memory grid — nothing programmed.";
     }
 
     // Avalonia 12 drag-drop uses the IDataTransfer model (e.DataTransfer + TryGetFiles).
@@ -375,15 +379,39 @@ public partial class MainView : UserControl
         return null;
     }
 
+    /// <summary>The channel being dragged from the floating Imported window, if any. The drag
+    /// carries the BuilderChannels index (platform-serializable); we resolve it to the live
+    /// object here since both windows share this MainViewModel.</summary>
+    private EditableChannel? DraggedChannel(DragEventArgs e)
+    {
+        if (e.DataTransfer?.Contains(ImportedChannelsWindow.ChannelDragFormat) != true) return null;
+        var s = e.DataTransfer.TryGetValue(ImportedChannelsWindow.ChannelDragFormat);
+        if (!int.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, out int idx)) return null;
+        var list = Vm?.BuilderChannels;
+        return (list != null && idx >= 0 && idx < list.Count) ? list[idx] : null;
+    }
+
     private void OnChannelDragOver(object? sender, DragEventArgs e)
     {
-        e.DragEffects = DragCsvPath(e) != null ? DragDropEffects.Copy : DragDropEffects.None;
+        e.DragEffects = (DraggedChannel(e) != null || DragCsvPath(e) != null)
+            ? DragDropEffects.Copy : DragDropEffects.None;
     }
 
     private void OnChannelDrop(object? sender, DragEventArgs e)
     {
+        // A channel dragged from the floating window: program the slot under the pointer.
+        var ch = DraggedChannel(e);
+        if (ch != null)
+        {
+            var hit = SlotCards.InputHitTest(e.GetPosition(SlotCards));
+            var slot = AncestorDataContext<ChannelSlot>(hit);
+            if (slot != null) Vm?.ProgramSlot(slot.SlotId, ch);
+            else if (Vm != null) Vm.BuilderStatus = "Dropped outside the memory grid — nothing programmed.";
+            return;
+        }
+
         var path = DragCsvPath(e);
-        if (path != null) Vm?.ImportChannelsFromCsv(path);
+        if (path != null) { Vm?.ImportChannelsFromCsv(path); OpenImportedChannels(); }
     }
 
     private async Task ImportChannelsAsync()
@@ -397,7 +425,7 @@ public partial class MainView : UserControl
             FileTypeFilter = new[] { new FilePickerFileType("CSV files") { Patterns = new[] { "*.csv" } } },
         });
         var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
-        if (path != null) Vm?.ImportChannelsFromCsv(path);
+        if (path != null) { Vm?.ImportChannelsFromCsv(path); OpenImportedChannels(); }
     }
 
     private async Task ExportChannelsAsync()
@@ -680,7 +708,7 @@ public partial class MainView : UserControl
         var vm = new ViewModels.RepeaterBookSearchViewModel(token, lat, lon);
         var dlg = new RepeaterBookSearchWindow { DataContext = vm };
         bool add = await dlg.ShowDialog<bool>(owner);
-        if (add) Vm.AddRepeaterBookChannels(vm.GetSelectedChannels());
+        if (add) { Vm.AddRepeaterBookChannels(vm.GetSelectedChannels()); OpenImportedChannels(); }
     }
 
     /// <summary>Opens a URL in the user's default browser, cross-platform.</summary>
