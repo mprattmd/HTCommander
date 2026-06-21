@@ -12,9 +12,6 @@
     <Version>0.5.5</Version>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <!-- Hide RepeaterBook entry points in public release builds (-p:RepeaterBookHidden=true);
-         the feature code stays compiled in. Default/dev builds show it. See FeatureFlags.cs. -->
-    <DefineConstants Condition="'$(RepeaterBookHidden)' == 'true'">$(DefineConstants);RB_HIDDEN</DefineConstants>
   </PropertyGroup>
 
   <!-- Desktop-only properties -->
@@ -28,7 +25,7 @@
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <ApplicationId>com.htcommander.app</ApplicationId>
-    <ApplicationVersion>7</ApplicationVersion>
+    <ApplicationVersion>8</ApplicationVersion>
     <ApplicationDisplayVersion>0.5.5</ApplicationDisplayVersion>
   </PropertyGroup>
 

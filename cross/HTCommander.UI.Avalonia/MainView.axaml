@@ -2,7 +2,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:feat="using:HTCommander.UI.Avalonia"
         xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
         xmlns:abs="using:HTCommander.Core.Abstractions"
         xmlns:audio="using:HTCommander.Core.Abstractions.Audio"
@@ -481,7 +480,6 @@
                         <Button x:Name="ChImportButton" Content="Import CSV…"
                                 ToolTip.Tip="Import CHIRP, RepeaterBook, or native CSV"/>
                         <Button x:Name="ChRepeaterBookButton" Content="Search RepeaterBook…"
-                                IsVisible="{x:Static feat:FeatureFlags.RepeaterBookEnabled}"
                                 ToolTip.Tip="Search the RepeaterBook online directory and add repeaters to the builder (needs an API token in Settings)"/>
                         <Button x:Name="ChExportButton" Content="Export CSV…"/>
                         <Button x:Name="ChImportedWindowButton" Classes="Accent" Content="Imported channels…"
@@ -1167,8 +1165,8 @@
                         <TextBlock Classes="Hint" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
                                    Text="Get a free API key at aprs.fi (My account → API key). Used on the Map tab to look up stations by callsign and plot them (orange) — useful to confirm your beacon reached the network. Viewing/looking up needs no licence."/>
 
-                        <!-- RepeaterBook settings — gated by FeatureFlags.RepeaterBookEnabled (hidden in public release builds). -->
-                        <StackPanel IsVisible="{x:Static feat:FeatureFlags.RepeaterBookEnabled}">
+                        <!-- RepeaterBook settings -->
+                        <StackPanel>
                             <TextBlock Text="RepeaterBook (repeater directory)" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
                             <StackPanel Spacing="4">
                                 <TextBlock Text="API token"/>
