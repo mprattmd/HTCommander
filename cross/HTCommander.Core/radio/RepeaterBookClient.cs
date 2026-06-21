@@ -167,12 +167,20 @@ namespace HTCommander.Core.Radio
             {
                 using var doc = JsonDocument.Parse(body);
                 var root = doc.RootElement;
-                string code = root.TryGetProperty("error_code", out var c) ? c.GetString() : null;
-                string msg = root.TryGetProperty("message", out var m) ? m.GetString() : null;
+                // Tolerate the API encoding these as a number/bool instead of a string
+                // (it's inconsistent — see FlexStringConverter) so a valid code isn't lost.
+                string code = root.TryGetProperty("error_code", out var c) ? JsonElementToString(c) : null;
+                string msg = root.TryGetProperty("message", out var m) ? JsonElementToString(m) : null;
                 return (code, msg);
             }
             catch { return (null, null); }
         }
+
+        /// <summary>String value of a JSON element regardless of whether it's a string, number, or bool.</summary>
+        private static string JsonElementToString(JsonElement e)
+            => e.ValueKind == JsonValueKind.String ? e.GetString()
+             : e.ValueKind == JsonValueKind.Null || e.ValueKind == JsonValueKind.Undefined ? null
+             : e.GetRawText();
 
         public static RepeaterBookResult[] Parse(string body)
         {
@@ -331,7 +339,7 @@ namespace HTCommander.Core.Radio
         private static int MHzToHz(string mhz)
         {
             if (string.IsNullOrWhiteSpace(mhz)) return 0;
-            return double.TryParse(mhz.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v)
+            return double.TryParse(mhz.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double v)
                 ? (int)Math.Round(v * 1_000_000) : 0;
         }
 
@@ -345,7 +353,7 @@ namespace HTCommander.Core.Radio
                 string digits = new string(Array.FindAll(pl.ToCharArray(), char.IsDigit));
                 return int.TryParse(digits, out int code) ? code : 0;
             }
-            return double.TryParse(pl, NumberStyles.Any, CultureInfo.InvariantCulture, out double hz)
+            return double.TryParse(pl, NumberStyles.Float, CultureInfo.InvariantCulture, out double hz)
                 ? (int)Math.Round(hz * 100) : 0;
         }
     }
