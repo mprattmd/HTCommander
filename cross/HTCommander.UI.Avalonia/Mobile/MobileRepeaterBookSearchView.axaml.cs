@@ -32,8 +32,14 @@ public partial class MobileRepeaterBookSearchView : UserControl
         SelectNoneButton.Click += (_, _) => _search.SelectAll(false);
         AddButton.Click += (_, _) =>
         {
-            _main?.AddRepeaterBookChannels(_search.GetSelectedChannels());
-            this.FindAncestorOfType<MobileView>()?.Back();
+            var picked = _search.GetSelectedChannels();
+            _main?.AddRepeaterBookChannels(picked);
+            var host = this.FindAncestorOfType<MobileView>();
+            host?.Back();   // pop the search page…
+            // …and, when channels were added, land on the imported list so they're visible
+            // and writable to the radio (otherwise the builder is invisible on mobile).
+            if (picked.Count > 0 && _main != null)
+                host?.Push(new MobileImportedChannelsView(_main), "Imported");
         };
         AttributionButton.Click += (_, _) =>
             TopLevel.GetTopLevel(this)?.Launcher.LaunchUriAsync(new System.Uri("https://www.repeaterbook.com/"));

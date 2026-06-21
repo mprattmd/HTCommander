@@ -25,6 +25,18 @@ an **app token for HTCommander** on the [API Apps page](https://www.repeaterbook
 (it begins with **`rbuapp_`**), and paste it into **Settings → RepeaterBook**.
 *Data courtesy of RepeaterBook.com.*
 
+**On Android** the flow is touch-first:
+
+1. **Settings → RepeaterBook** — paste your `rbuapp_…` token. It **saves automatically** as you
+   type (there is no Save button — you'll see a brief **✓ Saved**), stored in the Android Keystore.
+2. **Channels → 🔎 Search RepeaterBook** — search, tick the repeaters you want, tap **Add selected
+   to builder**. That opens the **Imported channels** list (also reachable any time via the
+   **📋 Imported channels** button, and the same list CSV imports use).
+3. From the Imported list, either **tap a repeater and pick the memory slot** it should go into —
+   the slot picker shows which slots are already used and which are **FREE** — or tap **⬇ Place all
+   in free slots** to drop them into empty slots **without overwriting** your existing channels.
+   Each placement writes to the radio immediately.
+
 ## ⬇ Download
 
 ### Linux (x86-64)

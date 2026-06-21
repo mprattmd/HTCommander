@@ -21,9 +21,13 @@ public partial class MobileChannelsView : UserControl
             if (Vm == null) return;
             this.FindAncestorOfType<MobileView>()?.Push(new MobileRepeaterBookSearchView(Vm), "RepeaterBook");
         };
+        ImportedButton.Click += (_, _) =>
+        {
+            if (Vm == null) return;
+            this.FindAncestorOfType<MobileView>()?.Push(new MobileImportedChannelsView(Vm), "Imported");
+        };
         LoadButton.Click += (_, _) => Vm?.LoadChannelsFromRadio();
         LoadAllButton.Click += (_, _) => Vm?.LoadAllBanks();
-        WriteAllButton.Click += (_, _) => Vm?.WriteChannelsToRadio();
         SlotList.AddHandler(Button.ClickEvent, OnSlotClick);
     }
 
@@ -38,7 +42,12 @@ public partial class MobileChannelsView : UserControl
             FileTypeFilter = new[] { new FilePickerFileType("CSV files") { Patterns = new[] { "*.csv" } } },
         });
         var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
-        if (path != null) Vm?.ImportChannelsFromCsv(path);
+        if (path == null || Vm == null) return;
+        int before = Vm.BuilderChannels.Count;
+        Vm.ImportChannelsFromCsv(path);
+        // Same flow as RepeaterBook: if rows were imported, open the review/placement list.
+        if (Vm.BuilderChannels.Count > before)
+            this.FindAncestorOfType<MobileView>()?.Push(new MobileImportedChannelsView(Vm), "Imported");
     }
 
     private void OnSlotClick(object? sender, RoutedEventArgs e)

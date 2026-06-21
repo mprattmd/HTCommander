@@ -7,23 +7,31 @@
     <StackPanel Margin="14" Spacing="14">
       <TextBlock Classes="mSection" Text="APRS.FI (INTERNET STATION LOOKUP)"/>
       <StackPanel Spacing="6">
-        <TextBlock Classes="mKey" Text="API KEY"/>
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Column="0" Classes="mKey" Text="API KEY"/>
+          <TextBlock Grid.Column="2" Classes="mKey" FontWeight="Bold" Foreground="{StaticResource MGood}"
+                     Text="{Binding Settings.SavedStatus}"/>
+        </Grid>
         <TextBox Classes="mInput" Text="{Binding Settings.AprsFiApiKey}" PasswordChar="•"
                  Watermark="free key from aprs.fi → My account"/>
       </StackPanel>
       <TextBlock Classes="mKey" TextWrapping="Wrap"
-                 Text="Used on the Map to plot stations by callsign over the internet (confirms your beacon reached the network). Viewing needs no licence."/>
+                 Text="Used on the Map to plot stations by callsign over the internet. It saves automatically as you type — there is no Save button."/>
 
       <!-- RepeaterBook settings -->
       <StackPanel x:Name="RepeaterBookSettingsSection" Spacing="6">
         <TextBlock Classes="mSection" Text="REPEATERBOOK (REPEATER DIRECTORY)" Margin="0,8,0,0"/>
         <StackPanel Spacing="6">
-          <TextBlock Classes="mKey" Text="API TOKEN"/>
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Classes="mKey" Text="API TOKEN"/>
+            <TextBlock Grid.Column="2" Classes="mKey" FontWeight="Bold" Foreground="{StaticResource MGood}"
+                       Text="{Binding Settings.SavedStatus}"/>
+          </Grid>
           <TextBox Classes="mInput" Text="{Binding Settings.RepeaterBookToken}" PasswordChar="•"
-                   Watermark="your RepeaterBook app token"/>
+                   Watermark="paste your rbuapp_… token"/>
         </StackPanel>
         <TextBlock Classes="mKey" TextWrapping="Wrap"
-                   Text="Lets the Channels screen search RepeaterBook and add repeaters. Sign in to your free RepeaterBook account, request a token for HTCommander, then paste it here. Stored encrypted in the Android Keystore."/>
+                   Text="Lets the Channels screen search RepeaterBook and add repeaters. Sign in to your free RepeaterBook account, request an app token for HTCommander (it starts with rbuapp_), then paste it here. It saves automatically as you type — there is no Save button. Stored encrypted in the Android Keystore."/>
         <Button x:Name="RequestTokenButton" Classes="mGhost" Content="Request a token"/>
       </StackPanel>
 

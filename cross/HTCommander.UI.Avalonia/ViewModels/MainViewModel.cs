@@ -1135,7 +1135,12 @@ public sealed class MainViewModel : ViewModelBase
         if (e.OldItems != null) foreach (EditableChannel ec in e.OldItems) ec.PropertyChanged -= OnBuilderItemChanged;
         if (e.NewItems != null) foreach (EditableChannel ec in e.NewItems) ec.PropertyChanged += OnBuilderItemChanged;
         if (!suppressBuilderDirty) BuilderDirty = true;
+        OnPropertyChanged(nameof(HasBuilderChannels));
     }
+
+    /// <summary>True when the builder holds any imported/edited rows — drives the mobile
+    /// "Imported channels" entry point.</summary>
+    public bool HasBuilderChannels => BuilderChannels.Count > 0;
     private void OnBuilderItemChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (!suppressBuilderDirty) BuilderDirty = true;
@@ -1299,20 +1304,49 @@ public sealed class MainViewModel : ViewModelBase
         else BuilderStatus = "Tap ⟳ Load from radio first, then tap a channel to switch.";
     }
 
-    /// <summary>Program a single memory slot from an imported channel card (drag-and-drop target).</summary>
-    public void ProgramSlot(int slotId, EditableChannel? ec)
+    /// <summary>Program a single memory slot from an imported channel card (drag-and-drop /
+    /// tap-to-place target). Returns true if the channel was written.</summary>
+    public bool ProgramSlot(int slotId, EditableChannel? ec)
     {
-        if (ec == null || slotId < 0) return;
-        if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return; }
+        if (ec == null || slotId < 0) return false;
+        if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return false; }
         var info = ec.ToRadioChannelInfo(slotId);
-        if (!FreqInRange(info.rx_freq) || !FreqInRange(info.tx_freq)) { BuilderStatus = $"Slot {slotId}: frequency out of range."; return; }
+        if (!FreqInRange(info.rx_freq) || !FreqInRange(info.tx_freq)) { BuilderStatus = $"Slot {slotId + 1}: frequency out of range."; return false; }
         if (HasBanks) controller.SetRegion(SelectedBank);
         controller.WriteChannel(info);
+        radioChannels[slotId] = info;   // keep the occupancy map current so the slot reads as used
         EnsureSlots();
         if (slotId < Slots.Count) { Slots[slotId].Name = info.name_str; Slots[slotId].RxMHz = info.rx_freq / 1_000_000.0; }
         string where = HasBanks ? $" in bank {SelectedBank}" : "";
         BuilderStatus = $"Programmed slot {slotId + 1}{where}: {info.name_str}";
         AppendLog($"Channel builder: programmed slot {slotId + 1}{where} -> {info.name_str}");
+        return true;
+    }
+
+    /// <summary>Place one imported channel into a chosen memory slot (the mobile equivalent of
+    /// dragging an imported card onto a slot): write it, then drop it from the import list.</summary>
+    public bool PlaceImported(int slotId, EditableChannel? ec)
+    {
+        if (ec == null || !ProgramSlot(slotId, ec)) return false;
+        BuilderChannels.Remove(ec);
+        return true;
+    }
+
+    /// <summary>Auto-place every imported channel into the next free memory slot, leaving the
+    /// radio's existing channels untouched. Returns the number placed.</summary>
+    public int PlaceAllInFreeSlots()
+    {
+        if (controller == null || !Connected) { BuilderStatus = "Connect to a radio first."; return 0; }
+        int placed = 0, next = 0;
+        foreach (var ec in BuilderChannels.ToArray())
+        {
+            while (next < channelCount && radioChannels.TryGetValue(next, out var c) && (c.rx_freq != 0 || c.tx_freq != 0)) next++;
+            if (next >= channelCount) { BuilderStatus = $"No free slots left — placed {placed}."; break; }
+            if (ProgramSlot(next, ec)) { BuilderChannels.Remove(ec); placed++; }
+            next++;
+        }
+        if (placed > 0) BuilderStatus = $"Placed {placed} channel(s) in free slots.";
+        return placed;
     }
 
     /// <summary>Copy the channels last read from the radio into the editable builder.</summary>
