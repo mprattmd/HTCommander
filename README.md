@@ -106,8 +106,10 @@ but await on-air / server / station verification:
 - **RepeaterBook search** — find repeaters from the online
   [RepeaterBook](https://www.repeaterbook.com) directory (amateur **and** GMRS) by
   state / county / city or by **proximity to your GPS fix**, and add them straight into the
-  channel builder. Needs a free per-user RepeaterBook API token (set it in Settings).
-  *Data courtesy of RepeaterBook.com.*
+  channel builder. Needs a free per-user RepeaterBook API token: sign in to your
+  RepeaterBook account, go to the [API Apps page](https://www.repeaterbook.com/user/api_apps.php),
+  and request an **app token for HTCommander** — it begins with **`rbuapp_`**. Paste that
+  full `rbuapp_…` string (Settings → RepeaterBook). *Data courtesy of RepeaterBook.com.*
 - **Contacts** / address book with connection setup (channel / path / AX.25 dest / auth).
 - **Winlink mail** — local SQLite store, six folders with unread counts, compose with
   **CC + attachments**, **reply / reply-all / forward**, **save as draft**, **move
