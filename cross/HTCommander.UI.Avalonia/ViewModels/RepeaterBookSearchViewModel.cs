@@ -69,8 +69,8 @@ public sealed class RepeaterBookSearchViewModel : ViewModelBase
     }
 
     public ObservableCollection<string> ServiceOptions { get; } = new() { "Amateur", "GMRS" };
-    public ObservableCollection<string> BandOptions { get; } = new() { "VHF + UHF", "VHF (2 m)", "UHF (70 cm)", "All bands" };
-    public ObservableCollection<string> ModeOptions { get; } = new() { "FM analog", "DMR", "Any" };
+    public ObservableCollection<string> BandOptions { get; } = new() { "VHF + UHF", "VHF (2 m)", "UHF (70 cm)" };
+    public ObservableCollection<string> ModeOptions { get; } = new() { "FM analog", "Any" };
 
     private string selectedService = "Amateur";
     public string SelectedService
@@ -186,7 +186,7 @@ public sealed class RepeaterBookSearchViewModel : ViewModelBase
 
     private bool InBand(RepeaterBookResult r)
     {
-        if (!IsAmateur || SelectedBand == "All bands") return true;
+        if (!IsAmateur) return true;
         double mhz = double.TryParse(r.Frequency, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : 0;
         bool vhf = mhz >= 144 && mhz <= 148;
         bool uhf = mhz >= 420 && mhz <= 450;

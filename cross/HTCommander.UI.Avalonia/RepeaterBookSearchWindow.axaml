@@ -49,6 +49,16 @@
             </StackPanel>
         </Grid>
 
+        <!-- Attribution (required by RepeaterBook API terms of use). Sits at the very bottom. -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="4" Margin="0,10,0,0">
+            <TextBlock Text="Data courtesy of" VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextMutedBrush}"/>
+            <Button x:Name="AttributionButton" Content="RepeaterBook.com" Padding="2,0"
+                    Background="Transparent" BorderThickness="0" Cursor="Hand"
+                    Foreground="{DynamicResource InfoBrush}"
+                    ToolTip.Tip="Open RepeaterBook.com"/>
+        </StackPanel>
+
         <!-- Action bar (bottom) -->
         <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,10,0,0">
             <Button Grid.Column="0" x:Name="SelectAllButton" Content="Select all" Margin="0,0,8,0"/>
