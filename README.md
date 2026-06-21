@@ -2,7 +2,7 @@
 
 > Native **Linux** and **macOS** builds of Handi-Talky Commander: control your Benshi / BTech
 > UV-Pro handheld radio over Bluetooth — live voice, APRS + map, packet, a **drag-and-drop
-> channel builder**, Winlink mail, and a BBS — without needing Windows.
+> channel builder** with **RepeaterBook search**, Winlink mail, and a BBS — without needing Windows.
 >
 > It's a cross-platform port (Avalonia / .NET 9) of
 > [Ylian Saint-Hilaire's HTCommander](https://github.com/Ylianst/HTCommander). All credit
@@ -12,6 +12,18 @@
 <p align="center">
   <img src="docs/images/screenshot.png" alt="HTCommander (Avalonia) connected to a UV-PRO" width="820">
 </p>
+
+## ✨ New in v0.6.0 — RepeaterBook search
+
+Program repeaters without leaving the app. Search the online
+[RepeaterBook](https://www.repeaterbook.com) directory — **amateur and GMRS** — by
+state / county / city or by **proximity to your GPS fix**, then add the results straight into
+the **channel builder** and write them to your radio. Works on desktop **and** Android.
+
+It needs a free per-user RepeaterBook API token: sign in to your RepeaterBook account, request
+an **app token for HTCommander** on the [API Apps page](https://www.repeaterbook.com/user/api_apps.php)
+(it begins with **`rbuapp_`**), and paste it into **Settings → RepeaterBook**.
+*Data courtesy of RepeaterBook.com.*
 
 ## ⬇ Download
 
@@ -103,13 +115,11 @@ but await on-air / server / station verification:
   power, scan → write that one channel), plus drag-and-drop slot programming, CSV import
   (CHIRP / RepeaterBook / native), CSV export, bank selector, load-all-banks, and
   write-to-radio.
-- **RepeaterBook search** — find repeaters from the online
+- **RepeaterBook search** *(new in v0.6.0)* — find repeaters from the online
   [RepeaterBook](https://www.repeaterbook.com) directory (amateur **and** GMRS) by
   state / county / city or by **proximity to your GPS fix**, and add them straight into the
-  channel builder. Needs a free per-user RepeaterBook API token: sign in to your
-  RepeaterBook account, go to the [API Apps page](https://www.repeaterbook.com/user/api_apps.php),
-  and request an **app token for HTCommander** — it begins with **`rbuapp_`**. Paste that
-  full `rbuapp_…` string (Settings → RepeaterBook). *Data courtesy of RepeaterBook.com.*
+  channel builder. Needs a free `rbuapp_` API token (see **New in v0.6.0** above).
+  *Data courtesy of RepeaterBook.com.*
 - **Contacts** / address book with connection setup (channel / path / AX.25 dest / auth).
 - **Winlink mail** — local SQLite store, six folders with unread counts, compose with
   **CC + attachments**, **reply / reply-all / forward**, **save as draft**, **move
