@@ -81,7 +81,6 @@ namespace HTCommander.Core.Radio
 
         private const string AmateurNorthAmerica = "https://www.repeaterbook.com/api/export.php";
         private const string AmateurRestOfWorld = "https://www.repeaterbook.com/api/exportROW.php";
-        private const string Gmrs = "https://www.repeaterbook.com/api/exportgmrs.php";
 
         private static readonly HashSet<string> NorthAmerica = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -101,6 +100,8 @@ namespace HTCommander.Core.Radio
             if (query == null) throw new ArgumentNullException(nameof(query));
             if (string.IsNullOrWhiteSpace(appToken))
                 throw new RepeaterBookException("No RepeaterBook API token — set one in Settings.");
+            appToken = appToken.Trim();   // paste often carries a trailing newline → auth_invalid;
+                                          // otherwise send verbatim — RB issues the token with its own prefix.
 
             string url = BuildUrl(query);
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
@@ -113,26 +114,90 @@ namespace HTCommander.Core.Radio
 
             using (resp)
             {
-                if (resp.StatusCode == (HttpStatusCode)429)
-                    throw new RepeaterBookException("RepeaterBook is rate-limiting — try again shortly.", rateLimited: true);
-                if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden)
-                    throw new RepeaterBookException("RepeaterBook rejected the API token — check it in Settings.");
                 if (!resp.IsSuccessStatusCode)
-                    throw new RepeaterBookException($"RepeaterBook returned HTTP {(int)resp.StatusCode}.");
+                {
+                    // RepeaterBook returns {"ok":false,"error_code":"...","message":"..."} — surface it so the
+                    // user can tell auth_invalid (bad token/format) from auth_inactive/auth_revoked (app state).
+                    string errBody = "";
+                    try { errBody = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false); } catch { /* best-effort */ }
+                    (string code, string detail) = ExtractError(errBody);
+                    string server = string.IsNullOrEmpty(code) ? "" :
+                        $" ({code}{(string.IsNullOrWhiteSpace(detail) ? "" : ": " + detail)})";
+
+                    if (resp.StatusCode == (HttpStatusCode)429)
+                        throw new RepeaterBookException($"RepeaterBook is rate-limiting — try again shortly.{server}", rateLimited: true);
+                    if (resp.StatusCode == HttpStatusCode.Unauthorized || resp.StatusCode == HttpStatusCode.Forbidden)
+                        throw new RepeaterBookException($"RepeaterBook rejected the API token{server} — check it in Settings.");
+                    throw new RepeaterBookException($"RepeaterBook returned HTTP {(int)resp.StatusCode}{server}.");
+                }
 
                 string body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return Parse(body);
             }
         }
 
+        /// <summary>Reads a JSON string property that the API may encode as a string, number, or bool.</summary>
+        private sealed class FlexStringConverter : JsonConverter<string>
+        {
+            public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                switch (reader.TokenType)
+                {
+                    case JsonTokenType.String: return reader.GetString();
+                    case JsonTokenType.Number:
+                        return reader.TryGetInt64(out long l)
+                            ? l.ToString(CultureInfo.InvariantCulture)
+                            : reader.GetDouble().ToString(CultureInfo.InvariantCulture);
+                    case JsonTokenType.True: return "true";
+                    case JsonTokenType.False: return "false";
+                    case JsonTokenType.Null: return null;
+                    default: reader.Skip(); return null;
+                }
+            }
+
+            public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+                => writer.WriteStringValue(value);
+        }
+
+        /// <summary>Pulls error_code / message out of a RepeaterBook error envelope; nulls if absent/unparseable.</summary>
+        private static (string code, string message) ExtractError(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return (null, null);
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                // Tolerate the API encoding these as a number/bool instead of a string
+                // (it's inconsistent — see FlexStringConverter) so a valid code isn't lost.
+                string code = root.TryGetProperty("error_code", out var c) ? JsonElementToString(c) : null;
+                string msg = root.TryGetProperty("message", out var m) ? JsonElementToString(m) : null;
+                return (code, msg);
+            }
+            catch { return (null, null); }
+        }
+
+        /// <summary>String value of a JSON element regardless of whether it's a string, number, or bool.</summary>
+        private static string JsonElementToString(JsonElement e)
+            => e.ValueKind == JsonValueKind.String ? e.GetString()
+             : e.ValueKind == JsonValueKind.Null || e.ValueKind == JsonValueKind.Undefined ? null
+             : e.GetRawText();
+
         public static RepeaterBookResult[] Parse(string body)
         {
             if (string.IsNullOrWhiteSpace(body)) return Array.Empty<RepeaterBookResult>();
+            // The API can prepend PHP warnings/HTML (e.g. "<br /><b>Warning</b>…") before the
+            // JSON object. Start at the first '{' so that leading noise doesn't break parsing.
+            int brace = body.IndexOf('{');
+            if (brace > 0) body = body.Substring(brace);
             var opts = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
                 NumberHandling = JsonNumberHandling.AllowReadingFromString,
             };
+            // RepeaterBook is inconsistent: a field that's a quoted string on one endpoint
+            // (amateur "Lat":"35.98") comes back as a bare number on another (GMRS "Lat":35.98).
+            // This converter lets every string property accept string/number/bool tokens alike.
+            opts.Converters.Add(new FlexStringConverter());
             try
             {
                 var parsed = JsonSerializer.Deserialize<RepeaterBookResponse>(body, opts);
@@ -146,9 +211,11 @@ namespace HTCommander.Core.Radio
 
         public static string BuildUrl(RepeaterBookQuery q)
         {
-            string baseUrl = q.Service == RepeaterBookService.Gmrs
-                ? Gmrs
-                : (IsNorthAmerica(q.Country) ? AmateurNorthAmerica : AmateurRestOfWorld);
+            // GMRS is now a parameter (stype=gmrs) on the North America export endpoint —
+            // the old exportgmrs.php is gone (404). GMRS is US-only, so always use export.php.
+            string baseUrl = (q.Service == RepeaterBookService.Gmrs || IsNorthAmerica(q.Country))
+                ? AmateurNorthAmerica
+                : AmateurRestOfWorld;
 
             var sb = new StringBuilder(baseUrl);
             char sep = '?';
@@ -159,8 +226,9 @@ namespace HTCommander.Core.Radio
                 sep = '&';
             }
 
+            if (q.Service == RepeaterBookService.Gmrs) Add("stype", "gmrs");
             Add("country", q.Country);
-            Add("state_id", q.State);
+            Add("state_id", ResolveStateId(q.State));   // RepeaterBook wants the numeric FIPS code, not the name
             Add("county", q.County);
             Add("city", q.City);
             Add("callsign", q.Callsign);
@@ -171,6 +239,54 @@ namespace HTCommander.Core.Radio
 
         private static bool IsNorthAmerica(string country)
             => string.IsNullOrWhiteSpace(country) || NorthAmerica.Contains(country.Trim());
+
+        /// <summary>
+        /// RepeaterBook's <c>state_id</c> is the numeric US-state FIPS code (e.g. Virginia = 51).
+        /// Accepts a full state name ("Tennessee") or 2-letter abbreviation ("TN") and returns the
+        /// code. A value that is already numeric, or any unrecognized text, is passed through
+        /// unchanged so non-US queries and direct IDs still work.
+        /// </summary>
+        public static string ResolveStateId(string state)
+        {
+            if (string.IsNullOrWhiteSpace(state)) return null;
+            string s = state.Trim();
+            if (s.Length > 0 && Array.TrueForAll(s.ToCharArray(), char.IsDigit)) return s;  // already an ID
+            return UsStateFips.TryGetValue(s, out string code) ? code : s;
+        }
+
+        // US state/territory FIPS codes, keyed by full name and 2-letter abbreviation (case-insensitive).
+        private static readonly Dictionary<string, string> UsStateFips = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Alabama"] = "01", ["AL"] = "01", ["Alaska"] = "02", ["AK"] = "02",
+            ["Arizona"] = "04", ["AZ"] = "04", ["Arkansas"] = "05", ["AR"] = "05",
+            ["California"] = "06", ["CA"] = "06", ["Colorado"] = "08", ["CO"] = "08",
+            ["Connecticut"] = "09", ["CT"] = "09", ["Delaware"] = "10", ["DE"] = "10",
+            ["District of Columbia"] = "11", ["DC"] = "11", ["Florida"] = "12", ["FL"] = "12",
+            ["Georgia"] = "13", ["GA"] = "13", ["Hawaii"] = "15", ["HI"] = "15",
+            ["Idaho"] = "16", ["ID"] = "16", ["Illinois"] = "17", ["IL"] = "17",
+            ["Indiana"] = "18", ["IN"] = "18", ["Iowa"] = "19", ["IA"] = "19",
+            ["Kansas"] = "20", ["KS"] = "20", ["Kentucky"] = "21", ["KY"] = "21",
+            ["Louisiana"] = "22", ["LA"] = "22", ["Maine"] = "23", ["ME"] = "23",
+            ["Maryland"] = "24", ["MD"] = "24", ["Massachusetts"] = "25", ["MA"] = "25",
+            ["Michigan"] = "26", ["MI"] = "26", ["Minnesota"] = "27", ["MN"] = "27",
+            ["Mississippi"] = "28", ["MS"] = "28", ["Missouri"] = "29", ["MO"] = "29",
+            ["Montana"] = "30", ["MT"] = "30", ["Nebraska"] = "31", ["NE"] = "31",
+            ["Nevada"] = "32", ["NV"] = "32", ["New Hampshire"] = "33", ["NH"] = "33",
+            ["New Jersey"] = "34", ["NJ"] = "34", ["New Mexico"] = "35", ["NM"] = "35",
+            ["New York"] = "36", ["NY"] = "36", ["North Carolina"] = "37", ["NC"] = "37",
+            ["North Dakota"] = "38", ["ND"] = "38", ["Ohio"] = "39", ["OH"] = "39",
+            ["Oklahoma"] = "40", ["OK"] = "40", ["Oregon"] = "41", ["OR"] = "41",
+            ["Pennsylvania"] = "42", ["PA"] = "42", ["Rhode Island"] = "44", ["RI"] = "44",
+            ["South Carolina"] = "45", ["SC"] = "45", ["South Dakota"] = "46", ["SD"] = "46",
+            ["Tennessee"] = "47", ["TN"] = "47", ["Texas"] = "48", ["TX"] = "48",
+            ["Utah"] = "49", ["UT"] = "49", ["Vermont"] = "50", ["VT"] = "50",
+            ["Virginia"] = "51", ["VA"] = "51", ["Washington"] = "53", ["WA"] = "53",
+            ["West Virginia"] = "54", ["WV"] = "54", ["Wisconsin"] = "55", ["WI"] = "55",
+            ["Wyoming"] = "56", ["WY"] = "56",
+            ["American Samoa"] = "60", ["AS"] = "60", ["Guam"] = "66", ["GU"] = "66",
+            ["Northern Mariana Islands"] = "69", ["MP"] = "69", ["Puerto Rico"] = "72", ["PR"] = "72",
+            ["Virgin Islands"] = "78", ["VI"] = "78",
+        };
 
         /// <summary>
         /// Maps a RepeaterBook row to a radio channel.
@@ -223,7 +339,7 @@ namespace HTCommander.Core.Radio
         private static int MHzToHz(string mhz)
         {
             if (string.IsNullOrWhiteSpace(mhz)) return 0;
-            return double.TryParse(mhz.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v)
+            return double.TryParse(mhz.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double v)
                 ? (int)Math.Round(v * 1_000_000) : 0;
         }
 
@@ -237,7 +353,7 @@ namespace HTCommander.Core.Radio
                 string digits = new string(Array.FindAll(pl.ToCharArray(), char.IsDigit));
                 return int.TryParse(digits, out int code) ? code : 0;
             }
-            return double.TryParse(pl, NumberStyles.Any, CultureInfo.InvariantCulture, out double hz)
+            return double.TryParse(pl, NumberStyles.Float, CultureInfo.InvariantCulture, out double hz)
                 ? (int)Math.Round(hz * 100) : 0;
         }
     }

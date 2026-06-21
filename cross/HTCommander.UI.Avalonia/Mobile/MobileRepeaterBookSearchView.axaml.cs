@@ -35,5 +35,7 @@ public partial class MobileRepeaterBookSearchView : UserControl
             _main?.AddRepeaterBookChannels(_search.GetSelectedChannels());
             this.FindAncestorOfType<MobileView>()?.Back();
         };
+        AttributionButton.Click += (_, _) =>
+            TopLevel.GetTopLevel(this)?.Launcher.LaunchUriAsync(new System.Uri("https://www.repeaterbook.com/"));
     }
 }

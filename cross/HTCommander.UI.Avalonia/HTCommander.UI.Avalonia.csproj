@@ -9,12 +9,9 @@
          switches to the plural multi-TFM form (then build with -f net10.0-android). -->
     <TargetFramework Condition="'$(BuildAndroid)' != 'true'">net9.0</TargetFramework>
     <TargetFrameworks Condition="'$(BuildAndroid)' == 'true'">net9.0;net10.0-android</TargetFrameworks>
-    <Version>0.5.5</Version>
+    <Version>0.6.0</Version>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <!-- Hide RepeaterBook entry points in public release builds (-p:RepeaterBookHidden=true);
-         the feature code stays compiled in. Default/dev builds show it. See FeatureFlags.cs. -->
-    <DefineConstants Condition="'$(RepeaterBookHidden)' == 'true'">$(DefineConstants);RB_HIDDEN</DefineConstants>
   </PropertyGroup>
 
   <!-- Desktop-only properties -->
@@ -28,8 +25,8 @@
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <ApplicationId>com.htcommander.app</ApplicationId>
-    <ApplicationVersion>7</ApplicationVersion>
-    <ApplicationDisplayVersion>0.5.5</ApplicationDisplayVersion>
+    <ApplicationVersion>8</ApplicationVersion>
+    <ApplicationDisplayVersion>0.6.0</ApplicationDisplayVersion>
   </PropertyGroup>
 
   <ItemGroup>

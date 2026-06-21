@@ -51,7 +51,13 @@ public sealed class RepeaterBookRow : ViewModelBase
 public sealed class RepeaterBookSearchViewModel : ViewModelBase
 {
     // Reuse one HttpClient for the dialog's lifetime (cheap, avoids socket churn).
-    private static readonly HttpClient Http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+    // Cap the response body (RepeaterBook exports are well under this) so a hostile/MITM
+    // endpoint can't stream an unbounded body and OOM the app — read past it throws.
+    private static readonly HttpClient Http = new HttpClient
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+        MaxResponseContentBufferSize = 16 * 1024 * 1024,
+    };
 
     private readonly string _token;
     private readonly double? _fixLat;
@@ -69,8 +75,8 @@ public sealed class RepeaterBookSearchViewModel : ViewModelBase
     }
 
     public ObservableCollection<string> ServiceOptions { get; } = new() { "Amateur", "GMRS" };
-    public ObservableCollection<string> BandOptions { get; } = new() { "VHF + UHF", "VHF (2 m)", "UHF (70 cm)", "All bands" };
-    public ObservableCollection<string> ModeOptions { get; } = new() { "FM analog", "DMR", "Any" };
+    public ObservableCollection<string> BandOptions { get; } = new() { "VHF + UHF", "VHF (2 m)", "UHF (70 cm)" };
+    public ObservableCollection<string> ModeOptions { get; } = new() { "FM analog", "Any" };
 
     private string selectedService = "Amateur";
     public string SelectedService
@@ -126,10 +132,10 @@ public sealed class RepeaterBookSearchViewModel : ViewModelBase
 
     public async Task SearchAsync()
     {
-        if (IsSearching) return;
+        if (IsSearching) return;   // the dialog only runs one search at a time
         if (!HasToken) { StatusText = "No RepeaterBook token — set one in Settings."; return; }
 
-        _cts?.Cancel();
+        _cts?.Dispose();
         _cts = new CancellationTokenSource();
         IsSearching = true;
         StatusText = "Searching RepeaterBook…";
@@ -162,7 +168,7 @@ public sealed class RepeaterBookSearchViewModel : ViewModelBase
             else if (rows.Count == 0) StatusText = $"{total} found, but none within the band/proximity filters.";
             else StatusText = $"{rows.Count} repeater(s)" + (rows.Count < total ? $" (filtered from {total})." : ".");
         }
-        catch (OperationCanceledException) { /* superseded by a newer search */ }
+        catch (OperationCanceledException) { StatusText = "RepeaterBook search timed out — try again."; }
         catch (RepeaterBookException ex) { StatusText = ex.Message; }
         catch (Exception ex) { StatusText = "Search failed: " + ex.Message; }
         finally { IsSearching = false; }
@@ -180,13 +186,12 @@ public sealed class RepeaterBookSearchViewModel : ViewModelBase
     private static string ModeParam(string display) => display switch
     {
         "FM analog" => "analog",
-        "DMR" => "DMR",
         _ => null,   // "Any"
     };
 
     private bool InBand(RepeaterBookResult r)
     {
-        if (!IsAmateur || SelectedBand == "All bands") return true;
+        if (!IsAmateur) return true;
         double mhz = double.TryParse(r.Frequency, NumberStyles.Any, CultureInfo.InvariantCulture, out double v) ? v : 0;
         bool vhf = mhz >= 144 && mhz <= 148;
         bool uhf = mhz >= 420 && mhz <= 450;

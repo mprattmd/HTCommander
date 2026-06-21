@@ -28,5 +28,7 @@ public partial class RepeaterBookSearchWindow : Window
         SelectNoneButton.Click += (_, _) => Vm?.SelectAll(false);
         CancelButton.Click += (_, _) => Close(false);
         AddButton.Click += (_, _) => Close(true);
+        AttributionButton.Click += (_, _) =>
+            TopLevel.GetTopLevel(this)?.Launcher.LaunchUriAsync(new System.Uri("https://www.repeaterbook.com/"));
     }
 }
