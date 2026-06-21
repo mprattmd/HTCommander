@@ -1169,9 +1169,12 @@
                         <StackPanel>
                             <TextBlock Text="RepeaterBook (repeater directory)" FontWeight="Bold" FontSize="16" Margin="0,12,0,0"/>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="API token"/>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0" Text="API token"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding SavedStatus}" Foreground="{DynamicResource GoodBrush}" FontWeight="Bold"/>
+                                </Grid>
                                 <TextBox HorizontalAlignment="Stretch" Text="{Binding RepeaterBookToken}" PasswordChar="•"
-                                         PlaceholderText="your approved RepeaterBook app token"/>
+                                         PlaceholderText="paste your rbuapp_… token"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Classes="Hint" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"
@@ -1179,7 +1182,7 @@
                                 <Button x:Name="RepeaterBookTokenHelpButton" Classes="Link" Padding="0" Content="Request a token"/>
                             </StackPanel>
                             <TextBlock Classes="Hint" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
-                                       Text="Used by the channel builder's &quot;Search RepeaterBook…&quot; to import repeaters. Sign in to your free RepeaterBook account and request a token for HTCommander on the API Apps page, then paste it here. Stored encrypted in your OS keychain."/>
+                                       Text="Used by the channel builder's &quot;Search RepeaterBook…&quot; to import repeaters. Sign in to your free RepeaterBook account and request an app token for HTCommander (it starts with rbuapp_) on the API Apps page, then paste it here. It saves automatically as you type — there is no Save button (watch for the ✓ Saved flash). Stored encrypted in your OS keychain."/>
                         </StackPanel>
 
                         <TextBlock Text="Settings persist to ~/.config/htcommander/ via JSON config."

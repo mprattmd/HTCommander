@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileImportedChannelsView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="14,12">
+
+    <TextBlock Grid.Row="0" Classes="mKey" TextWrapping="Wrap" Margin="2,0,2,8"
+               Text="{Binding BuilderChannels.Count, StringFormat='Imported ({0}). Tap a channel to choose its memory slot, or use Place all in free slots. The ✕ removes one.'}"/>
+
+    <!-- The imported/builder rows. Tap a row to choose its slot; ✕ removes it from the list. -->
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl x:Name="ImportedList" ItemsSource="{Binding BuilderChannels}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:EditableChannel">
+            <Button Classes="rowBtn">
+              <Grid ColumnDefinitions="*,Auto,Auto">
+                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                  <TextBlock Classes="mKey mMono" Text="{Binding RxMHzText, StringFormat='RX {0}'}"/>
+                  <TextBlock Classes="mKey mMono" Text="{Binding TxMHzText, StringFormat='TX {0}'}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0">
+                  <TextBlock Classes="mKey" Text="{Binding Mode}" HorizontalAlignment="Right"/>
+                  <TextBlock Classes="mKey mMono" Text="{Binding TxToneText, StringFormat='PL {0}'}" HorizontalAlignment="Right"/>
+                </StackPanel>
+                <Button Grid.Column="2" Classes="mGhost delBtn" Content="✕" VerticalAlignment="Center"
+                        Padding="12,0" MinHeight="36" ToolTip.Tip="Remove from the import list"/>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <StackPanel Grid.Row="2" Spacing="8" Margin="0,10,0,0">
+      <TextBlock Classes="mKey" Text="{Binding BuilderStatus}" TextWrapping="Wrap"/>
+      <Button x:Name="PlaceAllButton" Classes="mPri" Content="⬇ Place all in free slots"/>
+    </StackPanel>
+  </Grid>
+</UserControl>

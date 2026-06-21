@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileSlotPickerView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*" Margin="14,12">
+
+    <TextBlock x:Name="Header" Grid.Row="0" Classes="mKey" TextWrapping="Wrap" Margin="2,0,2,8"/>
+
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl x:Name="SlotList" ItemsSource="{Binding Slots}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ChannelSlot">
+            <!-- Tap a slot to write the channel into it. A name means the slot is already used. -->
+            <Button Classes="rowBtn">
+              <Grid ColumnDefinitions="48,*,Auto">
+                <Border Grid.Column="0" Width="44" Height="40" CornerRadius="10" VerticalAlignment="Center"
+                        Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}" BorderThickness="1">
+                  <TextBlock Text="{Binding Number}" FontFamily="{StaticResource MMono}" FontWeight="Bold"
+                             Foreground="{StaticResource MAccent}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Spacing="2">
+                  <TextBlock Text="{Binding Display}" FontWeight="SemiBold" FontFamily="{StaticResource MMono}"/>
+                  <TextBlock Text="{Binding FreqText, StringFormat='{}{0} MHz'}" FontSize="12.5"
+                             Foreground="{StaticResource MMut}" FontFamily="{StaticResource MMono}"/>
+                </StackPanel>
+                <Border Grid.Column="2" IsVisible="{Binding IsEmpty}" Background="#e2efe7" BorderBrush="#bcdcc8"
+                        BorderThickness="1" CornerRadius="6" Padding="6,1" VerticalAlignment="Center" Margin="0,0,8,0">
+                  <TextBlock Text="FREE" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource MGood}"/>
+                </Border>
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>
