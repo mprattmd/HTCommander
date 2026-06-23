@@ -184,7 +184,9 @@ public sealed class MacKeychainSecretStore : ISecretStore
     // ---- P/Invoke ------------------------------------------------------------
 
     [DllImport(CF)] private static extern void CFRelease(IntPtr cf);
-    [DllImport(CF)] private static extern IntPtr CFStringCreateWithCharacters(IntPtr alloc, char[] chars, nint numChars);
+    // UniChar is UTF-16; marshal char[] two-bytes-per-char (default CharSet.Ansi would
+    // pass one byte per char, so CFString reads ASCII as CJK + runs off the buffer).
+    [DllImport(CF, CharSet = CharSet.Unicode, ExactSpelling = true)] private static extern IntPtr CFStringCreateWithCharacters(IntPtr alloc, char[] chars, nint numChars);
     [DllImport(CF)] private static extern IntPtr CFDataCreate(IntPtr alloc, byte[] bytes, nint length);
     [DllImport(CF)] private static extern nint CFDataGetLength(IntPtr data);
     [DllImport(CF)] private static extern IntPtr CFDataGetBytePtr(IntPtr data);
