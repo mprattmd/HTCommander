@@ -107,15 +107,25 @@ jobs:
           [ -n "$SIGN_ID" ] || { echo "No Developer ID Application identity in the keychain"; exit 1; }
           echo "Signing with identity $SIGN_ID"
           # The .NET self-contained layout puts the whole payload in Contents/MacOS, and
-          # codesign treats EVERY file there as code that must be signed — not just Mach-O.
-          # Drop debug symbols first (they break sealing and shouldn't ship)…
+          # codesign --verify --strict (and notarization) treats EVERY file there as nested
+          # code that must be signed — not just the Mach-O dylibs. Drop debug symbols first
+          # (they break sealing and shouldn't ship)…
           find "$APP" -name '*.pdb' -delete
-          # …sign every nested file except the apphost (managed .dll, .json, dylibs, createdump)…
+          # …sign every nested file except the apphost. Managed .dll/.json aren't Mach-O, so
+          # codesign stores their signature detached in com.apple.cs.* xattrs; clear our own
+          # prior ones first so re-signing can't fail with "Operation not permitted". Keep
+          # this in sync with mac/sign-and-notarize.sh.
           find "$APP/Contents/MacOS" -type f ! -name "$EXE" -print0 \
-            | xargs -0 codesign --force --options runtime --timestamp --entitlements "$ENT" --sign "$SIGN_ID"
-          # …then the bundle itself (signs the apphost and seals the rest).
+            | while IFS= read -r -d '' f; do
+                for a in CodeDirectory CodeRequirements CodeSignature; do
+                  xattr -d "com.apple.cs.$a" "$f" 2>/dev/null || true
+                done
+                printf '%s\0' "$f"
+              done \
+            | xargs -0 codesign --force --options runtime --timestamp --sign "$SIGN_ID"
+          # …then the bundle itself (signs the apphost with entitlements and seals the rest).
           codesign --force --options runtime --timestamp --entitlements "$ENT" --sign "$SIGN_ID" "$APP"
-          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign --verify --strict --verbose=2 "$APP"
 
       - name: Notarize + staple
         if: ${{ env.HAS_SIGNING == 'true' }}
