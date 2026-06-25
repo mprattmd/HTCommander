@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 using System;
+using System.Collections.Generic;
 using CoreBluetooth;
 using Foundation;
 using HTCommander.Core.Abstractions;
@@ -62,6 +63,10 @@ public sealed class IosRadioTransport : IRadioTransport
     // GAIA message must fit within this; larger TNC/packet payloads are split by the radio
     // into numbered fragments (reassembled in Core), so the transport never reassembles.
     private nuint notifyCap;
+    // Reassembly buffer for a message split across BLE notifications. A notification filled to
+    // the ATT MTU implies the message continues; a sub-MTU notification completes it. All CB
+    // callbacks arrive on one serial queue, so no lock is needed.
+    private readonly List<byte> rxAssembly = new();
 
     public IosRadioTransport(string address, ILogger? logger, Action<string>? onDisconnected)
     {
@@ -203,14 +208,33 @@ public sealed class IosRadioTransport : IRadioTransport
         if (e.Error != null) { Debug("notify error: " + e.Error.LocalizedDescription); return; }
         var data = e.Characteristic.Value;
         if (data == null || data.Length == 0) return;
-        // Truncation guard: a notification filling the whole ATT_MTU is a red flag that a
-        // single GAIA message was clipped to fit (it should never reach the cap, since the
-        // radio fragments large payloads itself). Log it so an MTU problem is diagnosable.
-        if (notifyCap > 0 && data.Length >= notifyCap)
-            Debug($"WARNING: notification hit MTU cap ({data.Length}B) — possible truncated GAIA message.");
-        // One notification = one complete GAIA message body (group+cmd+payload). Deliver
-        // verbatim — RadioController parses byte 0..1 = group, 2..3 = command.
-        ReceivedData?.Invoke(this, null!, data.ToArray());
+        byte[] bytes = data.ToArray();
+
+        // BLE notifications carry no length prefix, so a message larger than the ATT MTU is
+        // split across notifications: every full-MTU chunk means "more follows", and the first
+        // sub-MTU chunk ends the message. Reassemble before handing a complete GAIA message
+        // (group+cmd+payload) to RadioController. Normal traffic is far below the MTU, so a lone
+        // sub-MTU notification with an empty buffer is delivered as-is (the common case).
+        if (notifyCap > 0 && (nuint)bytes.Length >= notifyCap)
+        {
+            rxAssembly.AddRange(bytes);
+            Debug($"RX fragment {bytes.Length}B at MTU cap — buffering ({rxAssembly.Count}B so far).");
+            return;
+        }
+
+        byte[] message;
+        if (rxAssembly.Count > 0)
+        {
+            rxAssembly.AddRange(bytes);
+            message = rxAssembly.ToArray();
+            Debug($"RX reassembled {message.Length}B from a multi-notification message.");
+            rxAssembly.Clear();
+        }
+        else
+        {
+            message = bytes;
+        }
+        ReceivedData?.Invoke(this, null!, message);
     }
 
     public void EnqueueWrite(int expectedResponse, byte[] cmdData)
@@ -253,6 +277,7 @@ public sealed class IosRadioTransport : IRadioTransport
         writeChar = null;
         indicateChar = null;
         connectedRaised = false;
+        rxAssembly.Clear();   // drop any half-assembled frame so it can't leak into a new session
         central = null;
     }
 }
