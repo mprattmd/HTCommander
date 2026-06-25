@@ -63,7 +63,29 @@ open HTCommander.app
 
 **[HTCommander-android.apk](https://github.com/mprattmd/HTCommander/releases/latest/download/HTCommander-android.apk)** — a phone-first build (bottom-nav UI: Radio · Channels · APRS · Mail · Map). Pair the radio in **Settings → Bluetooth** first, then sideload the APK (enable "Install unknown apps" for your browser/file manager) and allow the **Nearby devices** permission on launch.
 
-> Round-one Android scope is **data only** (APRS, packet, Winlink mail, channels) — no voice/PTT yet. iOS isn't possible (Apple blocks Classic-Bluetooth RFCOMM to non-MFi radios).
+> Round-one Android scope is **data only** (APRS, packet, Winlink mail, channels) — no voice/PTT yet.
+
+### iOS / iPadOS (data-only beta — TestFlight)
+
+A BLE build for iPhone & iPad. The radio speaks the **same protocol over Bluetooth LE** as
+it does over Classic Bluetooth, and iOS *does* allow third-party apps to use BLE — so, unlike
+Classic Bluetooth, **no MFi certification is needed.** (Join the beta via TestFlight; link on
+the [releases page](https://github.com/mprattmd/HTCommander/releases).)
+
+> ⚠️ **Connect through the app — NOT iOS Settings → Bluetooth.**
+> In **Settings → Bluetooth**, the radio appears as a *Classic* device and iOS shows
+> **"\<radio\> is not supported"**. That message is **expected and harmless** — iOS blocks
+> non-MFi *Classic* Bluetooth, and HTCommander doesn't use that path. **Do not pair the radio
+> there.** Instead:
+>
+> 1. Open **HTCommander** and tap **Allow** on the Bluetooth permission prompt (first launch).
+> 2. Power on the radio, go to the **Radio** tab, tap **Refresh**, then **Connect** — the app
+>    finds the radio over **BLE** on its own.
+> 3. If you already tapped the radio in Settings → Bluetooth, choose **Forget This Device**
+>    (it never connects there, and it does not affect the app).
+
+> iOS scope matches Android: **data only** (APRS, packet, Winlink mail, channels) — no
+> voice/PTT, since iOS has no access to the radio's Classic-Bluetooth audio channel.
 
 ### 🔊 PortAudio (audio library)
 

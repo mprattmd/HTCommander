@@ -319,3 +319,6 @@ store-assets/
 
 # macOS Finder metadata
 .DS_Store
+
+# Throwaway iOS signing bootstrap project
+/htcommander/

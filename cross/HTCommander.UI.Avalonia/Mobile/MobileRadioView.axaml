@@ -27,6 +27,29 @@
         </StackPanel>
       </Border>
 
+      <!-- Radio image with on-screen status overlay (mirrors the desktop HUD): the radio's
+           current channel number + name, and TX/RX state, drawn over the radio's screen. -->
+      <Border Classes="mCard" Padding="8">
+        <Grid Width="180" Height="340" HorizontalAlignment="Center">
+          <Image Source="/Assets/Radio.png" Stretch="Uniform"/>
+          <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,96,0,0"
+                  Width="112" Height="70" Padding="6,4" CornerRadius="3"
+                  Background="#B0091505" IsVisible="{Binding HasStatus}">
+            <StackPanel Spacing="1" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                <TextBlock Foreground="#86F29A" FontFamily="monospace" FontWeight="Bold" FontSize="12"
+                           Text="{Binding ChannelId, Converter={StaticResource PlusOne}, StringFormat='CH {0}'}"/>
+                <TextBlock Foreground="#86F29A" FontFamily="monospace" FontWeight="Bold" FontSize="12"
+                           Text="{Binding CurrentChannelName}" IsVisible="{Binding HasCurrentChannelName}"
+                           TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+              <TextBlock Text="{Binding TxRxState}" Foreground="#86F29A" FontFamily="monospace"
+                         FontSize="10" HorizontalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+
       <!-- Mode explainer: always describes the current mode (Packet / Voice / Digital) in
            plain language. Neutral for Packet (normal data mode); amber when packet is blocked. -->
       <Border IsVisible="{Binding IsPacketMode}" Background="{StaticResource MTint}" BorderBrush="{StaticResource MTintLine}"
