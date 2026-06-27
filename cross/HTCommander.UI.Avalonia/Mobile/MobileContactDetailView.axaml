@@ -25,16 +25,25 @@
           <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AprsRoute"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
         </ComboBox>
         <TextBox Classes="mInput" Text="{Binding EditAprsRoute}" Watermark="e.g. WIDE1-1,WIDE2-2"/>
+        <TextBlock Classes="mKey" TextWrapping="Wrap" Foreground="{StaticResource MMut}"
+                   Text="Optional. APRS messages already send from the APRS page on the APRS channel set on the Station page — you only need an APRS contact to save a station's name and a custom digipeater path."/>
       </StackPanel>
 
       <!-- Winlink / BBS / Terminal contacts: AX.25 connect (channel + destination + wait). -->
       <StackPanel Spacing="6" IsVisible="{Binding ShowConnectContactFields}">
         <TextBlock Classes="mKey" Text="CONNECT ON CHANNEL"/>
-        <ComboBox Classes="mInput" ItemsSource="{Binding ChannelNames}" SelectedItem="{Binding EditChannel}"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding ChannelPickerItems}"
+                  SelectedValueBinding="{Binding Name}" SelectedValue="{Binding EditChannel}">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChannelPickerItem"><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock Classes="mKey" TextWrapping="Wrap" Foreground="{StaticResource MMut}"
+                   Text="Memory channel to reach this station for connected modes (Winlink/BBS/Terminal). Your APRS channel is NOT set here — it's on the Station page → APRS."/>
       </StackPanel>
       <StackPanel Spacing="6" IsVisible="{Binding ShowConnectContactFields}">
-        <TextBlock Classes="mKey" Text="AX.25 DESTINATION"/>
-        <TextBox Classes="mInput" Text="{Binding EditAx25Destination}" Watermark="callsign-SSID"/>
+        <TextBlock Classes="mKey" Text="CONNECT TO (CALLSIGN-SSID)"/>
+        <TextBox Classes="mInput" Text="{Binding EditAx25Destination}" Watermark="e.g. KE4AXW-10"/>
+        <TextBlock Classes="mKey" TextWrapping="Wrap" Foreground="{StaticResource MMut}"
+                   Text="The exact callsign-SSID to connect to over the air (for a Winlink RMS gateway, its station call like KE4AXW-10). The Callsign above is just this contact's label."/>
       </StackPanel>
       <!-- Per-contact password = APRS message signing only (see AprsAuth). Shown for APRS contacts. -->
       <StackPanel Spacing="6" IsVisible="{Binding ShowContactAuthPassword}">

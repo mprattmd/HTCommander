@@ -9,7 +9,7 @@
         <Image Source="/Assets/Radio2.png" Height="46" VerticalAlignment="Center"/>
         <StackPanel VerticalAlignment="Center" Spacing="1">
           <TextBlock Text="HTCommander" FontWeight="Bold" FontSize="20"/>
-          <TextBlock Text="Android port by Mark Pratt, KE4AXW" Foreground="{StaticResource MMut}"/>
+          <TextBlock Text="Cross-platform port by Mark Pratt (KE4AXW)" Foreground="{StaticResource MMut}"/>
           <TextBlock x:Name="VersionText" Foreground="{StaticResource MMut}" FontFamily="{StaticResource MMono}" FontSize="12.5"/>
         </StackPanel>
       </StackPanel>

@@ -47,9 +47,11 @@
                 <!-- Winlink / BBS / Terminal contacts: AX.25 connect (channel + destination + wait). -->
                 <StackPanel Spacing="6" IsVisible="{Binding ShowConnectContactFields}">
                     <TextBlock Text="Connect on channel" Margin="0,6,0,0"/>
-                    <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding ChannelNames}"
-                              SelectedItem="{Binding EditChannel}"
-                              ToolTip.Tip="Memory channel to reach this station for connected modes (Winlink/BBS/Terminal). Your APRS channel is NOT set here — it's on the Station tab → APRS."/>
+                    <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding ChannelPickerItems}"
+                              SelectedValueBinding="{Binding Name}" SelectedValue="{Binding EditChannel}"
+                              ToolTip.Tip="Memory channel to reach this station for connected modes (Winlink/BBS/Terminal). Your APRS channel is NOT set here — it's on the Station tab → APRS.">
+                        <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChannelPickerItem"><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
+                    </ComboBox>
                     <TextBlock Classes="Hint" TextWrapping="Wrap"
                                Text="Memory channel to reach this station in connected modes (e.g. a Winlink RMS gateway). The APRS channel is set on the Station tab, not per-contact."/>
                     <TextBlock Text="AX.25 destination"/>
