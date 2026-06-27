@@ -24,12 +24,15 @@ using HTCommander.Core.Abstractions;
 using HTCommander.Core.Abstractions.Audio;
 using HTCommander.UI.Avalonia.Platform;
 using HTCommander.UI.Avalonia.ViewModels;
-#if !ANDROID
+#if !ANDROID && !IOS
 using HTCommander.Platform.Linux;
 using HTCommander.Platform.Linux.Audio;
 #endif
 #if ANDROID
 using HTCommander.Platform.Android;
+#endif
+#if IOS
+using HTCommander.Platform.iOS;
 #endif
 
 namespace HTCommander.UI.Avalonia;
@@ -56,6 +59,14 @@ public partial class App : Application
         IAudioDeviceEnumerator audioDevices = new AndroidAudioDeviceEnumerator();
         IRadioPlatform radioPlatform = new AndroidRadioPlatform();
         ISecretStore secretStore = new AndroidSecretStore();   // AES-GCM via the hardware-backed AndroidKeyStore
+#elif IOS
+        // iOS backends: BLE/GATT radio transport (Core Bluetooth), JSON config in the
+        // app sandbox, iOS Keychain for secrets, and no audio (voice rides Classic
+        // RFCOMM, which iOS does not expose — iOS is a control + data client).
+        IConfigStore configStore = new IosConfigStore();
+        IAudioDeviceEnumerator audioDevices = new IosAudioDeviceEnumerator();
+        IRadioPlatform radioPlatform = new IosRadioPlatform();
+        ISecretStore secretStore = new IosSecretStore("HTCommander");
 #else
         // Desktop: JSON config + PortAudio; radio transport is macOS IOBluetooth or Linux BlueZ.
         IConfigStore configStore = new JsonConfigStore("HTCommander");
@@ -87,14 +98,14 @@ public partial class App : Application
             baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
         DataBroker.AddDataHandler("MailStore", new SqliteMailStore(Path.Combine(baseDir, "HTCommander")));
 
-#if !ANDROID
-        // Desktop-only: serial GPS (no Android backend yet).
+#if !ANDROID && !IOS
+        // Desktop-only: serial GPS (no Android/iOS backend yet).
         DataBroker.AddDataHandler("GpsSerialHandler", new HTCommander.Gps.GpsSerialHandler());
 #endif
 
         var viewModel = new MainViewModel(dispatcher, audioDevices, radioPlatform);
 
-#if ANDROID
+#if ANDROID || IOS
         viewModel.RadioMode = "Packet";   // mobile is data-only (Packet); no Voice/Digital switch
         if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
             singleView.MainView = new Mobile.MobileView { DataContext = viewModel };

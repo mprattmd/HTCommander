@@ -1,6 +1,7 @@
 ﻿// Desktop entry point only. The Android head launches via MainActivity
-// (AvaloniaMainActivity<App>), so this classic-desktop bootstrap is excluded there.
-#if !ANDROID
+// (AvaloniaMainActivity<App>) and the iOS head via AppDelegate
+// (AvaloniaAppDelegate<App>), so this classic-desktop bootstrap is excluded on both.
+#if !ANDROID && !IOS
 using Avalonia;
 using System;
 

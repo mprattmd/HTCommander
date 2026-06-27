@@ -6,9 +6,11 @@
          with just the .NET 9 SDK — and `dotnet publish` works WITHOUT -f (a plural
          TargetFrameworks, even with one value, is treated as cross-targeting and breaks
          publish with NETSDK1129). Opt into the Android head with -p:BuildAndroid=true, which
-         switches to the plural multi-TFM form (then build with -f net10.0-android). -->
-    <TargetFramework Condition="'$(BuildAndroid)' != 'true'">net9.0</TargetFramework>
+         switches to the plural multi-TFM form (then build with -f net10.0-android). The iOS
+         head is the same opt-in shape: -p:BuildIos=true (then build with -f net10.0-ios). -->
+    <TargetFramework Condition="'$(BuildAndroid)' != 'true' And '$(BuildIos)' != 'true'">net9.0</TargetFramework>
     <TargetFrameworks Condition="'$(BuildAndroid)' == 'true'">net9.0;net10.0-android</TargetFrameworks>
+    <TargetFrameworks Condition="'$(BuildIos)' == 'true'">net9.0;net10.0-ios</TargetFrameworks>
     <Version>0.6.2</Version>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -27,6 +29,25 @@
     <ApplicationId>com.htcommander.app</ApplicationId>
     <ApplicationVersion>10</ApplicationVersion>
     <ApplicationDisplayVersion>0.6.2</ApplicationDisplayVersion>
+  </PropertyGroup>
+
+  <!-- iOS-only properties. Info.plist (NSBluetoothAlwaysUsageDescription, app icon,
+       encryption flag) lives beside this project; the bundle id matches the Android head. -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-ios'">
+    <OutputType>Exe</OutputType>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ApplicationId>com.htcommander.app</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.6.2</ApplicationDisplayVersion>
+  </PropertyGroup>
+
+  <!-- iOS Release = TestFlight/App Store: produce a signed .ipa under bin/Release/.../publish.
+       Build the device slice and archive on build, so `dotnet publish -c Release` is enough
+       (still pass the distribution -p:CodesignKey / -p:CodesignProvision, or use Xcode-managed
+       signing). -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-ios' And '$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
+    <ArchiveOnBuild>true</ArchiveOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -62,6 +83,21 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
   </ItemGroup>
 
+  <!-- iOS app-icon asset catalog (actool compiles it → Assets.car + CFBundleIcons). Must be
+       included explicitly as ImageAsset; the iOS SDK does not auto-glob it here. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-ios'">
+    <ImageAsset Include="Assets.xcassets/**/*.png" />
+    <ImageAsset Include="Assets.xcassets/**/*.json" />
+  </ItemGroup>
+
+  <!-- iOS-only packages -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-ios'">
+    <PackageReference Include="Avalonia.iOS" Version="12.0.4" />
+    <!-- Bundles SQLitePCLRaw's iOS native build so SqliteMailStore (in Core) has its
+         engine on-device, same reasoning as the Android head. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+  </ItemGroup>
+
   <!-- Shared project reference -->
   <ItemGroup>
     <ProjectReference Include="..\HTCommander.Core\HTCommander.Core.csproj" />
@@ -76,5 +112,11 @@
   <!-- Android platform backend (RFCOMM over Android.Bluetooth, file config, audio stub) -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
     <ProjectReference Include="..\HTCommander.Platform.Android\HTCommander.Platform.Android.csproj" />
+  </ItemGroup>
+
+  <!-- iOS platform backend (Core Bluetooth BLE/GATT transport, Keychain secrets, JSON
+       config, audio stub) + the iOS Info.plist with the Bluetooth usage strings. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-ios'">
+    <ProjectReference Include="..\HTCommander.Platform.iOS\HTCommander.Platform.iOS.csproj" />
   </ItemGroup>
 </Project>

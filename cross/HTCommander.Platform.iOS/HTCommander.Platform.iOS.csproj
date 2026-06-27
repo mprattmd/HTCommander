@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HTCommander.Core\HTCommander.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- iOS head. CoreBluetooth ships in the iOS SDK, so the only dependency is Core.
+         The radio speaks GAIA over BLE GATT here (service 00001100-d102-…), NOT the
+         Bluetooth-Classic RFCOMM used on desktop/Android — iOS gives third-party apps
+         no RFCOMM access, but Core Bluetooth reaches the radio's BLE command interface. -->
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 'annotations' matches HTCommander.Core / the other Platform.* projects. -->
+    <Nullable>annotations</Nullable>
+  </PropertyGroup>
+
+</Project>

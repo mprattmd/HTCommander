@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>HTCommander</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.htcommander.app</string>
+	<key>CFBundleName</key>
+	<string>HTCommander</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.6.2</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>MinimumOSVersion</key>
+	<string>15.0</string>
+	<key>UIDeviceFamily</key>
+	<array>
+		<integer>1</integer>
+		<integer>2</integer>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+		<!-- The app's whole purpose is talking to the radio over BLE. -->
+		<string>bluetooth-le</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- REQUIRED for any Core Bluetooth use on iOS 13+. Without this key the app is
+	     killed the instant it touches CBCentralManager. -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>HTCommander connects to your handheld radio over Bluetooth to tune channels and send APRS and packet messages.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>HTCommander connects to your handheld radio over Bluetooth.</string>
+	<!-- App icon asset catalog (Assets.xcassets/AppIcon.appiconset). -->
+	<key>XSAppIconAssets</key>
+	<string>Assets.xcassets/AppIcon.appiconset</string>
+	<!-- No non-exempt encryption — skips the export-compliance question on every
+	     TestFlight/App Store upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>
