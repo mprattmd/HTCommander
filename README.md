@@ -57,6 +57,10 @@ open HTCommander.app
 
 ### iOS / iPadOS (data-only beta — TestFlight)
 
+<p align="center">
+  <img src="docs/appstore-screenshots/iphone69-radio.png" alt="HTCommander on iPhone — Radio tab" width="260">
+</p>
+
 A BLE build for iPhone & iPad. The radio speaks the **same protocol over Bluetooth LE** as
 it does over Classic Bluetooth, and iOS *does* allow third-party apps to use BLE — so, unlike
 Classic Bluetooth, **no MFi certification is needed.** (Join the beta via TestFlight; link on
