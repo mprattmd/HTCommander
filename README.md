@@ -1,8 +1,9 @@
-# 📻 Handi-Talky Commander — Linux & macOS
+# 📻 Handi-Talky Commander — Linux, macOS, Android & iOS
 
-> Native **Linux** and **macOS** builds of Handi-Talky Commander: control your Benshi / BTech
-> UV-Pro handheld radio over Bluetooth — live voice, APRS + map, packet, a **drag-and-drop
-> channel builder** with **RepeaterBook search**, Winlink mail, and a BBS — without needing Windows.
+> Native **Linux**, **macOS**, **Android**, and **iOS** builds of Handi-Talky Commander:
+> control your Benshi / BTech UV-Pro handheld radio over Bluetooth — live voice (desktop),
+> APRS + map, packet, a **drag-and-drop channel builder** with **RepeaterBook search**,
+> Winlink mail, and a BBS — without needing Windows.
 >
 > It's a cross-platform port (Avalonia / .NET 9) of
 > [Ylian Saint-Hilaire's HTCommander](https://github.com/Ylianst/HTCommander). All credit
@@ -13,29 +14,10 @@
   <img src="docs/images/screenshot.png" alt="HTCommander (Avalonia) connected to a UV-PRO" width="820">
 </p>
 
-## ✨ New in v0.6.0 — RepeaterBook search
-
-Program repeaters without leaving the app. Search the online
-[RepeaterBook](https://www.repeaterbook.com) directory — **amateur and GMRS** — by
-state / county / city or by **proximity to your GPS fix**, then add the results straight into
-the **channel builder** and write them to your radio. Works on desktop **and** Android.
-
-It needs a free per-user RepeaterBook API token: sign in to your RepeaterBook account, request
-an **app token for HTCommander** on the [API Apps page](https://www.repeaterbook.com/user/api_apps.php)
-(it begins with **`rbuapp_`**), and paste it into **Settings → RepeaterBook**.
-*Data courtesy of RepeaterBook.com.*
-
-**On Android** the flow is touch-first:
-
-1. **Settings → RepeaterBook** — paste your `rbuapp_…` token. It **saves automatically** as you
-   type (there is no Save button — you'll see a brief **✓ Saved**), stored in the Android Keystore.
-2. **Channels → 🔎 Search RepeaterBook** — search, tick the repeaters you want, tap **Add selected
-   to builder**. That opens the **Imported channels** list (also reachable any time via the
-   **📋 Imported channels** button, and the same list CSV imports use).
-3. From the Imported list, either **tap a repeater and pick the memory slot** it should go into —
-   the slot picker shows which slots are already used and which are **FREE** — or tap **⬇ Place all
-   in free slots** to drop them into empty slots **without overwriting** your existing channels.
-   Each placement writes to the radio immediately.
+> **Latest release: v0.6.2.** The download links below always fetch the newest build —
+> see the [releases page](https://github.com/mprattmd/HTCommander/releases) for the full
+> changelog. Setup walkthrough (station → transmit → APRS → Winlink) is in
+> **[Getting started](#-getting-started)** below.
 
 ## ⬇ Download
 
@@ -48,15 +30,23 @@ chmod +x HTCommander-x86_64.AppImage
 ./HTCommander-x86_64.AppImage
 ```
 
-### macOS (Apple Silicon)
+### macOS
 
-**[HTCommander-macos-arm64.zip](https://github.com/mprattmd/HTCommander/releases/latest/download/HTCommander-macos-arm64.zip)** — a self-contained `HTCommander.app` (bundles the .NET runtime, the IOBluetooth bridge, PortAudio, SQLite, Skia). The app is **signed with a Developer ID and notarized by Apple**, so it just opens — no quarantine workaround needed. Unzip, then:
+A self-contained `HTCommander.app` (bundles the .NET runtime, the IOBluetooth bridge,
+PortAudio, SQLite, Skia). The app is **signed with a Developer ID and notarized by Apple**,
+so it just opens — no quarantine workaround needed.
+
+- **Apple Silicon (M-series):** **[HTCommander-macos-arm64.zip](https://github.com/mprattmd/HTCommander/releases/latest/download/HTCommander-macos-arm64.zip)**
+- **Intel:** **[HTCommander-macos-x64.zip](https://github.com/mprattmd/HTCommander/releases/latest/download/HTCommander-macos-x64.zip)**
+
+Unzip, then:
 
 ```bash
 open HTCommander.app
 ```
 
-> Apple Silicon (M-series) only for now. Pair the radio in **System Settings → Bluetooth**
+> macOS 11+. If you're unsure which build you need, click  → **About This Mac**:
+> *Apple M…* → arm64, *Intel* → x64. Pair the radio in **System Settings → Bluetooth**
 > first. macOS will prompt for **Bluetooth** (and **Microphone**, for voice PTT) permission.
 
 ### Android (phone, data-only beta)
@@ -110,139 +100,127 @@ Benshi-protocol radios, connected over **Bluetooth**:
 
 ---
 
-## What works today
+## 🚀 Getting started
 
-The Linux and macOS app today (tracked in [docs/PARITY.md](docs/PARITY.md)). Items marked
-**(needs RF)** / **(needs CMS)** / **(needs peer)** are implemented and offline-tested
-but await on-air / server / station verification:
+Work through these in order — each step builds on the last. Steps 1–3 are required for
+any transmit; step 4 adds APRS; step 5 adds Winlink mail over the radio.
 
-> ⚠️ **Packet on the Benshi UV-PRO:** the radio's **"Digital mode" must be OFF** to use
-> the app/TNC (KISS) path — that's Winlink, BBS, and the App-TNC APRS beacon. Digital mode
-> is only for the radio's **built-in** beacon and disables the TNC; the two are mutually
-> exclusive.
+### 1. Pair and connect the radio
 
-- **Bluetooth connect** (BlueZ, raw RFCOMM/SDP) — verified on UV-PRO.
-- **Radio status** — battery, channel, RSSI, region, GPS-lock telemetry.
-- **Live voice RX/TX** over Bluetooth audio (SBC): open the link with **🎙 Go on air**
-  on the Voice tab, then **press-and-hold PTT**, with mic gain/AGC and speaker volume.
-  Transmit is gated on your callsign + Allow-Transmit.
-- **APRS** — receive + decode + station list; **send messages** with a global
-  **routes** manager and a destination picker; a **per-packet decode detail** view;
-  a **"create APRS channel"** helper; and a **fixed/manual position** (beacon without GPS).
-- **APRS beaconing — one selector, two methods** (mutually exclusive):
-  - **Radio's built-in beacon** — writes the Beacon/Ident (BSS) settings and points the
-    radio's own beacon at your **APRS channel** (`auto_share_loc_ch`), so it beacons there
-    regardless of the tuned channel. **Needs "Digital mode" ON** on the radio.
-  - **App beacon via the TNC** — *Beacon now* / *Auto-beacon* builds a position report and
-    sends it on your APRS channel through the radio's hardware TNC (uses your fixed/GPS
-    position + symbol + comment). **Needs "Digital mode" OFF** on the radio.
-- **Map** (OpenStreetMap) — station markers, **per-callsign track polylines**, a
-  last-N-minutes **time filter**, large/small marker toggle, a **radio + serial GPS
-  marker**, and **center-to-GPS**.
-- **GPS** — radio position details (lat/lon/alt/speed/heading) + **request fresh
-  position**; **serial NMEA GPS source** config (port/baud) that also pushes position
-  to the radio *(a live fix needs GPS hardware on the air)*.
-- **Terminal** — connectionless UI-frame send **and connected-mode AX.25 sessions**
-  (connect panel: protocol / station / channel) *(a session needs a peer)*.
-- **Packet capture** — live list, decode detail, **CSV export** and **load capture**.
-- **Channel builder** — **click a memory tile to edit it** (name, RX/TX, CTCSS, mode,
-  power, scan → write that one channel), plus drag-and-drop slot programming, CSV import
-  (CHIRP / RepeaterBook / native), CSV export, bank selector, load-all-banks, and
-  write-to-radio.
-- **RepeaterBook search** *(new in v0.6.0)* — find repeaters from the online
-  [RepeaterBook](https://www.repeaterbook.com) directory (amateur **and** GMRS) by
-  state / county / city or by **proximity to your GPS fix**, and add them straight into the
-  channel builder. Needs a free `rbuapp_` API token (see **New in v0.6.0** above).
-  *Data courtesy of RepeaterBook.com.*
-- **Contacts** / address book with connection setup (channel / path / AX.25 dest / auth).
-- **Winlink mail** — local SQLite store, six folders with unread counts, compose with
-  **CC + attachments**, **reply / reply-all / forward**, **save as draft**, **move
-  between folders**, **backup / restore**, and a session/traffic log. Sync over the
-  **internet** *(needs a reachable CMS)* or **over the radio** to a Winlink station
-  *(needs an RMS gateway)*.
-- **BBS host** — connected-mode AX.25 mail drop on the current channel *(needs a
-  station to connect over the air)*.
-- **DSP / audio extras** — a scrolling **FFT waterfall** of the RX audio (Modem tab),
-  a **soft-modem** (AFSK1200 / PSK / G3RUH) fed the RX audio with decoded frames routed
-  to Packets *(demod needs RF to verify)*, **WAV record/playback**, an **audio clips**
-  recorder, and **Morse / DTMF** with local preview **and on-air transmit** (keys the
-  radio through the open voice link — ~15 WPM / 500 Hz Morse).
-- **Station identity & settings** — callsign, Station ID, Allow-Transmit, Winlink
-  password, plus audio devices / mic gain / volume.
-- **AppImage packaging** + GitHub releases.
+1. **Pair the radio once in your OS Bluetooth settings** — power it on, make it
+   discoverable, and pair. (On **iOS**, *skip* this and connect from inside the app — see
+   the iOS note under Download.) You only pair once.
+2. Launch HTCommander, choose your radio in the **Radio** dropdown (top bar), and click
+   **Connect**. The Radio panel then shows battery, channel, and live status.
 
-## Install
+> **Connect trouble?** A key/bonding error usually means a stale pairing — remove it in
+> your OS Bluetooth settings and pair again. If the app can't find the radio's data
+> channel, toggle the radio's Bluetooth off and on.
 
-### Option A — AppImage (recommended, no install)
+### 2. Set up your station
 
-A single self-contained file — it bundles the .NET runtime and native libraries
-(PortAudio, SQLite, Skia). Nothing to install.
+Open the **Station** tab and fill in your identity — this is used by voice, APRS,
+Winlink, and the BBS:
 
-```bash
-# Download the latest from the Releases page, then:
-chmod +x HTCommander-x86_64.AppImage
-./HTCommander-x86_64.AppImage
-```
+- **Callsign** — your amateur call (required to transmit).
+- **Station ID (SSID)** — the suffix that identifies *this* station (e.g. `-7` for a
+  handheld). Optional but recommended.
+- **Winlink password** — only if you'll use Winlink mail. Set it once here; every
+  Winlink/BBS connection reuses it (there's no per-contact password).
 
-To integrate it into your app menu, drop it in `~/Applications` (or use a tool like
-Gear Lever / AppImageLauncher).
+Settings are saved automatically to `~/.config/HTCommander`.
 
-### Option B — self-contained folder
+### 3. Enable transmit
 
-```bash
-dotnet publish cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj \
-  -c Release -r linux-x64 --self-contained true -o out/
-./out/HTCommander.UI.Avalonia
-```
+Still on the **Station** tab, turn on **Allow transmit**. Transmit stays disabled until
+you have **both a callsign and Allow transmit on** — the app will not key the radio
+otherwise.
 
-### Prerequisites
+> 📡 **A licence is required to transmit.** Voice PTT is always press-and-hold, and the
+> app never keys the radio on its own. See [Transmitting & safety](#transmitting--safety).
 
-- **Bluetooth** with BlueZ (standard on modern Linux). Pair the radio in your desktop's
-  Bluetooth settings **first**, then launch HTCommander.
-- **Audio**: PipeWire, PulseAudio, or ALSA (PipeWire on Fedora 40+ works well).
-- Nothing else for the AppImage; the self-contained folder also needs no system .NET.
+### 4. Define your APRS channel
 
-## Getting started
+APRS messaging and the app's beacon both transmit on **one** memory channel you
+designate — set this up before sending any APRS:
 
-1. **Pair** the radio once in your OS Bluetooth settings (power it on, make it
-   discoverable, pair). You only do this once.
-2. Launch HTCommander, pick your radio in the **Radio** dropdown (top bar), and click
-   **Connect**. The radio panel shows battery + live status; the log shows BlueZ/GAIA traffic.
-3. Open the **Station** tab and set your **callsign**, **Station ID**, and (to transmit)
-   flip **Allow-Transmit** on. For Winlink, set your **Winlink password** here too.
-4. If you'll do APRS/Winlink/BBS, hit **Channels → Load all banks** so every memory
-   channel is known, and pick your **APRS channel** in the APRS setup.
+1. If your APRS frequency isn't already a memory channel, go to the **APRS** tab and click
+   **Create APRS channel** to add one (commonly 144.390 MHz in North America).
+2. On the **Station** tab, pick that channel in the **APRS channel** dropdown. If it lives
+   in another memory bank and isn't listed, run **Channels → Load all banks** first so it
+   appears.
+3. (Optional) Set your **beacon method** on the Station tab:
+   - **App (TNC)** — the app sends your position through the radio's data TNC. Works
+     alongside Winlink/BBS/APRS messages. **Radio "Digital mode" must be OFF.**
+   - **Radio (built-in)** — the radio beacons on its own, but needs **Digital mode ON**,
+     which **disables the TNC** (Winlink, BBS, and APRS messages stop). The two are
+     mutually exclusive.
 
-> If connecting fails with a key/bonding error, remove the pairing in your OS and
-> re-pair — a stale bond is the usual cause. If it can't find the radio's data channel,
-> toggle the radio's Bluetooth off/on.
+You can now send/receive APRS messages from the **APRS** tab and see stations on the **Map**.
 
-## Using the app — tab by tab
+> ⚠️ **Packet (Winlink / BBS / app APRS beacon) needs the radio's "Digital mode" OFF.**
+> Digital mode is only for the radio's built-in beacon and turns the TNC off.
+
+### 5. Add a Winlink contact (to use Winlink mail)
+
+Winlink-over-radio connects to an **RMS gateway** station. The gateway is stored as a
+contact, *not* on the Station tab:
+
+1. Make sure your **Winlink password** is set (step 2).
+2. Go to **Contacts → add a contact** and choose type **Winlink**.
+3. Fill in:
+   - **AX.25 destination** — the gateway's exact call-SSID to connect to over the air,
+     e.g. `KE4AXW-10`. *(The Callsign field above is just a label; the connection uses
+     this destination.)*
+   - **Connect on channel** — the memory channel the gateway operates on. (Leave blank to
+     use whatever you're currently tuned to.)
+4. On the **Station** tab, choose this contact under **Winlink station for radio sync**.
+5. On the **Mail** tab, compose a message into the **Outbox**, then **Sync (radio)** to
+   connect to the gateway and exchange mail. (**Sync (internet)** works too if you have a
+   reachable CMS — no radio needed.)
+
+Find gateways near you in the [Winlink RMS map](https://www.winlink.org/RMSChannels).
+Mail is stored locally at `~/.config/HTCommander/mail.db`.
+
+### 6. (Optional) Program channels from RepeaterBook
+
+The channel builder can search the online [RepeaterBook](https://www.repeaterbook.com)
+directory (amateur **and** GMRS) and add repeaters straight to your radio. It needs a free
+per-user API token:
+
+1. Sign in to your free [RepeaterBook](https://www.repeaterbook.com) account and request
+   an **app token for HTCommander** on the
+   [API Apps page](https://www.repeaterbook.com/user/api_apps.php) — it begins with
+   **`rbuapp_`**.
+2. Paste it into **Settings → RepeaterBook**. It **saves automatically** as you type
+   (no Save button — watch for the **✓ Saved** flash), stored encrypted in your OS keychain.
+3. On **Channels**, use **🔎 Search RepeaterBook** — search by state / county / city or by
+   **proximity to your GPS fix**, tick the repeaters you want, and add them. On the desktop
+   you can drag them onto memory slots; on Android, pick a slot (or **Place all in free
+   slots**) and each placement writes to the radio. *Data courtesy of RepeaterBook.com.*
+
+## Tab reference
 
 - **Radio** — live status (battery, channel, RSSI, region, GPS) + raw transport log.
-- **Station** — identity (callsign / Station ID / Winlink password), **Allow-Transmit**,
-  the **APRS channel** picker, and the **beacon method** selector (Off / Radio built-in /
-  App-TNC) with on-screen guidance on what each needs.
-- **Channels** — **click a memory tile to edit that channel** (name, RX/TX, CTCSS, mode,
-  power, scan → write it). Also: drag-and-drop programming, **Import/Export CSV**
-  (CHIRP / RepeaterBook / native), **Load all banks**, and **⬆ Write ALL to radio**
-  (bulk write after a CSV import) with an **unsaved-changes** flag.
-- **Contacts** — APRS/Winlink/terminal address book; this is where a contact's **channel**
-  and AX.25/connection settings live (incl. the Winlink RMS station to sync with).
-- **APRS** — send/receive messages with a routes manager + destination picker; a fixed
-  or GPS position; and the beacon controls.
-- **Map** — OpenStreetMap with station markers, per-callsign tracks, time filter, radio +
+- **Station** — identity (callsign / Station ID / Winlink password), **Allow transmit**,
+  the **APRS channel** picker, the **Winlink station** picker, and the **beacon method**
+  selector with on-screen guidance.
+- **Channels** — click a memory tile to edit it (name, RX/TX, CTCSS, mode, power, scan →
+  write it), drag-and-drop programming, **Import/Export CSV** (CHIRP / RepeaterBook /
+  native), **Load all banks**, **Search RepeaterBook**, and **Write ALL to radio**.
+- **Contacts** — APRS/Winlink/terminal address book; where a contact's connect channel and
+  AX.25 destination live (including the Winlink RMS gateway).
+- **APRS** — send/receive messages with a routes manager + destination picker, a fixed or
+  GPS position, **Create APRS channel**, and beacon controls.
+- **Map** — OpenStreetMap with station markers, per-callsign tracks, a time filter, radio +
   serial GPS markers, and **aprs.fi** internet lookups (paste a free key in Settings).
-- **Mail** — Winlink mailboxes; compose → Outbox → **Sync (internet)** or **Sync (radio)**
-  to an RMS gateway. Stored at `~/.config/HTCommander/mail.db`.
-- **Terminal / Packets / BBS** — connectionless + connected-mode AX.25, a live frame
-  list with decode detail, and a connected-mode BBS host.
-- **Voice / Modem / Clips** — PTT voice, the FFT waterfall + soft-modem, and WAV/clip tools.
-- **Settings** — audio devices, mic gain, output volume, GPS serial source, and the
-  **aprs.fi API key**.
-
-> ⚠️ **Packet (Winlink / BBS / App-TNC beacon) needs the radio's "Digital mode" OFF.**
-> Digital mode is only for the radio's built-in beacon and disables the TNC.
+- **Mail** — Winlink mailboxes; compose → Outbox → **Sync (internet)** or **Sync (radio)**.
+- **Terminal / Packets / BBS** — connectionless + connected-mode AX.25, a live frame list
+  with decode detail, and a connected-mode BBS host.
+- **Voice / Modem / Clips** — press-and-hold PTT voice, the FFT waterfall + soft-modem, and
+  WAV/clip tools.
+- **Settings** — audio devices, mic gain, output volume, GPS serial source, the **aprs.fi
+  API key**, and the **RepeaterBook API token**.
 
 ## Transmitting & safety
 
@@ -288,21 +266,6 @@ HTBT_DEBUG=1 /Applications/HTCommander.app/Contents/MacOS/HTCommander.UI.Avaloni
 # Linux
 HTBT_DEBUG=1 ./HTCommander-x86_64.AppImage
 ```
-
-## Coming next
-
-See [docs/ROADMAP.md](docs/ROADMAP.md). Phases 0–4 (identity, APRS, mail, terminal,
-GPS/map) are in the app; the next work is on-air verification of the **(needs RF/CMS/peer)**
-items above and the longer-haul features below.
-
-> **Partially done** (usable, with caveats): the **soft-modem** decode (AFSK1200/PSK/G3RUH
-> — wired, demod unverified on RF), and **audio clips** (record/name/play/delete;
-> transmit-clip pending). **Morse / DTMF** now transmit on the air (preview + send).
->
-> **Not yet ported / planned later:** text-to-speech and speech-to-text, SSTV
-> send/receive, AGWPE server, YAPP & torrent file transfer, web server, ADS-B / dump1090,
-> self-update, and detached tabs. These exist in the original Windows app but are **not
-> available** in the Linux/macOS build today.
 
 ---
 

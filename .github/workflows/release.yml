@@ -51,8 +51,15 @@ jobs:
           gh release upload "$TAG" HTCommander-x86_64.AppImage --clobber --repo "$GITHUB_REPOSITORY"
 
   macos-app:
-    name: macOS .app (Apple Silicon)
-    runs-on: macos-latest          # macos-latest is Apple Silicon (arm64)
+    name: macOS .app (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false             # one arch failing shouldn't kill the other
+      matrix:
+        include:
+          # macos-latest is Apple Silicon (arm64); macos-13 is the last Intel (x86_64) runner.
+          - { runner: macos-latest, rid: osx-arm64, label: Apple Silicon, asset: HTCommander-macos-arm64.zip }
+          - { runner: macos-13,     rid: osx-x64,   label: Intel,         asset: HTCommander-macos-x64.zip }
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,7 +75,7 @@ jobs:
         run: brew install portaudio
 
       - name: Build .app
-        run: ./mac/build-app.sh osx-arm64      # builds libhtbt (swiftc) + publishes + bundles
+        run: ./mac/build-app.sh ${{ matrix.rid }}   # builds libhtbt (swiftc) + publishes + bundles
 
       # ---- Codesign + notarize (only when the Apple Developer ID secrets are set) ----
       - name: Import signing certificate
@@ -141,10 +148,10 @@ jobs:
           xcrun stapler validate dist/mac/HTCommander.app
 
       - name: Zip the bundle
-        run: ditto -c -k --keepParent dist/mac/HTCommander.app HTCommander-macos-arm64.zip
+        run: ditto -c -k --keepParent dist/mac/HTCommander.app ${{ matrix.asset }}
 
       - name: Attach to the release
         run: |
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
             || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes || true
-          gh release upload "$TAG" HTCommander-macos-arm64.zip --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$TAG" ${{ matrix.asset }} --clobber --repo "$GITHUB_REPOSITORY"
