@@ -13,6 +13,8 @@
       <StackPanel Spacing="6">
         <TextBlock Classes="mKey" Text="STATION ID (SSID)"/>
         <ComboBox Classes="mInput" ItemsSource="{Binding StationIdOptions}" SelectedItem="{Binding MyStationId}"/>
+        <TextBlock Classes="mKey" TextWrapping="Wrap" Foreground="{StaticResource MMut}"
+                   Text="A number 0–15 that distinguishes your stations under one callsign (e.g. -7 for a handheld). Leave at 0 if unsure."/>
       </StackPanel>
       <StackPanel Spacing="6">
         <TextBlock Classes="mKey" Text="WINLINK PASSWORD"/>
@@ -32,7 +34,10 @@
       <TextBlock Classes="mSection" Text="APRS" Margin="2,8,0,8"/>
       <StackPanel Spacing="6">
         <TextBlock Classes="mKey" Text="APRS CHANNEL (FOR MESSAGES + BEACON)"/>
-        <ComboBox Classes="mInput" ItemsSource="{Binding ChannelNames}" SelectedItem="{Binding AprsChannelName}"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding ChannelPickerItems}"
+                  SelectedValueBinding="{Binding Name}" SelectedValue="{Binding AprsChannelName}">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChannelPickerItem"><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
       </StackPanel>
 
       <TextBlock Classes="mSection" Text="GPS POSITION" Margin="2,8,0,8"/>
@@ -63,8 +68,11 @@
         <ComboBox Classes="mInput" ItemsSource="{Binding BeaconModes}" SelectedItem="{Binding BeaconMode}"/>
       </StackPanel>
       <Border Classes="mCard">
-        <TextBlock Classes="mKey" TextWrapping="Wrap"
-                   Text="App (TNC): the app sends your position via the radio's data TNC — works alongside Winlink / BBS / APRS messages (radio Digital mode OFF). Radio (built-in): the radio beacons on its own, but needs Digital mode ON, which DISABLES the TNC (Winlink/BBS/messages stop)."/>
+        <StackPanel Spacing="8">
+          <TextBlock TextWrapping="Wrap"><Run FontWeight="SemiBold" Text="App (TNC) — recommended. "/><Run Text="The app sends your position through the radio's data TNC on your APRS channel. Works alongside Winlink, BBS and APRS messages (keep the radio's Digital mode OFF)."/></TextBlock>
+          <TextBlock TextWrapping="Wrap"><Run FontWeight="SemiBold" Text="Radio (built-in). "/><Run Text="The radio beacons on its own — but it needs Digital mode ON, which DISABLES the data TNC, so Winlink, BBS and APRS messages stop until you turn it OFF again."/></TextBlock>
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource MMut}" Text="Only one method beacons at a time, so you never double-transmit."/>
+        </StackPanel>
       </Border>
 
       <!-- Shared beacon details -->

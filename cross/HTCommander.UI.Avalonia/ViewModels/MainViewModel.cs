@@ -70,7 +70,17 @@ public sealed class MainViewModel : ViewModelBase
 
     // Contacts (address book) — Core StationInfoClass, persisted via DataBroker "Stations".
     public ObservableCollection<StationInfoClass> Contacts { get; } = new();
-    public Array StationTypeOptions { get; } = Enum.GetValues(typeof(StationInfoClass.StationTypes));
+    // Only the types the cross-platform app actually implements. Torrent and AGWPE exist in
+    // the Core enum but their features (file-block transfer, the AGWPE TCP server) were never
+    // ported from WinForms, so offering them here would just create dead contacts.
+    public Array StationTypeOptions { get; } = new[]
+    {
+        StationInfoClass.StationTypes.Generic,
+        StationInfoClass.StationTypes.APRS,
+        StationInfoClass.StationTypes.Terminal,
+        StationInfoClass.StationTypes.BBS,
+        StationInfoClass.StationTypes.Winlink,
+    };
     private bool loadingContacts;
 
     /// <summary>Settings sub-view-model (bound by the Settings tab).</summary>
@@ -176,12 +186,18 @@ public sealed class MainViewModel : ViewModelBase
     private string status = "Disconnected";
     public string Status { get => status; private set => SetField(ref status, value); }
 
-    // Shown as a prominent "please wait" banner while the radio's banks/channels are being
-    // read after connect (a multi-bank sweep can take a while). Driven by LoadAllBanks.
+    // A multi-bank channel sweep is running (after connect, or a manual Load all banks). Drives
+    // the inline progress on desktop and the banner on mobile. SyncOverlayVisible is gated behind
+    // a short delay so a quick sweep (e.g. a single-bank radio) never flashes the UI.
     private bool isSyncing;
     public bool IsSyncing { get => isSyncing; private set => SetField(ref isSyncing, value); }
+    private bool syncOverlayVisible;
+    public bool SyncOverlayVisible { get => syncOverlayVisible; private set => SetField(ref syncOverlayVisible, value); }
     private string syncMessage = "";
     public string SyncMessage { get => syncMessage; private set => SetField(ref syncMessage, value); }
+    // 0..1 fraction of banks read, for a determinate progress bar.
+    private double syncProgress;
+    public double SyncProgress { get => syncProgress; private set => SetField(ref syncProgress, value); }
 
     private bool bluetoothAvailable;
     public bool BluetoothAvailable { get => bluetoothAvailable; private set => SetField(ref bluetoothAvailable, value); }
@@ -432,6 +448,24 @@ public sealed class MainViewModel : ViewModelBase
     private string terminalChannel = "";
     public string TerminalChannel { get => terminalChannel; set => SetField(ref terminalChannel, value); }
 
+    /// <summary>Saved connected-mode contacts (Terminal/BBS/Winlink), for the Terminal connect picker.</summary>
+    public ObservableCollection<StationInfoClass> TerminalStations { get; } = new();
+    private StationInfoClass? selectedTerminalStation;
+    /// <summary>Picking a saved contact fills the connect target and channel.</summary>
+    public StationInfoClass? SelectedTerminalStation
+    {
+        get => selectedTerminalStation;
+        set
+        {
+            if (!SetField(ref selectedTerminalStation, value) || value == null) return;
+            // Connect to the AX.25 destination when set (a BBS/RMS gateway's real call, e.g.
+            // KE4AXW-10); the contact's Callsign is just its address-book label. Fall back to it.
+            TerminalConnectTo = !string.IsNullOrWhiteSpace(value.AX25Destination)
+                ? value.AX25Destination : (value.Callsign ?? "");
+            if (!string.IsNullOrWhiteSpace(value.Channel)) TerminalChannel = value.Channel;
+        }
+    }
+
     private bool sessionConnected;
     public bool SessionConnected
     {
@@ -491,18 +525,31 @@ public sealed class MainViewModel : ViewModelBase
         try { s.Disconnect(); } catch (Exception) { }
     }
 
-    // Lock the session's TX to a chosen channel. AX25Session.EmitPacket reads this
-    // from the store via GetValue, so it must be stored (store:true). A blank
-    // selection stores a cleared lock (ChannelId -1 → EmitPacket falls back to the
-    // current channel).
+    // Lock the radio to the chosen channel for the whole session via the controller's
+    // real session lock (RadioController.OnSetLock): it switches the radio to the
+    // target region+channel ONCE and holds it there, then restores on unlock — and it
+    // also stores a "LockState" that AX25Session.EmitPacket reads for the TX channel.
+    //
+    // Dispatching "LockState" directly (as before) only stored that value and never set
+    // the controller's lock, so SendPacket saw isLocked=false and re-switched+restored
+    // the channel on every burst — the radio appeared to keep changing group/channel
+    // mid-session. A blank pick locks to the current channel (ChannelId -1).
     private void ApplyTerminalChannelLock()
     {
         var ch = string.IsNullOrWhiteSpace(TerminalChannel) ? null : Channels.FirstOrDefault(c => c.Name == TerminalChannel);
-        var lockState = ch == null
-            ? new RadioLockState { IsLocked = false, ChannelId = -1, RegionId = -1 }
-            : new RadioLockState { IsLocked = true, ChannelId = ch.ChannelId, RegionId = Region };
-        DataBroker.Dispatch(BbsRadioDeviceId, "LockState", lockState, store: true);
+        // If a channel was named but isn't among the loaded channels, the lock falls back to the
+        // current channel — tell the operator so a wrong-channel connect isn't a silent mystery.
+        if (!string.IsNullOrWhiteSpace(TerminalChannel) && ch == null)
+            AddTerminalLine($"* Channel '{TerminalChannel}' not found — using the current channel. Try Channels → Load all banks.");
+        DataBroker.Dispatch(BbsRadioDeviceId, "SetLock",
+            new SetLockData { Usage = "Terminal", RegionId = Region, ChannelId = ch?.ChannelId ?? -1 },
+            store: false);
     }
+
+    // Release the session lock so the radio returns to the operator's prior region+channel.
+    // Safe to call unconditionally: OnSetUnlock no-ops if not locked or held by someone else.
+    private void ReleaseTerminalChannelLock() =>
+        DataBroker.Dispatch(BbsRadioDeviceId, "SetUnlock", new SetUnlockData { Usage = "Terminal" }, store: false);
 
     private void OnSessionStateChanged(AX25Session sender, AX25Session.ConnectionState state)
     {
@@ -530,6 +577,7 @@ public sealed class MainViewModel : ViewModelBase
         var s = terminalSession;
         terminalSession = null;
         SessionConnected = false;
+        ReleaseTerminalChannelLock();   // restore the operator's region+channel after the session
         if (s != null)
         {
             s.StateChanged -= OnSessionStateChanged;
@@ -686,14 +734,36 @@ public sealed class MainViewModel : ViewModelBase
     private string editChannel = "";
     public string EditChannel { get => editChannel; set => SetField(ref editChannel, value); }
     private string editAprsRoute = "";
-    public string EditAprsRoute { get => editAprsRoute; set => SetField(ref editAprsRoute, value); }
+    public string EditAprsRoute
+    {
+        get => editAprsRoute;
+        set
+        {
+            if (!SetField(ref editAprsRoute, value)) return;
+            // Typing (or loading) a path that doesn't match the picked preset clears the
+            // dropdown, so it never shows a route that contradicts the text box. Skipped when
+            // the change came FROM the picker — that path is deliberately in sync.
+            if (!settingRouteFromPicker && selectedContactRoute != null && selectedContactRoute.Path != value)
+            {
+                selectedContactRoute = null;
+                OnPropertyChanged(nameof(SelectedContactRoute));
+            }
+        }
+    }
 
     // Picking one of the saved APRS routes (Station tab) fills the contact's path.
+    private bool settingRouteFromPicker;
     private AprsRoute? selectedContactRoute;
     public AprsRoute? SelectedContactRoute
     {
         get => selectedContactRoute;
-        set { if (SetField(ref selectedContactRoute, value) && value != null) EditAprsRoute = value.Path; }
+        set
+        {
+            if (!SetField(ref selectedContactRoute, value) || value == null) return;
+            settingRouteFromPicker = true;
+            EditAprsRoute = value.Path;
+            settingRouteFromPicker = false;
+        }
     }
     private string editAx25Destination = "";
     public string EditAx25Destination { get => editAx25Destination; set => SetField(ref editAx25Destination, value); }
@@ -704,6 +774,21 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>Channel names from the radio, for the contact's "Channel" dropdown.</summary>
     public ObservableCollection<string> ChannelNames { get; } = new();
+
+    /// <summary>
+    /// Same channel list as <see cref="ChannelNames"/> but each entry also carries its frequency
+    /// for display ("APRS · 144.3900 MHz"). The channel pickers bind their ItemsSource here and
+    /// keep SelectedValue bound to the plain name, so the stored value is still just the name while
+    /// the operator sees the frequency — important when bank names repeat or collide.
+    /// </summary>
+    public ObservableCollection<ChannelPickerItem> ChannelPickerItems { get; } = new();
+
+    private void AddChannelPickerItem(string name, double rxMHz)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        for (int i = 0; i < ChannelPickerItems.Count; i++) if (ChannelPickerItems[i].Name == name) return;
+        ChannelPickerItems.Add(new ChannelPickerItem(name, rxMHz));
+    }
 
     private void LoadContacts()
     {
@@ -727,6 +812,15 @@ public sealed class MainViewModel : ViewModelBase
         foreach (var s in list.Where(s => s.StationType == StationInfoClass.StationTypes.Winlink))
             WinlinkStations.Add(s);
         SelectedSyncStation = WinlinkStations.FirstOrDefault(s => s.Callsign == keep) ?? WinlinkStations.FirstOrDefault();
+
+        // Any connected-mode contact (Terminal/BBS/Winlink) can be reached from the Terminal
+        // tab's keyboard session — they're all just AX.25 stations you connect to — so list them
+        // all in its picker. (A BBS or RMS gateway is a perfectly valid Terminal target.)
+        TerminalStations.Clear();
+        foreach (var s in list.Where(s => s.StationType == StationInfoClass.StationTypes.Terminal
+                                          || s.StationType == StationInfoClass.StationTypes.BBS
+                                          || s.StationType == StationInfoClass.StationTypes.Winlink))
+            TerminalStations.Add(s);
     }
 
     private void SaveContacts()
@@ -741,7 +835,14 @@ public sealed class MainViewModel : ViewModelBase
         string call = (EditCallsign ?? "").Trim().ToUpperInvariant();
         if (call.Length == 0) { AppendLog("Contact needs a callsign."); return; }
 
-        var existing = Contacts.FirstOrDefault(c => string.Equals(c.Callsign, call, StringComparison.OrdinalIgnoreCase));
+        // Editing a highlighted contact updates that exact entry (by reference). For a brand-new
+        // contact, match an existing one by callsign AND type — a station can be both a Winlink
+        // gateway and a Terminal/packet node under the same callsign, so those are distinct
+        // contacts and must not overwrite each other. (The previous callsign-only match made a
+        // new Terminal contact clobber the Winlink contact of the same callsign.)
+        var existing = SelectedContact
+            ?? Contacts.FirstOrDefault(c => string.Equals(c.Callsign, call, StringComparison.OrdinalIgnoreCase)
+                                            && c.StationType == EditType);
         var station = existing ?? new StationInfoClass();
         station.Callsign = call;
         station.Name = EditName ?? "";
@@ -1099,7 +1200,10 @@ public sealed class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasCurrentChannelName));
         foreach (var ch in Channels)
             if (!string.IsNullOrWhiteSpace(ch.Name) && !ChannelNames.Contains(ch.Name))
+            {
                 ChannelNames.Add(ch.Name);
+                AddChannelPickerItem(ch.Name, ch.RxMHz);
+            }
         // A channel read may have just established (or cleared) the APRS channel location.
         RefreshAprsChannelState();
     }
@@ -1116,7 +1220,8 @@ public sealed class MainViewModel : ViewModelBase
     private void ClearChannelNames()
     {
         ChannelNames.Clear();
-        if (!string.IsNullOrWhiteSpace(aprsChannelName)) ChannelNames.Add(aprsChannelName);
+        ChannelPickerItems.Clear();
+        if (!string.IsNullOrWhiteSpace(aprsChannelName)) { ChannelNames.Add(aprsChannelName); AddChannelPickerItem(aprsChannelName, 0); }
     }
 
     // ---- Channel builder ---------------------------------------------------
@@ -1216,8 +1321,12 @@ public sealed class MainViewModel : ViewModelBase
         ClearChannelNames();   // reset before sweeping so the picker rebuilds from the radio's current banks (drops stale names)
         int start = SelectedBank;
         int banks = RegionCount;
-        IsSyncing = true;      // show the "please wait" banner until every bank has been read
-        SyncMessage = $"⏳ Syncing channels — reading {banks} banks, please wait…";
+        IsSyncing = true;
+        SyncProgress = 0;
+        SyncMessage = $"Reading your channels — bank 1 of {banks}…";
+        // Only surface the overlay if the sweep is still going after a beat, so fast reads on
+        // few-bank radios don't flash a "please wait" at the operator the instant they connect.
+        _ = Task.Run(async () => { try { await Task.Delay(900); } catch (Exception) { } dispatcher.Post(() => { if (sweepingBanks) SyncOverlayVisible = true; }); });
         logger?.Debug($"LoadAllBanks: sweep start, IsSyncing=true ({banks} banks)");
         Task.Run(async () =>
         {
@@ -1231,7 +1340,8 @@ public sealed class MainViewModel : ViewModelBase
                     dispatcher.Post(() =>
                     {
                         BuilderStatus = $"Reading bank {shown} of {banks - 1}…";
-                        SyncMessage = $"Syncing channels — reading bank {shown + 1} of {banks}, please wait…";
+                        SyncMessage = $"Reading your channels — bank {shown + 1} of {banks}…";
+                        SyncProgress = (shown + 1) / (double)banks;
                     });
                     await DrainBankReplies();          // wait for THIS bank's replies before the next SetRegion
                 }
@@ -1242,7 +1352,7 @@ public sealed class MainViewModel : ViewModelBase
                 dispatcher.Post(() => BuilderStatus = $"Loaded all {banks} banks — the channel picker now lists every bank.");
             }
             catch (Exception ex) { dispatcher.Post(() => BuilderStatus = "Load all banks failed: " + ex.Message); }
-            finally { dispatcher.Post(() => { sweepingBanks = false; IsSyncing = false; SyncMessage = ""; OnPropertyChanged(nameof(CanLoadAllBanks)); }); }
+            finally { dispatcher.Post(() => { sweepingBanks = false; IsSyncing = false; SyncOverlayVisible = false; SyncProgress = 0; SyncMessage = ""; OnPropertyChanged(nameof(CanLoadAllBanks)); }); }
         });
     }
 
@@ -1891,6 +2001,10 @@ public sealed class MainViewModel : ViewModelBase
         if (!Connected) { WinlinkStatus = "Connect a radio first."; return; }
         if (SelectedSyncStation == null) { WinlinkStatus = "Pick a Winlink station (a Winlink-type contact)."; return; }
         if (!TxAuthorized) { WinlinkStatus = "Set callsign + Allow-Transmit before a radio sync."; return; }
+        // Warn (don't block) if the station's channel isn't among the loaded channels — the sync
+        // will fall back to the current channel, which is the usual cause of a silent no-connect.
+        if (!string.IsNullOrWhiteSpace(SelectedSyncStation.Channel) && !ChannelNames.Contains(SelectedSyncStation.Channel))
+            AppendWinlinkLog($"⚠ Channel '{SelectedSyncStation.Channel}' not found — using the current channel. Try Channels → Load all banks.");
         WinlinkStatus = $"Connecting to {SelectedSyncStation.Callsign} over the radio…";
         AppendWinlinkLog($"Sync (radio) → {SelectedSyncStation.Callsign} requested.");
         DataBroker.Dispatch(1, "WinlinkSync",
@@ -1943,6 +2057,9 @@ public sealed class MainViewModel : ViewModelBase
     {
         if (bbsActive) { StopBbs(); return; }
         if (!Connected) { AppendBbs("Connect to a radio before starting the BBS."); return; }
+        // A hosted BBS answers callers by transmitting (banner/menu), so it's an on-air feature
+        // and needs the same licensing gate as APRS/Winlink/Terminal/voice.
+        if (!TxAuthorized) { AppendBbs("Set callsign + Allow-Transmit before hosting the BBS."); return; }
 
         int region = 0, channel = 0;
         var ht = DataBroker.GetValue<RadioHtStatus>(0, "HtStatus", null!);
@@ -2255,7 +2372,7 @@ public sealed class MainViewModel : ViewModelBase
         // Seed the channel list with the saved name so the picker shows it before connecting
         // (the live channel list fills in once a radio connects).
         if (!string.IsNullOrWhiteSpace(aprsChannelName) && !ChannelNames.Contains(aprsChannelName))
-            ChannelNames.Add(aprsChannelName);
+        { ChannelNames.Add(aprsChannelName); AddChannelPickerItem(aprsChannelName, 0); }
         OnPropertyChanged(nameof(AprsChannelName));
         loadingAprsChannel = false;
     }

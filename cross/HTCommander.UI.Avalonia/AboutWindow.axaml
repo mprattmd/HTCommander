@@ -10,8 +10,8 @@
         <StackPanel Orientation="Horizontal" Spacing="14">
             <Image Source="/Assets/Radio2.png" Height="44" VerticalAlignment="Center"/>
             <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="HTCommander — Linux Edition" FontWeight="Bold" FontSize="18"/>
-                <TextBlock Text="Linux port by KE4AXW" Foreground="{DynamicResource TextMutedBrush}"/>
+                <TextBlock Text="HTCommander" FontWeight="Bold" FontSize="18"/>
+                <TextBlock Text="Cross-platform port by Mark Pratt (KE4AXW)" Foreground="{DynamicResource TextMutedBrush}"/>
                 <TextBlock x:Name="VersionText" Foreground="{DynamicResource TextMutedBrush}"/>
             </StackPanel>
         </StackPanel>

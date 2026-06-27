@@ -160,16 +160,6 @@
       <Setter Property="Background" Value="{StaticResource MS2}"/>
     </Style>
 
-    <!-- pulsing "please wait" card (channel sync overlay) -->
-    <Style Selector="Border.pulse">
-      <Style.Animations>
-        <Animation Duration="0:0:1.1" IterationCount="INFINITE" PlaybackDirection="Alternate">
-          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1.0"/></KeyFrame>
-          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.45"/></KeyFrame>
-        </Animation>
-      </Style.Animations>
-    </Style>
-
     <!-- compact per-row "Edit" pill (sits inside a rowBtn) -->
     <Style Selector="Button.editBtn">
       <Setter Property="Background" Value="{StaticResource MTint}"/>
@@ -268,20 +258,20 @@
       </Border>
     </Grid>
 
-    <!-- Channel-sync overlay: shown while all banks load from the radio after connect -->
-    <Grid Grid.RowSpan="3" IsVisible="{Binding IsSyncing}" Background="#88000000">
-      <Border Classes="pulse" Background="{StaticResource MCard}" BorderBrush="{StaticResource MTintLine}"
-              BorderThickness="1" CornerRadius="18" Padding="26,22" Width="300"
-              HorizontalAlignment="Center" VerticalAlignment="Center" BoxShadow="0 6 24 0 #40000000">
-        <StackPanel Spacing="14" HorizontalAlignment="Center">
-          <ProgressBar IsIndeterminate="True" Width="200" Foreground="{StaticResource MAccent}"/>
-          <TextBlock Text="{Binding SyncMessage}" TextWrapping="Wrap" TextAlignment="Center"
-                     FontWeight="SemiBold" Foreground="{StaticResource MAccent}"/>
-          <TextBlock Text="Please don't change channels until this finishes." TextAlignment="Center"
-                     FontSize="12" Foreground="{StaticResource MMut}"/>
-        </StackPanel>
-      </Border>
-    </Grid>
+    <!-- Channel-sync banner: a slim, NON-blocking status while all banks load after connect.
+         Docked to the top of the content row — the app stays fully usable underneath. -->
+    <Border Grid.Row="1" IsVisible="{Binding SyncOverlayVisible}" VerticalAlignment="Top"
+            Background="{StaticResource MS1}" BorderBrush="{StaticResource MTintLine}"
+            BorderThickness="0,0,0,1" Padding="14,9" BoxShadow="0 3 12 0 #30000000">
+      <StackPanel Spacing="7">
+        <TextBlock Text="{Binding SyncMessage}" FontWeight="SemiBold" FontSize="13.5"
+                   Foreground="{StaticResource MAccent}"/>
+        <ProgressBar Minimum="0" Maximum="1" Value="{Binding SyncProgress}" Height="5"
+                     Foreground="{StaticResource MAccent}"/>
+        <TextBlock Text="Keep using the app — just avoid switching channels until it's done."
+                   FontSize="11.5" Foreground="{StaticResource MMut}"/>
+      </StackPanel>
+    </Border>
   </Grid>
   </ThemeVariantScope>
 </UserControl>

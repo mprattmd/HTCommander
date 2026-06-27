@@ -64,6 +64,20 @@ public sealed class AprsRoute : ViewModelBase
     }
 }
 
+/// <summary>An entry in a channel picker: the channel name plus a frequency-bearing display
+/// label. Pickers bind ItemsSource to these but keep SelectedValue on <see cref="Name"/>, so the
+/// stored value is just the name while the operator sees the frequency.</summary>
+public sealed class ChannelPickerItem
+{
+    public string Name { get; }
+    public string Display { get; }
+    public ChannelPickerItem(string name, double rxMHz)
+    {
+        Name = name;
+        Display = rxMHz > 0 ? $"{name}  ·  {rxMHz:0.0000} MHz" : name;
+    }
+}
+
 /// <summary>A recorded audio clip (WAV on disk) for the Clips tab.</summary>
 public sealed class AudioClipInfo : ViewModelBase
 {
