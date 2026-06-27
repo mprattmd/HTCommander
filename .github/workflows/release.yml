@@ -79,13 +79,14 @@ jobs:
         run: brew install portaudio
 
       # Intel cross-build on an arm64 runner: `brew install` only gives an arm64 dylib, and
-      # `brew fetch --bottle-tag` refuses cross-arch tags — so read the x86_64 macOS bottle
-      # URL straight from the formula metadata and pull the blob from ghcr.io ourselves.
-      # (QQ== is Homebrew's well-known anonymous ghcr bearer token.)
+      # the runner's local `brew info` reports a platform-filtered bottle list with no x86_64
+      # macOS tags. Query the authoritative live formula API instead, pick the newest x86_64
+      # macOS bottle, and pull the blob from ghcr.io ourselves. (QQ== is Homebrew's
+      # well-known anonymous ghcr bearer token.)
       - name: Fetch x86_64 PortAudio bottle (Intel cross-build)
         if: ${{ matrix.arch == 'x86_64' }}
         run: |
-          URL="$(brew info --json=v2 portaudio | python3 -c "import json,sys; files=json.load(sys.stdin)['formulae'][0]['bottle']['stable']['files']; order=['tahoe','sequoia','sonoma','ventura','monterey','big_sur','catalina']; cand=sorted([t for t in files if not t.startswith('arm64_') and not t.endswith('_linux')], key=lambda t: order.index(t) if t in order else 99); print(files[cand[0]]['url'])")"
+          URL="$(curl -fsSL https://formulae.brew.sh/api/formula/portaudio.json | python3 -c "import json,sys; files=json.load(sys.stdin)['bottle']['stable']['files']; order=['tahoe','sequoia','sonoma','ventura','monterey','big_sur','catalina']; cand=sorted([t for t in files if not t.startswith('arm64_') and not t.endswith('_linux')], key=lambda t: order.index(t) if t in order else 99); print(files[cand[0]]['url'])")"
           echo "Intel bottle URL: $URL"
           mkdir -p "$RUNNER_TEMP/pa"
           curl -fsSL -H "Authorization: Bearer QQ==" -o "$RUNNER_TEMP/pa/bottle.tar.gz" "$URL"
