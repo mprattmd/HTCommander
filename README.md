@@ -14,7 +14,7 @@
   <img src="docs/images/screenshot.png" alt="HTCommander (Avalonia) connected to a UV-PRO" width="820">
 </p>
 
-> **Latest release: v0.6.2.** The download links below always fetch the newest build —
+> **Latest release: v0.6.3.** The download links below always fetch the newest build —
 > see the [releases page](https://github.com/mprattmd/HTCommander/releases) for the full
 > changelog. Setup walkthrough (station → transmit → APRS → Winlink) is in
 > **[Getting started](#-getting-started)** below.
