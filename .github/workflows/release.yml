@@ -78,26 +78,21 @@ jobs:
         if: ${{ matrix.arch == 'arm64' }}
         run: brew install portaudio
 
-      # Intel cross-build on an arm64 runner: `brew install` would give an arm64 dylib,
-      # so pull the x86_64 Homebrew *bottle* and hand its libportaudio to build-app.sh.
+      # Intel cross-build on an arm64 runner: `brew install` only gives an arm64 dylib, and
+      # `brew fetch --bottle-tag` refuses cross-arch tags — so read the x86_64 macOS bottle
+      # URL straight from the formula metadata and pull the blob from ghcr.io ourselves.
+      # (QQ== is Homebrew's well-known anonymous ghcr bearer token.)
       - name: Fetch x86_64 PortAudio bottle (Intel cross-build)
         if: ${{ matrix.arch == 'x86_64' }}
         run: |
-          case "$(sw_vers -productVersion | cut -d. -f1)" in
-            15) TAG=sequoia ;;
-            14) TAG=sonoma ;;
-            13) TAG=ventura ;;
-            *)  TAG=sonoma ;;
-          esac
-          echo "Intel bottle tag: $TAG"
-          brew fetch --force --bottle-tag="$TAG" portaudio
-          TARBALL="$(brew --cache --bottle-tag="$TAG" portaudio)"
-          echo "Bottle: $TARBALL"
+          URL="$(brew info --json=v2 portaudio | python3 -c "import json,sys; files=json.load(sys.stdin)['formulae'][0]['bottle']['stable']['files']; order=['tahoe','sequoia','sonoma','ventura','monterey','big_sur','catalina']; cand=sorted([t for t in files if not t.startswith('arm64_') and not t.endswith('_linux')], key=lambda t: order.index(t) if t in order else 99); print(files[cand[0]]['url'])")"
+          echo "Intel bottle URL: $URL"
           mkdir -p "$RUNNER_TEMP/pa"
-          tar xzf "$TARBALL" -C "$RUNNER_TEMP/pa"
-          DYLIB="$(find "$RUNNER_TEMP/pa" -name 'libportaudio.2.dylib' | head -1)"
+          curl -fsSL -H "Authorization: Bearer QQ==" -o "$RUNNER_TEMP/pa/bottle.tar.gz" "$URL"
+          tar xzf "$RUNNER_TEMP/pa/bottle.tar.gz" -C "$RUNNER_TEMP/pa"
+          DYLIB="$(find "$RUNNER_TEMP/pa" -name 'libportaudio.*.dylib' | head -1)"
           [ -n "$DYLIB" ] || { echo "no libportaudio in bottle"; find "$RUNNER_TEMP/pa"; exit 1; }
-          file "$DYLIB"
+          file "$DYLIB" | grep -q x86_64 || { echo "bottle dylib is not x86_64"; file "$DYLIB"; exit 1; }
           echo "PORTAUDIO_DYLIB=$DYLIB" >> "$GITHUB_ENV"
 
       - name: Build .app
