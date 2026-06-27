@@ -7,6 +7,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."                      # repo root
 
 RID="${1:-osx-arm64}"
+# Map the RID to a CPU arch for the native (swift/PortAudio) pieces. osx-x64 can be
+# cross-built on an Apple-Silicon host, so arch follows the RID, not the runner.
+case "$RID" in
+  osx-arm64) ARCH=arm64 ;;
+  osx-x64)   ARCH=x86_64 ;;
+  *) echo "!! unsupported RID '$RID' (want osx-arm64 or osx-x64)"; exit 1 ;;
+esac
 APP="HTCommander"
 EXE="HTCommander.UI.Avalonia"               # AssemblyName of the Avalonia project
 PROJ="cross/HTCommander.UI.Avalonia/HTCommander.UI.Avalonia.csproj"
@@ -17,8 +24,8 @@ PUBDIR="cross/HTCommander.UI.Avalonia/bin/Release/net9.0/$RID/publish"
 BUNDLE="dist/mac/$APP.app"
 DOTNET="${DOTNET:-$(command -v dotnet || echo "$HOME/.dotnet/dotnet")}"
 
-echo "==> [1/4] Building the IOBluetooth bridge (libhtbt.dylib)"
-( cd mac/htbt && ./build.sh )
+echo "==> [1/4] Building the IOBluetooth bridge (libhtbt.dylib, $ARCH)"
+( cd mac/htbt && ./build.sh "$ARCH" )
 
 echo "==> [2/4] dotnet publish ($RID, self-contained)"
 "$DOTNET" publish "$PROJ" -c Release -r "$RID" --self-contained true -p:PublishSingleFile=false
@@ -30,11 +37,26 @@ cp -R "$PUBDIR"/. "$BUNDLE/Contents/MacOS/"
 
 # Native libraries next to the executable (.NET resolves DllImport from the app dir).
 cp cross/HTCommander.Platform.Mac/runtimes/osx/native/libhtbt.dylib "$BUNDLE/Contents/MacOS/"
-for pa in /opt/homebrew/lib/libportaudio.2.dylib /usr/local/lib/libportaudio.2.dylib; do
-  if [ -f "$pa" ]; then cp "$pa" "$BUNDLE/Contents/MacOS/libportaudio.dylib"; break; fi
-done
+# PortAudio: $PORTAUDIO_DYLIB wins (CI sets it to the extracted Intel dylib when cross-
+# building osx-x64 on an arm64 host); otherwise fall back to the host's Homebrew copy.
+if [ -n "${PORTAUDIO_DYLIB:-}" ] && [ -f "$PORTAUDIO_DYLIB" ]; then
+  cp "$PORTAUDIO_DYLIB" "$BUNDLE/Contents/MacOS/libportaudio.dylib"
+else
+  for pa in /opt/homebrew/lib/libportaudio.2.dylib /usr/local/lib/libportaudio.2.dylib; do
+    if [ -f "$pa" ]; then cp "$pa" "$BUNDLE/Contents/MacOS/libportaudio.dylib"; break; fi
+  done
+fi
 [ -f "$BUNDLE/Contents/MacOS/libportaudio.dylib" ] || \
   echo "    (!) libportaudio not found — voice/audio will be disabled. brew install portaudio"
+
+# Guard against an arch mismatch (e.g. an arm64 PortAudio sneaking into the x64 bundle).
+for lib in libhtbt.dylib libportaudio.dylib; do
+  f="$BUNDLE/Contents/MacOS/$lib"
+  [ -f "$f" ] || continue
+  if ! file "$f" | grep -q "$ARCH"; then
+    echo "!! $lib is not $ARCH:"; file "$f"; exit 1
+  fi
+done
 
 cat > "$BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
