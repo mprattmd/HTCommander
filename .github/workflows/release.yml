@@ -57,9 +57,11 @@ jobs:
       fail-fast: false             # one arch failing shouldn't kill the other
       matrix:
         include:
-          # macos-latest is Apple Silicon (arm64); macos-13 is the last Intel (x86_64) runner.
-          - { runner: macos-latest, rid: osx-arm64, label: Apple Silicon, asset: HTCommander-macos-arm64.zip }
-          - { runner: macos-13,     rid: osx-x64,   label: Intel,         asset: HTCommander-macos-x64.zip }
+          # Both arches build on the abundant Apple-Silicon pool — the Intel (osx-x64)
+          # bundle is cross-compiled, so we no longer depend on the scarce, soon-to-be-
+          # retired macos-13 Intel runners. arch is the CPU slice the natives must be.
+          - { runner: macos-latest, rid: osx-arm64, arch: arm64,  label: Apple Silicon, asset: HTCommander-macos-arm64.zip }
+          - { runner: macos-latest, rid: osx-x64,   arch: x86_64, label: Intel,         asset: HTCommander-macos-x64.zip }
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,8 +73,32 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Install PortAudio (bundled into the .app)
+      # Apple Silicon: the native Homebrew PortAudio matches the bundle arch.
+      - name: Install PortAudio (Apple Silicon)
+        if: ${{ matrix.arch == 'arm64' }}
         run: brew install portaudio
+
+      # Intel cross-build on an arm64 runner: `brew install` would give an arm64 dylib,
+      # so pull the x86_64 Homebrew *bottle* and hand its libportaudio to build-app.sh.
+      - name: Fetch x86_64 PortAudio bottle (Intel cross-build)
+        if: ${{ matrix.arch == 'x86_64' }}
+        run: |
+          case "$(sw_vers -productVersion | cut -d. -f1)" in
+            15) TAG=sequoia ;;
+            14) TAG=sonoma ;;
+            13) TAG=ventura ;;
+            *)  TAG=sonoma ;;
+          esac
+          echo "Intel bottle tag: $TAG"
+          brew fetch --force --bottle-tag="$TAG" portaudio
+          TARBALL="$(brew --cache --bottle-tag="$TAG" portaudio)"
+          echo "Bottle: $TARBALL"
+          mkdir -p "$RUNNER_TEMP/pa"
+          tar xzf "$TARBALL" -C "$RUNNER_TEMP/pa"
+          DYLIB="$(find "$RUNNER_TEMP/pa" -name 'libportaudio.2.dylib' | head -1)"
+          [ -n "$DYLIB" ] || { echo "no libportaudio in bottle"; find "$RUNNER_TEMP/pa"; exit 1; }
+          file "$DYLIB"
+          echo "PORTAUDIO_DYLIB=$DYLIB" >> "$GITHUB_ENV"
 
       - name: Build .app
         run: ./mac/build-app.sh ${{ matrix.rid }}   # builds libhtbt (swiftc) + publishes + bundles
