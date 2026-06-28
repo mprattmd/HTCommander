@@ -259,7 +259,16 @@ namespace HTCommander
             int lockRadio = radioId;
             Task.Run(async () =>
             {
-                const int settleTimeoutMs = 5000;
+                // We poll the radio's reported region/channel to avoid keying the SABM before a
+                // channel switch lands. BUT curr_region/curr_ch_id are mis-decoded on some
+                // firmware (radio physically on region 0 ch 28 reports region 1 ch 0), so an
+                // exact match can NEVER happen there and we'd wait the full timeout every connect,
+                // firing the SABM late into a racy window — which desyncs AX.25 sequence numbers
+                // and stalls the message body. So: take the match as a fast path when the decode
+                // is right, but cap the wait low (the operator keeps the radio on the locked
+                // channel; the lock only re-confirms it). The raw HtStatus bytes are logged in
+                // RadioController.PublishHtStatus so the decode can be fixed properly.
+                const int settleTimeoutMs = 1500;
                 const int pollMs = 150;
                 int waited = 0;
                 bool confirmed = false;
@@ -275,12 +284,11 @@ namespace HTCommander
                     try { await Task.Delay(pollMs); } catch { }
                     waited += pollMs;
                 }
-                // Brief extra settle for the radio's PLL/squelch after the channel lands,
-                // then key. If we never confirmed, fall through and try anyway.
-                try { await Task.Delay(confirmed ? 300 : 0); } catch { }
+                // Brief extra settle for the radio's PLL/squelch after the channel lands, then key.
+                try { await Task.Delay(300); } catch { }
                 broker.LogInfo(confirmed
                     ? "[WinlinkClient] Radio confirmed on region " + wantRegion + " ch " + wantChannel + " after " + waited + "ms; sending SABM"
-                    : "[WinlinkClient] Radio did NOT confirm region " + wantRegion + " ch " + wantChannel + " within " + settleTimeoutMs + "ms; sending SABM anyway");
+                    : "[WinlinkClient] Radio did NOT confirm region " + wantRegion + " ch " + wantChannel + " within " + settleTimeoutMs + "ms (status decode may be off); settled, sending SABM");
                 if (!_disposed && session == ax25Session) session.Connect(addresses);
             });
         }
