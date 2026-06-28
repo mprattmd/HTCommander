@@ -11,7 +11,7 @@
     <TargetFramework Condition="'$(BuildAndroid)' != 'true' And '$(BuildIos)' != 'true'">net9.0</TargetFramework>
     <TargetFrameworks Condition="'$(BuildAndroid)' == 'true'">net9.0;net10.0-android</TargetFrameworks>
     <TargetFrameworks Condition="'$(BuildIos)' == 'true'">net9.0;net10.0-ios</TargetFrameworks>
-    <Version>0.6.7</Version>
+    <Version>0.6.8</Version>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
@@ -27,8 +27,8 @@
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <ApplicationId>com.htcommander.app</ApplicationId>
-    <ApplicationVersion>15</ApplicationVersion>
-    <ApplicationDisplayVersion>0.6.7</ApplicationDisplayVersion>
+    <ApplicationVersion>16</ApplicationVersion>
+    <ApplicationDisplayVersion>0.6.8</ApplicationDisplayVersion>
   </PropertyGroup>
 
   <!-- iOS-only properties. Info.plist (NSBluetoothAlwaysUsageDescription, app icon,

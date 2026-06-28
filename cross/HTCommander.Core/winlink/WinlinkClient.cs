@@ -962,6 +962,20 @@ namespace HTCommander
         }
 
         // Process stream data (unified for both TCP and X25)
+        // A turn-ending B2F response the CMS sends and then waits on us for. These are short
+        // and complete in themselves, so we can process them even without a trailing CR (the
+        // CMS often doesn't terminate the final line before pausing). Long proposal lines
+        // (FC/FD) and the banner are deliberately excluded — they can span frames and must
+        // stay held by the cross-frame reassembly until their CR arrives.
+        private static bool IsCompleteTurnResponse(string s)
+        {
+            if (s == null) return false;
+            s = s.Trim();
+            if (s.Length == 0 || s.Length > 40) return false;  // long => could be a split FC/FD/banner line
+            if (s == "FF" || s == "FQ") return true;           // turnover / quit
+            return s.StartsWith("FS ") || s.StartsWith("FA ") || s.StartsWith("FB ");  // proposal-accept / fast responses
+        }
+
         private void ProcessStream(byte[] data)
         {
             if ((data == null) || (data.Length == 0)) return;
@@ -1003,11 +1017,23 @@ namespace HTCommander
             int lastCr = buf.LastIndexOf('\r');
             string complete = (lastCr >= 0) ? buf.Substring(0, lastCr + 1) : "";
             string remainder = (lastCr >= 0) ? buf.Substring(lastCr + 1) : buf;
+            // Flush (don't hold) the remainder when it's a turn-ending token the CMS sends
+            // and then WAITS on us for: the FBB prompt ("...>") and the short B2F turnover
+            // responses (FS proposal-accept, FA/FB, FF, FQ). These often arrive as the last
+            // line of a frame WITHOUT a trailing CR; holding them as an "incomplete" line
+            // meant we never parsed the FS accept, so we never sent the body — the CMS then
+            // timed out and DISCed right as the send started. Long lines that legitimately
+            // span frames (FC/FD proposals, the banner) are NOT flushed, so the original
+            // cross-frame reassembly fix still holds.
             bool remainderIsPrompt = remainder.EndsWith(">");
+            bool remainderIsTurnResponse = IsCompleteTurnResponse(remainder);
+            bool flushRemainder = remainderIsPrompt || remainderIsTurnResponse;
             _rxText.Clear();
-            if (!remainderIsPrompt) { _rxText.Append(remainder); }
+            if (!flushRemainder) { _rxText.Append(remainder); }
 
-            string dataStr = remainderIsPrompt ? (complete + remainder) : complete;
+            broker.LogInfo("[WinlinkClient] RX " + data.Length + "B: '" + buf.Replace("\r", "\\r") + "' flushRemainder=" + flushRemainder);
+
+            string dataStr = flushRemainder ? (complete + remainder) : complete;
             if (dataStr.Length == 0) return;
             string[] dataStrs = dataStr.Split('\r');
             foreach (string str in dataStrs)
