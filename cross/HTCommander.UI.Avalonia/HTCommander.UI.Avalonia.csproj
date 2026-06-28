@@ -37,8 +37,8 @@
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <ApplicationId>com.htcommander.app</ApplicationId>
-    <ApplicationVersion>3</ApplicationVersion>
-    <ApplicationDisplayVersion>0.6.4</ApplicationDisplayVersion>
+    <ApplicationVersion>4</ApplicationVersion>
+    <ApplicationDisplayVersion>0.6.9</ApplicationDisplayVersion>
   </PropertyGroup>
 
   <!-- iOS Release = TestFlight/App Store: produce a signed .ipa under bin/Release/.../publish.
