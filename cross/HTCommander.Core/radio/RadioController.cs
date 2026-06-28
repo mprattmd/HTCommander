@@ -511,11 +511,6 @@ public sealed class RadioController : IDisposable
         {
             var status = new RadioHtStatus(v);
             lastStatus = status;
-            // DIAGNOSTIC: dump the raw status payload + decoded region/channel so a wrong
-            // region/channel decode can be corrected against ground truth (the operator knows
-            // the actual bank+channel the radio is on). curr_region/curr_ch_id have been seen
-            // to mis-decode (e.g. radio on region 0 ch 28 reported as region 1 ch 0).
-            logger?.Debug($"HtStatus raw={CoreUtils.BytesToHex(v)} -> region={status.curr_region} ch={status.curr_ch_id} txrx={status.is_in_tx}/{status.is_in_rx}");
             broker.Dispatch(deviceId, "HtStatus", status, store: true);   // store so GetValue("HtStatus") works (Winlink/SoftwareModem region selection)
 
             // Mirror WinForms ProcessTncQueue: every status update is our signal that the

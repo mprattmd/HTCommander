@@ -1031,8 +1031,6 @@ namespace HTCommander
             _rxText.Clear();
             if (!flushRemainder) { _rxText.Append(remainder); }
 
-            broker.LogInfo("[WinlinkClient] RX " + data.Length + "B: '" + buf.Replace("\r", "\\r") + "' flushRemainder=" + flushRemainder);
-
             string dataStr = flushRemainder ? (complete + remainder) : complete;
             if (dataStr.Length == 0) return;
             string[] dataStrs = dataStr.Split('\r');
@@ -1044,6 +1042,16 @@ namespace HTCommander
                 AddToDebugHistory(remoteAddress, false, str, false);
                 // Dispatch traffic via broker (device 1 for non-persistent state)
                 broker.Dispatch(1, "WinlinkTraffic", new { Address = remoteAddress, Outgoing = false, Data = str }, store: false);
+
+                // CMS status/error lines start with "***" (e.g. "*** Login failed - no response
+                // to challenge - Disconnecting"). Surface them to the operator instead of letting
+                // the session look like a mysterious mid-send disconnect.
+                if (str.StartsWith("***"))
+                {
+                    broker.LogInfo("[WinlinkClient] CMS message: " + str);
+                    StateMessage(str.TrimStart('*', ' '));
+                    continue;
+                }
 
                 // Handle TCP callsign prompt
                 if ((transportType == TransportType.TCP) && str.Trim().Equals("Callsign :", StringComparison.OrdinalIgnoreCase))
@@ -1083,13 +1091,25 @@ namespace HTCommander
                     // Send Information
                     sb.Append("[RMS Express-1.7.28.0-B2FHM$]\r");
 
-                    // Send Authentication
+                    // Send Authentication. The CMS challenges with ";PQ:" and will drop the link
+                    // with "no response to challenge" unless we answer with ";PR:" computed from
+                    // the operator's Winlink password. If no password is set we can't answer — say
+                    // so plainly and stop, rather than proposing mail that the CMS will reject and
+                    // disconnect (which looks like a mysterious mid-send drop).
                     if (sessionState.ContainsKey("WinlinkAuth"))
                     {
                         // Get password from broker (device 0 for persistent settings)
                         string winlinkPassword = broker.GetValue<string>(0, "WinlinkPassword", "");
+                        if (string.IsNullOrEmpty(winlinkPassword))
+                        {
+                            broker.LogError("[WinlinkClient] CMS requires authentication but no Winlink password is set");
+                            StateMessage("This gateway requires your Winlink password. Set it in Settings, then try again.");
+                            if (transportType == TransportType.X25) { DisconnectX25(); }
+                            else if (transportType == TransportType.TCP) { DisconnectTcp(); }
+                            return;
+                        }
                         string authResponse = WinlinkSecurity.SecureLoginResponse((string)sessionState["WinlinkAuth"], winlinkPassword);
-                        if (!string.IsNullOrEmpty(winlinkPassword)) { sb.Append(";PR: " + authResponse + "\r"); }
+                        sb.Append(";PR: " + authResponse + "\r");
                         broker.LogInfo("[WinlinkClient] Sending authentication response");
                         StateMessage("Authenticating...");
                     }
@@ -1145,11 +1165,11 @@ namespace HTCommander
                     int i = str.IndexOf(' ');
                     if (i > 0) { key = str.Substring(0, i).ToUpper(); value = str.Substring(i + 1); }
 
-                    // Get password from broker (device 0 for persistent settings)
-                    string winlinkPassword = broker.GetValue<string>(0, "WinlinkPassword", "");
-                    
-                    if ((key == ";PQ:") && (!string.IsNullOrEmpty(winlinkPassword)))
-                    {   // Winlink Authentication Request
+                    if (key == ";PQ:")
+                    {   // Winlink Authentication Request — always record the challenge so we can
+                        // answer it at session start (or warn if no password is set). Gating this
+                        // on a non-empty password meant a missing password silently produced a
+                        // "no response to challenge" rejection and a confusing disconnect.
                         broker.LogInfo("[WinlinkClient] Received authentication challenge");
                         sessionState["WinlinkAuth"] = value;
                     }
