@@ -1165,6 +1165,23 @@ namespace HTCommander
 
                 // Information (4.3.1). This is our data packet.
                 case FrameType.I_FRAME:
+                    // If the peer is sending us data while we're still CONNECTING, it has
+                    // already accepted our SABM and considers the link up — we just missed or
+                    // raced its UA (common on a strong/busy channel where an RMS starts streaming
+                    // its prompt the instant it UAs). The old code answered the peer's data with a
+                    // DM, which told the connected peer "I'm gone"; the peer then tore down and we
+                    // re-SABM'd, looping forever and never delivering the body. Adopt the
+                    // connection instead and process the frame (it'll REJ to pull back any frames
+                    // we missed) so the session can actually proceed.
+                    if (_state.Connection == ConnectionState.CONNECTING)
+                    {
+                        Trace("I-frame received while CONNECTING — peer is up, adopting connection");
+                        ClearTimer(TimerNames.Connect);
+                        ClearTimer(TimerNames.T2);
+                        SetTimer(TimerNames.T3);
+                        SetConnectionState(ConnectionState.CONNECTED);
+                        newState = ConnectionState.CONNECTED;
+                    }
                     if (_state.Connection == ConnectionState.CONNECTED)
                     {
                         if (packet.pollFinal) { response.pollFinal = true; }
