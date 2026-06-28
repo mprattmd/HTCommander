@@ -965,6 +965,12 @@ namespace HTCommander
                     if (_state.Connection == ConnectionState.CONNECTED)
                     {
                         ConnectEx();
+                        // ConnectEx() moved us to CONNECTING (and armed the Connect timer to
+                        // drive the re-SABM). Sync newState so the trailing state-override below
+                        // doesn't revert us to the stale entry value (CONNECTED) and strand the
+                        // Connect timer running — that produced an 11s renumber livelock that
+                        // reset V(S)/V(R) forever and stopped the message body from ever sending.
+                        newState = CurrentState;
                         response = null;
                     }
                     else if (_state.Connection == ConnectionState.CONNECTING || _state.Connection == ConnectionState.DISCONNECTING)
@@ -1038,6 +1044,10 @@ namespace HTCommander
                     else if (_state.Connection == ConnectionState.CONNECTED)
                     {
                         ConnectEx();
+                        // See the U_FRAME_DM handler: keep newState in sync with the state
+                        // ConnectEx() set, or the trailing override reverts us to CONNECTED
+                        // while the re-SABM Connect timer keeps firing (renumber livelock).
+                        newState = CurrentState;
                         response = null;
                     }
                     else
