@@ -733,7 +733,12 @@ public sealed class RadioController : IDisposable
         broker.Dispatch(deviceId, "LockState", lockState, store: true);
         logger?.Debug($"Radio locked for '{lockData.Usage}': region {targetRegion}, channel {targetChannel} (was region {savedLockRegionId}, channel {savedLockChannelId}).");
 
-        if (targetRegion != savedLockRegionId) SetRegion(targetRegion);
+        // Switch the bank UNCONDITIONALLY. curr_region (the source of savedLockRegionId) lags
+        // behind the radio's real state, so a stale "0 == 0" match would skip the switch and
+        // strand the radio on the wrong bank — channel_a then indexes the wrong bank and the
+        // connect keys the wrong frequency. SetRegion is idempotent, so re-selecting the bank
+        // the radio is genuinely on costs nothing.
+        SetRegion(targetRegion);
         // scan + dual-watch off while locked. (Earlier code also wrote settings bytes 12/13
         // believing they were a KISS TXDELAY/TXTAIL — they are NOT: the radio exposes no
         // such field and those bytes are vfo1_mod_freq_x calibration (see RadioSettings.cs).
