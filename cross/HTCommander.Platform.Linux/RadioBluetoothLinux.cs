@@ -303,8 +303,32 @@ public sealed class RadioBluetoothLinux : IRadioTransport
                 {
                     if (cmdSize < 0)
                     {
-                        cmdSize = accumulatorLen;
-                        Debug($"GAIA: {BytesToHex(accumulator, accumulatorPtr, accumulatorLen)}");
+                        // Not aligned on a GAIA frame (FF 01). Unlike BLE (packet-framed, one
+                        // GAIA frame per notification), Linux RFCOMM is a raw byte STREAM and the
+                        // radio interleaves non-GAIA (KISS C0..C0) bytes, so the accumulator often
+                        // doesn't start on a GAIA boundary. The old recovery discarded the WHOLE
+                        // buffer — which also threw away any valid FF 01 frame that followed in the
+                        // same read (e.g. the Winlink ;PQ challenge / prompt after a KISS frame),
+                        // stalling the B2F exchange so no message body ever transferred. Instead,
+                        // resync to the next FF 01 boundary and keep the frames after it.
+                        int resync = -1;
+                        for (int i = accumulatorPtr + 1; i <= accumulatorPtr + accumulatorLen - 2; i++)
+                        {
+                            if (accumulator[i] == 0xFF && accumulator[i + 1] == 0x01) { resync = i; break; }
+                        }
+                        if (resync >= 0)
+                        {
+                            cmdSize = resync - accumulatorPtr;
+                            Debug($"GAIA resync: skipped {cmdSize}B of non-GAIA data");
+                        }
+                        else
+                        {
+                            // No GAIA start in view. Drop everything except a possible trailing
+                            // 0xFF that may be the first byte of a frame split across reads.
+                            int keep = (accumulator[accumulatorPtr + accumulatorLen - 1] == 0xFF) ? 1 : 0;
+                            cmdSize = accumulatorLen - keep;
+                            Debug($"GAIA: {BytesToHex(accumulator, accumulatorPtr, cmdSize)}");
+                        }
                     }
                     accumulatorPtr += cmdSize;
                     accumulatorLen -= cmdSize;

@@ -511,6 +511,7 @@ public sealed class MainViewModel : ViewModelBase
         s.UiDataReceivedEvent += OnSessionDataReceived;
         s.ErrorEvent += OnSessionError;
         terminalSession = s;
+        terminalRxPartial = "";   // fresh line buffer for the new session
         SessionState = "Connecting";
         RaiseSessionGates();
         AddTerminalLine($"* Connecting to {to}…");
@@ -536,13 +537,35 @@ public sealed class MainViewModel : ViewModelBase
     // mid-session. A blank pick locks to the current channel (ChannelId -1).
     private void ApplyTerminalChannelLock()
     {
-        var ch = string.IsNullOrWhiteSpace(TerminalChannel) ? null : Channels.FirstOrDefault(c => c.Name == TerminalChannel);
-        // If a channel was named but isn't among the loaded channels, the lock falls back to the
-        // current channel — tell the operator so a wrong-channel connect isn't a silent mystery.
-        if (!string.IsNullOrWhiteSpace(TerminalChannel) && ch == null)
-            AddTerminalLine($"* Channel '{TerminalChannel}' not found — using the current channel. Try Channels → Load all banks.");
+        // Resolve the named channel to a (bank, channel) pair the SAME way WinlinkClient does:
+        // prefer the all-banks ChannelLocations map. Channel ids repeat across banks and the live
+        // Channels list only holds the last-loaded bank, so the map is the only reliable source —
+        // and it yields the bank the channel actually lives in. The old code paired the channel id
+        // with the radio's CURRENT bank (Region), so a channel in another bank keyed the wrong
+        // frequency (radio switched to current-bank/same-id) and the SABM was never heard.
+        int channelId = -1, regionId = Region;
+        if (!string.IsNullOrWhiteSpace(TerminalChannel))
+        {
+            var locs = DataBroker.GetValue<System.Collections.Generic.Dictionary<string, AprsChannelLocation>>(
+                BbsRadioDeviceId, "ChannelLocations", null);
+            if (locs != null && locs.TryGetValue(TerminalChannel, out var loc))
+            {
+                channelId = loc.ChannelId;
+                regionId = loc.RegionId;          // lock to the bank the channel actually lives in
+            }
+            else
+            {
+                // Fallback: search the currently-loaded bank's array only.
+                var ch = Channels.FirstOrDefault(c => c.Name == TerminalChannel);
+                if (ch != null) channelId = ch.ChannelId;
+            }
+            // Named but not found in either place — the lock falls back to the current channel;
+            // tell the operator so a wrong-channel connect isn't a silent mystery.
+            if (channelId < 0)
+                AddTerminalLine($"* Channel '{TerminalChannel}' not found — using the current channel. Try Channels → Load all banks.");
+        }
         DataBroker.Dispatch(BbsRadioDeviceId, "SetLock",
-            new SetLockData { Usage = "Terminal", RegionId = Region, ChannelId = ch?.ChannelId ?? -1 },
+            new SetLockData { Usage = "Terminal", RegionId = regionId, ChannelId = channelId },
             store: false);
     }
 
@@ -563,10 +586,34 @@ public sealed class MainViewModel : ViewModelBase
         });
     }
 
+    // Text received since the last newline — the "live" (incomplete) line. AX.25 I-frames
+    // don't align to line boundaries, so a single line routinely spans two frames; emitting
+    // each frame's text independently chopped lines mid-word. We accumulate and emit only
+    // COMPLETE lines, re-growing the trailing partial in place so a prompt with no trailing
+    // newline (e.g. "CMS via WC4EOC >") still shows. Station text is shown VERBATIM (no "< "
+    // prefix): in a connected session that prefix just clutters the station's own formatting
+    // and turned its blank spacer lines into "< " rows. Sent lines still carry "> ".
+    private string terminalRxPartial = "";
+
     private void OnSessionDataReceived(AX25Session sender, byte[] data)
     {
         string text = System.Text.Encoding.UTF8.GetString(data ?? Array.Empty<byte>());
-        dispatcher.Post(() => { foreach (var line in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')) if (line.Length > 0) AddTerminalLine($"< {line}"); });
+        dispatcher.Post(() =>
+        {
+            // If the previous partial is still the live last row, remove it; we re-emit it (grown) below.
+            if (terminalRxPartial.Length > 0 && TerminalLog.Count > 0 && TerminalLog[^1] == terminalRxPartial)
+                TerminalLog.RemoveAt(TerminalLog.Count - 1);
+
+            terminalRxPartial += text.Replace("\r\n", "\n").Replace('\r', '\n');
+            int nl;
+            while ((nl = terminalRxPartial.IndexOf('\n')) >= 0)
+            {
+                AddTerminalLine(terminalRxPartial.Substring(0, nl));   // verbatim, incl. the station's blank spacer lines
+                terminalRxPartial = terminalRxPartial.Substring(nl + 1);
+            }
+            // Show the remaining partial (e.g. a prompt) as a live row that the next frame will grow.
+            if (terminalRxPartial.Length > 0) AddTerminalLine(terminalRxPartial);
+        });
     }
 
     private void OnSessionError(AX25Session sender, string error) =>

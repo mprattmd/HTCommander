@@ -944,7 +944,13 @@
                     </Border>
 
                     <Border Grid.Row="1" Classes="ListCard">
-                        <ListBox ItemsSource="{Binding TerminalLog}" FontFamily="monospace"/>
+                        <ListBox ItemsSource="{Binding TerminalLog}" FontFamily="monospace">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </Border>
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
                         <TextBox Width="160" PlaceholderText="My call (blank = your callsign)" Text="{Binding TerminalMyCall}"/>
