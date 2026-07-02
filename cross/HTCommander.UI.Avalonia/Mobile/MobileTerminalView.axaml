@@ -5,31 +5,40 @@
              x:DataType="vm:MainViewModel">
   <Grid RowDefinitions="Auto,*,Auto" Margin="14,12" RowSpacing="10">
 
-    <!-- Connect (connected-mode AX.25 session) -->
+    <!-- Connect (connected-mode AX.25 session). Collapses on connect to give the log more room;
+         the header (with live session status) stays visible and re-opens the panel when tapped. -->
     <Border Grid.Row="0" Classes="mCard">
-      <StackPanel Spacing="8">
-        <TextBlock Classes="mSection" Text="CONNECT"/>
-        <ComboBox Classes="mInput" ItemsSource="{Binding TerminalProtocols}" SelectedItem="{Binding TerminalProtocol}"/>
-        <ComboBox Classes="mInput" ItemsSource="{Binding TerminalStations}" SelectedItem="{Binding SelectedTerminalStation}"
-                  PlaceholderText="Saved contact">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Callsign}"/>
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-        <TextBox Classes="mInput" PlaceholderText="Station (e.g. N0CALL-1)" Text="{Binding TerminalConnectTo}"/>
-        <ComboBox Classes="mInput" ItemsSource="{Binding ChannelPickerItems}"
-                  SelectedValueBinding="{Binding Name}" SelectedValue="{Binding TerminalChannel}"
-                  PlaceholderText="Channel (optional)">
-          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChannelPickerItem"><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
-        </ComboBox>
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-          <Button Grid.Column="0" x:Name="SessionConnectButton" Classes="mPri" Content="Connect" IsEnabled="{Binding CanConnectSession}"/>
-          <Button Grid.Column="1" x:Name="SessionDisconnectButton" Classes="mGhost" Content="Disconnect" IsEnabled="{Binding CanDisconnectSession}"/>
-        </Grid>
-        <TextBlock Text="{Binding SessionStateText}" Foreground="{StaticResource MAccent}" FontSize="12.5" FontWeight="SemiBold"/>
-      </StackPanel>
+      <Expander IsExpanded="{Binding TerminalConnectExpanded, Mode=TwoWay}"
+                HorizontalAlignment="Stretch" Background="Transparent" BorderThickness="0" Padding="0">
+        <Expander.Header>
+          <StackPanel Spacing="2">
+            <TextBlock Classes="mSection" Text="CONNECT"/>
+            <TextBlock Text="{Binding SessionStateText}" Foreground="{StaticResource MAccent}"
+                       FontSize="12.5" FontWeight="SemiBold"/>
+          </StackPanel>
+        </Expander.Header>
+        <StackPanel Spacing="8" Margin="0,8,0,0">
+          <ComboBox Classes="mInput" ItemsSource="{Binding TerminalProtocols}" SelectedItem="{Binding TerminalProtocol}"/>
+          <ComboBox Classes="mInput" ItemsSource="{Binding TerminalStations}" SelectedItem="{Binding SelectedTerminalStation}"
+                    PlaceholderText="Saved contact">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Callsign}"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBox Classes="mInput" PlaceholderText="Station (e.g. N0CALL-1)" Text="{Binding TerminalConnectTo}"/>
+          <ComboBox Classes="mInput" ItemsSource="{Binding ChannelPickerItems}"
+                    SelectedValueBinding="{Binding Name}" SelectedValue="{Binding TerminalChannel}"
+                    PlaceholderText="Channel (optional)">
+            <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChannelPickerItem"><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Button Grid.Column="0" x:Name="SessionConnectButton" Classes="mPri" Content="Connect" IsEnabled="{Binding CanConnectSession}"/>
+            <Button Grid.Column="1" x:Name="SessionDisconnectButton" Classes="mGhost" Content="Disconnect" IsEnabled="{Binding CanDisconnectSession}"/>
+          </Grid>
+        </StackPanel>
+      </Expander>
     </Border>
 
     <!-- Session / traffic log -->

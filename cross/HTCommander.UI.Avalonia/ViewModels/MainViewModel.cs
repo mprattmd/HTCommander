@@ -477,6 +477,12 @@ public sealed class MainViewModel : ViewModelBase
     public string SessionState { get => sessionStateText; private set => SetField(ref sessionStateText, value); }
     public string SessionStateText => $"Session: {sessionStateText}";
 
+    // Whether the mobile Terminal's CONNECT panel is expanded. It auto-collapses on a successful
+    // connect (giving the terminal log the reclaimed screen space) and re-expands on disconnect,
+    // but is two-way bound so the operator can pop it open mid-session to reconnect elsewhere.
+    private bool terminalConnectExpanded = true;
+    public bool TerminalConnectExpanded { get => terminalConnectExpanded; set => SetField(ref terminalConnectExpanded, value); }
+
     public bool CanConnectSession => Connected && TxAuthorized && terminalSession == null && !string.IsNullOrWhiteSpace(TerminalConnectTo);
     public bool CanDisconnectSession => terminalSession != null;
     public bool CanSendSession => sessionConnected;
@@ -581,6 +587,9 @@ public sealed class MainViewModel : ViewModelBase
             SessionState = state.ToString();
             SessionConnected = state == AX25Session.ConnectionState.CONNECTED;
             AddTerminalLine($"* Session {state}");
+            // Reclaim screen for the terminal once connected; restore the panel when the session ends.
+            if (state == AX25Session.ConnectionState.CONNECTED) TerminalConnectExpanded = false;
+            else if (state == AX25Session.ConnectionState.DISCONNECTED) TerminalConnectExpanded = true;
             if (state == AX25Session.ConnectionState.DISCONNECTED) CleanupSession();
             RaiseSessionGates();
         });
@@ -2136,7 +2145,13 @@ public sealed class MainViewModel : ViewModelBase
     {
         Packets.Insert(0, p);                       // newest first
         while (Packets.Count > 500) Packets.RemoveAt(Packets.Count - 1);
-        AddTerminalLine($"< {p.Source}: {p.Info}"); // mirror into the terminal log
+        // Mirror into the terminal log ONLY when no session is active. During a connected
+        // session the same frames are already delivered to OnSessionDataReceived, which shows
+        // them verbatim and reassembled across frame boundaries. Mirroring the raw per-frame
+        // packet here re-shows those bytes unreassembled and "< SOURCE:"-prefixed, interleaving
+        // fragments mid-word with the clean session text (the garbled terminal output).
+        if (terminalSession == null)
+            AddTerminalLine($"< {p.Source}: {p.Info}");
     }
 
     private void AddStation(AprsStationSummary s)
