@@ -11,7 +11,7 @@
     <TargetFramework Condition="'$(BuildAndroid)' != 'true' And '$(BuildIos)' != 'true'">net9.0</TargetFramework>
     <TargetFrameworks Condition="'$(BuildAndroid)' == 'true'">net9.0;net10.0-android</TargetFrameworks>
     <TargetFrameworks Condition="'$(BuildIos)' == 'true'">net9.0;net10.0-ios</TargetFrameworks>
-    <Version>0.7.0</Version>
+    <Version>0.8.1</Version>
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
@@ -27,8 +27,8 @@
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <ApplicationId>com.htcommander.app</ApplicationId>
-    <ApplicationVersion>19</ApplicationVersion>
-    <ApplicationDisplayVersion>0.8.0</ApplicationDisplayVersion>
+    <ApplicationVersion>20</ApplicationVersion>
+    <ApplicationDisplayVersion>0.8.1</ApplicationDisplayVersion>
   </PropertyGroup>
 
   <!-- iOS-only properties. Info.plist (NSBluetoothAlwaysUsageDescription, app icon,
@@ -37,8 +37,8 @@
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <ApplicationId>com.htcommander.app</ApplicationId>
-    <ApplicationVersion>4</ApplicationVersion>
-    <ApplicationDisplayVersion>0.6.9</ApplicationDisplayVersion>
+    <ApplicationVersion>7</ApplicationVersion>
+    <ApplicationDisplayVersion>0.8.1</ApplicationDisplayVersion>
   </PropertyGroup>
 
   <!-- iOS Release = TestFlight/App Store: produce a signed .ipa under bin/Release/.../publish.
