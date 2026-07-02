@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             xmlns:core="using:HTCommander"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileBbsView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="14,12" RowSpacing="10">
+
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Classes="mCard">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="mSection" Text="BBS / MAIL DROP"/>
+        <TextBlock Text="Hosts a connected-mode BBS / Winlink mail drop on the current channel. Requires a connected radio; remote stations connect over the air."
+                   FontSize="12" Foreground="{StaticResource MMut}" TextWrapping="Wrap"/>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+          <Button Grid.Column="0" x:Name="BbsToggleButton" Classes="mPri" Content="{Binding BbsToggleText}"/>
+          <Button Grid.Column="1" x:Name="BbsClearStatsButton" Classes="mGhost" Content="Clear stats"/>
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Traffic log -->
+    <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="6">
+      <TextBlock Grid.Row="0" Classes="mSection" Text="TRAFFIC"/>
+      <Border Grid.Row="1" Classes="mCard" Padding="6">
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding BbsLog}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="{StaticResource MMono}"
+                           FontSize="12.5" Foreground="{StaticResource MTxt}" Margin="6,2"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <!-- Stations heard -->
+    <Grid Grid.Row="2" RowDefinitions="Auto,Auto" RowSpacing="6">
+      <TextBlock Grid.Row="0" Classes="mSection" Text="{Binding BbsStations.Count, StringFormat='STATIONS HEARD ({0})'}"/>
+      <Border Grid.Row="1" Classes="mCard" Padding="6" MaxHeight="220">
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding BbsStations}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="core:MergedStationStats">
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="6,4">
+                  <TextBlock Grid.Column="0" Text="{Binding Callsign}" FontFamily="{StaticResource MMono}" FontWeight="Bold" FontSize="14"/>
+                  <TextBlock Grid.Column="1" Text="{Binding Protocol}" FontSize="12" Foreground="{StaticResource MMut}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2" Text="{Binding LastSeen, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                             FontSize="11" Foreground="{StaticResource MDim}" FontFamily="{StaticResource MMono}" VerticalAlignment="Center"/>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>
