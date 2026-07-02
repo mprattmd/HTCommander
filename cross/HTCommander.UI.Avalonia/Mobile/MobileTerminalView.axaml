@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HTCommander.UI.Avalonia.ViewModels"
+             x:Class="HTCommander.UI.Avalonia.Mobile.MobileTerminalView"
+             x:DataType="vm:MainViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="14,12" RowSpacing="10">
+
+    <!-- Connect (connected-mode AX.25 session) -->
+    <Border Grid.Row="0" Classes="mCard">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="mSection" Text="CONNECT"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding TerminalProtocols}" SelectedItem="{Binding TerminalProtocol}"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding TerminalStations}" SelectedItem="{Binding SelectedTerminalStation}"
+                  PlaceholderText="Saved contact">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Callsign}"/>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBox Classes="mInput" PlaceholderText="Station (e.g. N0CALL-1)" Text="{Binding TerminalConnectTo}"/>
+        <ComboBox Classes="mInput" ItemsSource="{Binding ChannelPickerItems}"
+                  SelectedValueBinding="{Binding Name}" SelectedValue="{Binding TerminalChannel}"
+                  PlaceholderText="Channel (optional)">
+          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChannelPickerItem"><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+          <Button Grid.Column="0" x:Name="SessionConnectButton" Classes="mPri" Content="Connect" IsEnabled="{Binding CanConnectSession}"/>
+          <Button Grid.Column="1" x:Name="SessionDisconnectButton" Classes="mGhost" Content="Disconnect" IsEnabled="{Binding CanDisconnectSession}"/>
+        </Grid>
+        <TextBlock Text="{Binding SessionStateText}" Foreground="{StaticResource MAccent}" FontSize="12.5" FontWeight="SemiBold"/>
+      </StackPanel>
+    </Border>
+
+    <!-- Session / traffic log -->
+    <Border Grid.Row="1" Classes="mCard" Padding="6">
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding TerminalLog}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="{StaticResource MMono}"
+                         FontSize="12.5" Foreground="{StaticResource MTxt}" Margin="6,2"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+
+    <!-- Send -->
+    <StackPanel Grid.Row="2" Spacing="8">
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <TextBox Grid.Column="0" Classes="mInput" PlaceholderText="My call (blank = yours)" Text="{Binding TerminalMyCall}"/>
+        <TextBox Grid.Column="1" Classes="mInput" PlaceholderText="To call (UI frame)" Text="{Binding TerminalTo}"/>
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBox Grid.Column="0" Classes="mInput" PlaceholderText="Message — session if connected, else UI frame" Text="{Binding TerminalText}"/>
+        <Button Grid.Column="1" x:Name="SendTerminalButton" Classes="mPri" Content="Send" MinWidth="84" IsEnabled="{Binding CanSendData}"/>
+      </Grid>
+    </StackPanel>
+  </Grid>
+</UserControl>

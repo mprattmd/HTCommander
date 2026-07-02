@@ -56,6 +56,8 @@ public partial class MobileView : UserControl
         MoreStation.Click  += (_, _) => NavigateRoot("Station");
         MoreContacts.Click += (_, _) => NavigateRoot("Contacts");
         MoreSettings.Click += (_, _) => NavigateRoot("Settings");
+        MoreTerminal.Click += (_, _) => NavigateRoot("Terminal");
+        MoreBbs.Click      += (_, _) => NavigateRoot("BBS");
         MorePackets.Click  += (_, _) => NavigateRoot("Packets");
         MoreAbout.Click    += (_, _) => NavigateRoot("About");
         // Tap the scrim (outside the sheet) to dismiss.
@@ -105,6 +107,8 @@ public partial class MobileView : UserControl
         "Channels" => new MobileChannelsView(),
         "Station" => new MobileStationView(),
         "Settings" => new MobileSettingsView(),
+        "Terminal" => new MobileTerminalView(),
+        "BBS" => new MobileBbsView(),
         "Packets" => new MobilePacketsView(),
         "Map" => new MobileMapView(),
         "About" => new MobileAboutView(),
@@ -136,7 +140,7 @@ public partial class MobileView : UserControl
         SetOn(NavMap, key == "Map");
         SetOn(NavChannels, key == "Channels");
         // "More" destinations keep More highlighted.
-        SetOn(NavMore, key is "Station" or "Contacts" or "Settings" or "Packets" or "About");
+        SetOn(NavMore, key is "Station" or "Contacts" or "Settings" or "Terminal" or "BBS" or "Packets" or "About");
     }
 
     private static void SetOn(Control c, bool on)
